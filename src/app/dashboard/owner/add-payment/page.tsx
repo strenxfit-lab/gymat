@@ -121,6 +121,7 @@ export default function AddPaymentPage() {
             const newDuration = planDurations[membershipPlan] || 1;
             const newFee = Math.round(baseMonthlyFee * newDuration);
             form.setValue('totalFee', newFee);
+            form.setValue('amountPaid', newFee);
         }
 
         if (name === 'totalFee' || name === 'discount' || name === 'amountPaid') {
@@ -292,3 +293,4 @@ export default function AddPaymentPage() {
   );
 }
  
+    
