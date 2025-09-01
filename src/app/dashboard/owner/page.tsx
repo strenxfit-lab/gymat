@@ -89,7 +89,10 @@ export default function OwnerDashboardPage() {
         
         const members: Member[] = membersSnap.docs.map(doc => {
             const data = doc.data();
-            const expiry = (data.expiryDate as Timestamp).toDate();
+            if (!data.endDate) {
+              return null;
+            }
+            const expiry = (data.endDate as Timestamp).toDate();
             
             if (expiry >= now) {
                 activeMembers++;
@@ -110,7 +113,7 @@ export default function OwnerDashboardPage() {
                 expiryDate: expiry,
                 plan: data.plan
             };
-        });
+        }).filter((member): member is Member => member !== null);
         
         const trainersData: Trainer[] = trainersSnap.docs.map(doc => {
             const data = doc.data();
@@ -390,5 +393,7 @@ export default function OwnerDashboardPage() {
   );
 }
 
+
+    
 
     
