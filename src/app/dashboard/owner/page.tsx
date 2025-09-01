@@ -269,15 +269,15 @@ export default function OwnerDashboardPage() {
             <CardContent className="grid grid-cols-2 gap-4">
               <div>
                 <p className="text-sm font-medium text-muted-foreground">Today's Collection</p>
-                <p className="text-2xl font-bold">${gymData.todaysCollection.toLocaleString()}</p>
+                <p className="text-2xl font-bold">₹{gymData.todaysCollection.toLocaleString()}</p>
               </div>
               <div>
                 <p className="text-sm font-medium text-muted-foreground">This Month's Revenue</p>
-                <p className="text-2xl font-bold">${gymData.thisMonthsRevenue.toLocaleString()}</p>
+                <p className="text-2xl font-bold">₹{gymData.thisMonthsRevenue.toLocaleString()}</p>
               </div>
               <div>
                 <p className="text-sm font-medium text-muted-foreground">Pending Payments</p>
-                <p className="text-2xl font-bold text-destructive">${gymData.pendingDues.toLocaleString()}</p>
+                <p className="text-2xl font-bold text-destructive">₹{gymData.pendingDues.toLocaleString()}</p>
               </div>
             </CardContent>
           </Card>
