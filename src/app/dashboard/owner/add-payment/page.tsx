@@ -97,7 +97,7 @@ export default function AddPaymentPage() {
 
   useEffect(() => {
     const subscription = form.watch((values, { name }) => {
-        const { totalFee, discount, amountPaid } = values;
+        const { totalFee, discount, amountPaid, membershipPlan } = values;
         const numericDiscount = typeof discount === 'string' ? parseFloat(discount) : discount;
 
         if (name === 'memberId' && values.memberId) {
@@ -111,6 +111,11 @@ export default function AddPaymentPage() {
             }
         }
         
+        if (name === 'membershipPlan' && membershipPlan) {
+            const fee = planFees[membershipPlan] || 0;
+            form.setValue('totalFee', fee);
+        }
+
         if (name === 'totalFee' || name === 'discount' || name === 'amountPaid') {
             const finalPayable = (totalFee || 0) - (numericDiscount || 0);
             const balance = finalPayable - (amountPaid || 0);
@@ -212,10 +217,17 @@ export default function AddPaymentPage() {
 
                     {selectedMember && (
                         <FormField control={form.control} name="membershipPlan" render={({ field }) => (
-                            <FormItem>
-                                <FormLabel>Membership Plan</FormLabel>
-                                <FormControl><Input {...field} readOnly disabled placeholder="Membership Plan" /></FormControl>
-                                <FormMessage />
+                            <FormItem><FormLabel>Membership Plan</FormLabel>
+                            <Select onValueChange={field.onChange} value={field.value}>
+                                <FormControl><SelectTrigger><SelectValue placeholder="Select type" /></SelectTrigger></FormControl>
+                                <SelectContent>
+                                    <SelectItem value="trial">Trial</SelectItem>
+                                    <SelectItem value="monthly">Monthly</SelectItem>
+                                    <SelectItem value="quarterly">Quarterly</SelectItem>
+                                    <SelectItem value="half-yearly">Half-Yearly</SelectItem>
+                                    <SelectItem value="yearly">Yearly</SelectItem>
+                                </SelectContent>
+                            </Select><FormMessage />
                             </FormItem>
                         )} />
                     )}
@@ -224,7 +236,7 @@ export default function AddPaymentPage() {
                 <div className="space-y-4 border-b pb-4">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <FormField control={form.control} name="totalFee" render={({ field }) => ( <FormItem><FormLabel>Total Fee (₹)</FormLabel><FormControl><Input type="number" {...field} onChange={e => field.onChange(e.target.value === '' ? 0 : parseInt(e.target.value, 10))} /></FormControl><FormMessage /></FormItem> )} />
-                        <FormField control={form.control} name="discount" render={({ field }) => ( <FormItem><FormLabel>Discount (₹, Optional)</FormLabel><FormControl><Input type="number" placeholder="0" {...field} /></FormControl><FormMessage /></FormItem> )} />
+                        <FormField control={form.control} name="discount" render={({ field }) => ( <FormItem><FormLabel>Discount (₹, Optional)</FormLabel><FormControl><Input type="number" placeholder="0" {...field} value={field.value ?? ''} onChange={e => field.onChange(e.target.value)}/></FormControl><FormMessage /></FormItem> )} />
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <FormField control={form.control} name="amountPaid" render={({ field }) => ( <FormItem><FormLabel>Amount Paid (₹)</FormLabel><FormControl><Input type="number" {...field} onChange={e => field.onChange(e.target.value === '' ? 0 : parseInt(e.target.value, 10))} /></FormControl><FormMessage /></FormItem> )} />
