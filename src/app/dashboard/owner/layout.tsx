@@ -19,7 +19,6 @@ import {
   SidebarGroupLabel,
 } from '@/components/ui/sidebar';
 import { Dumbbell, Users, CreditCard, ClipboardList, BarChart3, Megaphone, Boxes, ChevronDown } from 'lucide-react';
-import { Button } from '@/components/ui/button';
 
 export default function OwnerDashboardLayout({
   children,
@@ -31,6 +30,8 @@ export default function OwnerDashboardLayout({
   const toggleSubMenu = (name: string) => {
     setOpenSubMenu(prev => (prev === name ? null : name));
   };
+
+  const subMenuButtonClass = "text-muted-foreground hover:text-foreground font-normal";
 
   return (
     <SidebarProvider defaultOpen={false}>
@@ -52,10 +53,10 @@ export default function OwnerDashboardLayout({
                     </SidebarMenuButton>
                     {openSubMenu === 'member' && (
                         <SidebarMenuSub className="space-y-3">
-                            <SidebarMenuSubButton>Multi-branch support</SidebarMenuSubButton>
-                            <SidebarMenuSubButton>Member profile with history</SidebarMenuSubButton>
-                            <SidebarMenuSubButton>Membership pause/freeze</SidebarMenuSubButton>
-                            <SidebarMenuSubButton>Automated messages</SidebarMenuSubButton>
+                            <SidebarMenuSubButton className={subMenuButtonClass}>Multi-branch support</SidebarMenuSubButton>
+                            <SidebarMenuSubButton className={subMenuButtonClass}>Member profile with history</SidebarMenuSubButton>
+                            <SidebarMenuSubButton className={subMenuButtonClass}>Membership pause/freeze</SidebarMenuSubButton>
+                            <SidebarMenuSubButton className={subMenuButtonClass}>Automated messages</SidebarMenuSubButton>
                         </SidebarMenuSub>
                     )}
                 </SidebarMenuItem>
@@ -66,7 +67,7 @@ export default function OwnerDashboardLayout({
                     </SidebarMenuButton>
                     {openSubMenu === 'billing' && (
                         <SidebarMenuSub className="space-y-3">
-                            <SidebarMenuSubButton>Recurring billing</SidebarMenuSubButton>
+                            <SidebarMenuSubButton className={subMenuButtonClass}>Recurring billing</SidebarMenuSubButton>
                         </SidebarMenuSub>
                     )}
                 </SidebarMenuItem>
@@ -77,11 +78,11 @@ export default function OwnerDashboardLayout({
                     </SidebarMenuButton>
                      {openSubMenu === 'class' && (
                         <SidebarMenuSub className="space-y-3">
-                            <SidebarMenuSubButton>Class scheduling</SidebarMenuSubButton>
-                            <SidebarMenuSubButton>Waitlist management</SidebarMenuSubButton>
-                            <SidebarMenuSubButton>Trainer assignments</SidebarMenuSubButton>
-                            <SidebarMenuSubButton>Session tracking</SidebarMenuSubButton>
-                            <SidebarMenuSubButton>Trainer performance</SidebarMenuSubButton>
+                            <SidebarMenuSubButton className={subMenuButtonClass}>Class scheduling</SidebarMenuSubButton>
+                            <SidebarMenuSubButton className={subMenuButtonClass}>Waitlist management</SidebarMenuSubButton>
+                            <SidebarMenuSubButton className={subMenuButtonClass}>Trainer assignments</SidebarMenuSubButton>
+                            <SidebarMenuSubButton className={subMenuButtonClass}>Session tracking</SidebarMenuSubButton>
+                            <SidebarMenuSubButton className={subMenuButtonClass}>Trainer performance</SidebarMenuSubButton>
                         </SidebarMenuSub>
                     )}
                 </SidebarMenuItem>
@@ -92,9 +93,9 @@ export default function OwnerDashboardLayout({
                     </SidebarMenuButton>
                      {openSubMenu === 'reports' && (
                         <SidebarMenuSub className="space-y-3">
-                            <SidebarMenuSubButton>Revenue reports</SidebarMenuSubButton>
-                            <SidebarMenuSubButton>Attendance trends</SidebarMenuSubButton>
-                            <SidebarMenuSubButton>Trainer performance</SidebarMenuSubButton>
+                            <SidebarMenuSubButton className={subMenuButtonClass}>Revenue reports</SidebarMenuSubButton>
+                            <SidebarMenuSubButton className={subMenuButtonClass}>Attendance trends</SidebarMenuSubButton>
+                            <SidebarMenuSubButton className={subMenuButtonClass}>Trainer performance</SidebarMenuSubButton>
                         </SidebarMenuSub>
                     )}
                 </SidebarMenuItem>
@@ -105,10 +106,10 @@ export default function OwnerDashboardLayout({
                     </SidebarMenuButton>
                      {openSubMenu === 'comms' && (
                         <SidebarMenuSub className="space-y-3">
-                            <SidebarMenuSubButton>SMS, WhatsApp, Email</SidebarMenuSubButton>
-                            <SidebarMenuSubButton>Referral programs</SidebarMenuSubButton>
-                            <SidebarMenuSubButton>Event management</SidebarMenuSubButton>
-                            <SidebarMenuSubButton>Social media integration</SidebarMenuSubButton>
+                            <SidebarMenuSubButton className={subMenuButtonClass}>SMS, WhatsApp, Email</SidebarMenuSubButton>
+                            <SidebarMenuSubButton className={subMenuButtonClass}>Referral programs</SidebarMenuSubButton>
+                            <SidebarMenuSubButton className={subMenuButtonClass}>Event management</SidebarMenuSubButton>
+                            <SidebarMenuSubButton className={subMenuButtonClass}>Social media integration</SidebarMenuSubButton>
                         </SidebarMenuSub>
                     )}
                 </SidebarMenuItem>
@@ -119,10 +120,10 @@ export default function OwnerDashboardLayout({
                     </SidebarMenuButton>
                      {openSubMenu === 'inventory' && (
                         <SidebarMenuSub className="space-y-3">
-                            <SidebarMenuSubButton>Equipment maintenance</SidebarMenuSubButton>
-                            <SidebarMenuSubButton>Inventory tracking</SidebarMenuSubButton>
-                            <SidebarMenuSubButton>Low-stock alerts</SidebarMenuSubButton>
-                            <SidebarMenuSubButton>Room/class booking</SidebarMenuSubButton>
+                            <SidebarMenuSubButton className={subMenuButtonClass}>Equipment maintenance</SidebarMenuSubButton>
+                            <SidebarMenuSubButton className={subMenuButtonClass}>Inventory tracking</SidebarMenuSubButton>
+                            <SidebarMenuSubButton className={subMenuButtonClass}>Low-stock alerts</SidebarMenuSubButton>
+                            <SidebarMenuSubButton className={subMenuButtonClass}>Room/class booking</SidebarMenuSubButton>
                         </SidebarMenuSub>
                     )}
                 </SidebarMenuItem>
