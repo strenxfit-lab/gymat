@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useForm } from 'react-hook-form';
@@ -79,13 +79,16 @@ export default function AddTrainerPage() {
       specialization: '',
       experience: '',
       certifications: '',
-      joiningDate: new Date(),
       shiftTiming: '',
       salaryType: '',
       salaryRate: '',
       bankDetails: '',
     },
   });
+
+  useEffect(() => {
+    form.setValue('joiningDate', new Date());
+  }, [form]);
 
   const handleNext = async () => {
     const fieldsToValidate = steps[currentStep - 1].fields;

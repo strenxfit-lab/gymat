@@ -66,13 +66,17 @@ export default function AddPaymentPage() {
       memberId: '',
       membershipPlan: '',
       totalFee: 0,
+      discount: undefined,
       amountPaid: 0,
       balanceDue: 0,
-      paymentDate: new Date(),
       paymentMode: '',
       transactionId: '',
     },
   });
+
+  useEffect(() => {
+    form.setValue('paymentDate', new Date());
+  }, [form]);
 
   const fetchMembers = async () => {
     const userDocId = localStorage.getItem('userDocId');
