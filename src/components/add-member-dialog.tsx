@@ -73,8 +73,19 @@ export default function AddMemberDialog() {
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
     defaultValues: {
+      fullName: '',
+      gender: '',
+      phone: '',
+      email: '',
+      membershipType: '',
       startDate: new Date(),
       endDate: addDays(new Date(), 30),
+      assignedTrainer: '',
+      plan: '',
+      height: '',
+      weight: '',
+      medicalConditions: '',
+      fitnessGoal: '',
     },
   });
 
@@ -240,8 +251,8 @@ export default function AddMemberDialog() {
                           </Select><FormMessage />
                         </FormItem>
                     )} />
-                    <FormField control={form.control} name="startDate" render={({ field }) => ( <FormItem className="flex flex-col"><FormLabel>Start Date</FormLabel><FormControl><Input type="date" value={format(field.value, 'yyyy-MM-dd')} onChange={e => field.onChange(new Date(e.target.value))} /></FormControl><FormMessage /></FormItem>)} />
-                    <FormField control={form.control} name="endDate" render={({ field }) => ( <FormItem className="flex flex-col"><FormLabel>End Date</FormLabel><FormControl><Input type="date" value={format(field.value, 'yyyy-MM-dd')} onChange={e => field.onChange(new Date(e.target.value))} /></FormControl><FormMessage /></FormItem>)} />
+                    <FormField control={form.control} name="startDate" render={({ field }) => ( <FormItem className="flex flex-col"><FormLabel>Start Date</FormLabel><FormControl><Input type="date" value={field.value ? format(field.value, 'yyyy-MM-dd') : ''} onChange={e => field.onChange(new Date(e.target.value))} /></FormControl><FormMessage /></FormItem>)} />
+                    <FormField control={form.control} name="endDate" render={({ field }) => ( <FormItem className="flex flex-col"><FormLabel>End Date</FormLabel><FormControl><Input type="date" value={field.value ? format(field.value, 'yyyy-MM-dd') : ''} onChange={e => field.onChange(new Date(e.target.value))} /></FormControl><FormMessage /></FormItem>)} />
                     <FormField control={form.control} name="plan" render={({ field }) => (
                         <FormItem className="md:col-span-2"><FormLabel>Plan/Package (Optional)</FormLabel>
                           <Select onValueChange={field.onChange} defaultValue={field.value}>
@@ -287,5 +298,3 @@ export default function AddMemberDialog() {
     </Dialog>
   );
 }
-
-    
