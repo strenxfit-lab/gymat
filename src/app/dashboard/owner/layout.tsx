@@ -135,10 +135,8 @@ export default function OwnerDashboardLayout({
       </Sidebar>
       <SidebarInset>
         <div className="p-4 flex items-center gap-2">
-            <SidebarTrigger asChild>
-                <Button variant="outline" size="default">
-                    <Dumbbell/>
-                </Button>
+            <SidebarTrigger variant="outline" size="default">
+                <Dumbbell/>
             </SidebarTrigger>
         </div>
         {children}
