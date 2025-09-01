@@ -43,6 +43,7 @@ interface Member {
   fullName: string;
   phone: string;
   membershipType: string;
+  totalFee: number;
 }
 
 const planFees: Record<string, number> = {
@@ -87,6 +88,7 @@ export default function AddPaymentPage() {
       fullName: doc.data().fullName,
       phone: doc.data().phone,
       membershipType: doc.data().membershipType,
+      totalFee: doc.data().totalFee,
     }));
     setMembers(membersList);
   };
@@ -104,7 +106,7 @@ export default function AddPaymentPage() {
             const member = members.find(m => m.id === values.memberId);
             if (member) {
                 setSelectedMember(member);
-                const fee = planFees[member.membershipType] || 0;
+                const fee = member.totalFee || planFees[member.membershipType] || 0;
                 form.setValue('membershipPlan', member.membershipType);
                 form.setValue('totalFee', fee);
                 form.setValue('amountPaid', fee);
