@@ -46,18 +46,19 @@ interface Member {
   totalFee: number;
 }
 
-const planFees: Record<string, number> = {
-    'trial': 0,
-    'monthly': 1500,
-    'quarterly': 4000,
-    'half-yearly': 7500,
-    'yearly': 12000,
+const planDurations: Record<string, number> = {
+    'trial': 0.25, // 1 week
+    'monthly': 1,
+    'quarterly': 3,
+    'half-yearly': 6,
+    'yearly': 12,
 };
 
 export default function AddPaymentPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [members, setMembers] = useState<Member[]>([]);
   const [selectedMember, setSelectedMember] = useState<Member | null>(null);
+  const [baseMonthlyFee, setBaseMonthlyFee] = useState<number>(0);
   const { toast } = useToast();
   const router = useRouter();
   
@@ -106,16 +107,20 @@ export default function AddPaymentPage() {
             const member = members.find(m => m.id === values.memberId);
             if (member) {
                 setSelectedMember(member);
-                const fee = member.totalFee || planFees[member.membershipType] || 0;
+                const originalDuration = planDurations[member.membershipType] || 1;
+                const monthlyFee = originalDuration > 0 ? member.totalFee / originalDuration : member.totalFee;
+                setBaseMonthlyFee(monthlyFee);
+                
                 form.setValue('membershipPlan', member.membershipType);
-                form.setValue('totalFee', fee);
-                form.setValue('amountPaid', fee);
+                form.setValue('totalFee', member.totalFee);
+                form.setValue('amountPaid', member.totalFee);
             }
         }
         
-        if (name === 'membershipPlan' && membershipPlan) {
-            const fee = planFees[membershipPlan] || selectedMember?.totalFee || 0;
-            form.setValue('totalFee', fee);
+        if (name === 'membershipPlan' && membershipPlan && baseMonthlyFee > 0) {
+            const newDuration = planDurations[membershipPlan] || 1;
+            const newFee = Math.round(baseMonthlyFee * newDuration);
+            form.setValue('totalFee', newFee);
         }
 
         if (name === 'totalFee' || name === 'discount' || name === 'amountPaid') {
@@ -125,7 +130,7 @@ export default function AddPaymentPage() {
         }
     });
     return () => subscription.unsubscribe();
-  }, [form, members, selectedMember]);
+  }, [form, members, selectedMember, baseMonthlyFee]);
 
 
   const onSubmit = async (data: FormData) => {
@@ -249,17 +254,9 @@ export default function AddPaymentPage() {
                 <div className="space-y-4">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <FormField control={form.control} name="paymentDate" render={({ field }) => (
-                             <FormItem className="flex flex-col">
-                                <FormLabel>Payment Date</FormLabel>
-                                <FormControl>
-                                <Input
-                                    type="date"
-                                    value={field.value ? format(field.value, 'yyyy-MM-dd') : ''}
-                                    onChange={(e) => field.onChange(new Date(e.target.value))}
-                                />
-                                </FormControl>
-                                <FormMessage />
-                            </FormItem>
+                             <FormItem className="flex flex-col"><FormLabel>Payment Date</FormLabel><FormControl>
+                                <Input type="date" value={field.value ? format(field.value, 'yyyy-MM-dd') : ''} onChange={e => field.onChange(new Date(e.target.value))} />
+                             </FormControl><FormMessage /></FormItem>
                         )} />
                         <FormField control={form.control} name="paymentMode" render={({ field }) => (
                             <FormItem><FormLabel>Payment Mode</FormLabel>
@@ -294,5 +291,4 @@ export default function AddPaymentPage() {
     </div>
   );
 }
-
-    
+ 
