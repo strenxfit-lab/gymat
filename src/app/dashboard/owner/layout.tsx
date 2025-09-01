@@ -26,10 +26,10 @@ export default function OwnerDashboardLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const [openSubMenus, setOpenSubMenus] = useState<{[key: string]: boolean}>({});
+  const [openSubMenu, setOpenSubMenu] = useState<string | null>(null);
 
   const toggleSubMenu = (name: string) => {
-    setOpenSubMenus(prev => ({...prev, [name]: !prev[name]}));
+    setOpenSubMenu(prev => (prev === name ? null : name));
   };
 
   return (
@@ -48,9 +48,9 @@ export default function OwnerDashboardLayout({
                 <SidebarMenuItem>
                     <SidebarMenuButton onClick={() => toggleSubMenu('member')} className="justify-between">
                         <div className="flex items-center gap-2"><Users /> Member Management</div>
-                        <ChevronDown className={`transition-transform duration-200 ${openSubMenus['member'] ? 'rotate-180' : ''}`} />
+                        <ChevronDown className={`transition-transform duration-200 ${openSubMenu === 'member' ? 'rotate-180' : ''}`} />
                     </SidebarMenuButton>
-                    {openSubMenus['member'] && (
+                    {openSubMenu === 'member' && (
                         <SidebarMenuSub className="space-y-3">
                             <SidebarMenuSubButton>Multi-branch support</SidebarMenuSubButton>
                             <SidebarMenuSubButton>Member profile with history</SidebarMenuSubButton>
@@ -62,9 +62,9 @@ export default function OwnerDashboardLayout({
                 <SidebarMenuItem>
                     <SidebarMenuButton onClick={() => toggleSubMenu('billing')} className="justify-between">
                         <div className="flex items-center gap-2"><CreditCard /> Payment & Billing</div>
-                        <ChevronDown className={`transition-transform duration-200 ${openSubMenus['billing'] ? 'rotate-180' : ''}`} />
+                        <ChevronDown className={`transition-transform duration-200 ${openSubMenu === 'billing' ? 'rotate-180' : ''}`} />
                     </SidebarMenuButton>
-                    {openSubMenus['billing'] && (
+                    {openSubMenu === 'billing' && (
                         <SidebarMenuSub className="space-y-3">
                             <SidebarMenuSubButton>Recurring billing</SidebarMenuSubButton>
                         </SidebarMenuSub>
@@ -73,9 +73,9 @@ export default function OwnerDashboardLayout({
                 <SidebarMenuItem>
                     <SidebarMenuButton onClick={() => toggleSubMenu('class')} className="justify-between">
                         <div className="flex items-center gap-2"><ClipboardList /> Class & Trainer Management</div>
-                        <ChevronDown className={`transition-transform duration-200 ${openSubMenus['class'] ? 'rotate-180' : ''}`} />
+                        <ChevronDown className={`transition-transform duration-200 ${openSubMenu === 'class' ? 'rotate-180' : ''}`} />
                     </SidebarMenuButton>
-                     {openSubMenus['class'] && (
+                     {openSubMenu === 'class' && (
                         <SidebarMenuSub className="space-y-3">
                             <SidebarMenuSubButton>Class scheduling</SidebarMenuSubButton>
                             <SidebarMenuSubButton>Waitlist management</SidebarMenuSubButton>
@@ -88,9 +88,9 @@ export default function OwnerDashboardLayout({
                 <SidebarMenuItem>
                      <SidebarMenuButton onClick={() => toggleSubMenu('reports')} className="justify-between">
                         <div className="flex items-center gap-2"><BarChart3 /> Reporting & Analytics</div>
-                        <ChevronDown className={`transition-transform duration-200 ${openSubMenus['reports'] ? 'rotate-180' : ''}`} />
+                        <ChevronDown className={`transition-transform duration-200 ${openSubMenu === 'reports' ? 'rotate-180' : ''}`} />
                     </SidebarMenuButton>
-                     {openSubMenus['reports'] && (
+                     {openSubMenu === 'reports' && (
                         <SidebarMenuSub className="space-y-3">
                             <SidebarMenuSubButton>Revenue reports</SidebarMenuSubButton>
                             <SidebarMenuSubButton>Attendance trends</SidebarMenuSubButton>
@@ -101,9 +101,9 @@ export default function OwnerDashboardLayout({
                 <SidebarMenuItem>
                      <SidebarMenuButton onClick={() => toggleSubMenu('comms')} className="justify-between">
                         <div className="flex items-center gap-2"><Megaphone /> Communication & Marketing</div>
-                        <ChevronDown className={`transition-transform duration-200 ${openSubMenus['comms'] ? 'rotate-180' : ''}`} />
+                        <ChevronDown className={`transition-transform duration-200 ${openSubMenu === 'comms' ? 'rotate-180' : ''}`} />
                     </SidebarMenuButton>
-                     {openSubMenus['comms'] && (
+                     {openSubMenu === 'comms' && (
                         <SidebarMenuSub className="space-y-3">
                             <SidebarMenuSubButton>SMS, WhatsApp, Email</SidebarMenuSubButton>
                             <SidebarMenuSubButton>Referral programs</SidebarMenuSubButton>
@@ -115,9 +115,9 @@ export default function OwnerDashboardLayout({
                  <SidebarMenuItem>
                      <SidebarMenuButton onClick={() => toggleSubMenu('inventory')} className="justify-between">
                         <div className="flex items-center gap-2"><Boxes /> Inventory & Facility</div>
-                        <ChevronDown className={`transition-transform duration-200 ${openSubMenus['inventory'] ? 'rotate-180' : ''}`} />
+                        <ChevronDown className={`transition-transform duration-200 ${openSubMenu === 'inventory' ? 'rotate-180' : ''}`} />
                     </SidebarMenuButton>
-                     {openSubMenus['inventory'] && (
+                     {openSubMenu === 'inventory' && (
                         <SidebarMenuSub className="space-y-3">
                             <SidebarMenuSubButton>Equipment maintenance</SidebarMenuSubButton>
                             <SidebarMenuSubButton>Inventory tracking</SidebarMenuSubButton>
