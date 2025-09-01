@@ -43,7 +43,7 @@ interface GymData {
   runningOffers: string[];
 }
 
-export default function OwnerDashboard() {
+export default function OwnerDashboardPage() {
   const [gymData, setGymData] = useState<GymData | null>(null);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
@@ -387,7 +387,6 @@ export default function OwnerDashboard() {
                 </CardContent>
             </Card>
         </div>
-
       </div>
     </ScrollArea>
   );
