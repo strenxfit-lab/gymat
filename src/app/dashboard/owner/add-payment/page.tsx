@@ -114,7 +114,7 @@ export default function AddPaymentPage() {
         }
         
         if (name === 'membershipPlan' && membershipPlan) {
-            const fee = planFees[membershipPlan] || 0;
+            const fee = planFees[membershipPlan] || selectedMember?.totalFee || 0;
             form.setValue('totalFee', fee);
         }
 
@@ -125,7 +125,7 @@ export default function AddPaymentPage() {
         }
     });
     return () => subscription.unsubscribe();
-  }, [form, members]);
+  }, [form, members, selectedMember]);
 
 
   const onSubmit = async (data: FormData) => {
@@ -294,3 +294,5 @@ export default function AddPaymentPage() {
     </div>
   );
 }
+
+    
