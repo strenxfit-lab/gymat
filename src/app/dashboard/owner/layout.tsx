@@ -18,7 +18,7 @@ import {
   SidebarGroup,
   SidebarGroupLabel,
 } from '@/components/ui/sidebar';
-import { Dumbbell, Users, CreditCard, ClipboardList, BarChart3, Megaphone, Boxes, ChevronDown } from 'lucide-react';
+import { Dumbbell, Users, CreditCard, ClipboardList, BarChart3, Megaphone, Boxes, ChevronDown, Info } from 'lucide-react';
 
 export default function OwnerDashboardLayout({
   children,
@@ -46,6 +46,22 @@ export default function OwnerDashboardLayout({
           <SidebarMenu>
             <SidebarGroup>
                 <SidebarGroupLabel>Features</SidebarGroupLabel>
+                 <SidebarMenuItem>
+                    <SidebarMenuButton onClick={() => toggleSubMenu('gym-info')} className="justify-between">
+                        <div className="flex items-center gap-2"><Info /> Gym Info</div>
+                        <ChevronDown className={`transition-transform duration-200 ${openSubMenu === 'gym-info' ? 'rotate-180' : ''}`} />
+                    </SidebarMenuButton>
+                    {openSubMenu === 'gym-info' && (
+                        <SidebarMenuSub className="space-y-3">
+                            <SidebarMenuSubButton className={subMenuButtonClass}>Basic Gym Information</SidebarMenuSubButton>
+                            <SidebarMenuSubButton className={subMenuButtonClass}>Owner Information</SidebarMenuSubButton>
+                            <SidebarMenuSubButton className={subMenuButtonClass}>Gym Capacity</SidebarMenuSubButton>
+                            <SidebarMenuSubButton className={subMenuButtonClass}>Membership & Plans</SidebarMenuSubButton>
+                            <SidebarMenuSubButton className={subMenuButtonClass}>Facilities & Machines</SidebarMenuSubButton>
+                            <SidebarMenuSubButton className={subMenuButtonClass}>Goals & Insights</SidebarMenuSubButton>
+                        </SidebarMenuSub>
+                    )}
+                </SidebarMenuItem>
                 <SidebarMenuItem>
                     <SidebarMenuButton onClick={() => toggleSubMenu('member')} className="justify-between">
                         <div className="flex items-center gap-2"><Users /> Member Management</div>
@@ -87,7 +103,7 @@ export default function OwnerDashboardLayout({
                     )}
                 </SidebarMenuItem>
                 <SidebarMenuItem>
-                     <SidebarMenuButton onClick={() => toggleSubMenu('reports')} className="justify-between">
+                     <SidebarMenuButton onClick={() => toggleSubSubMenu('reports')} className="justify-between">
                         <div className="flex items-center gap-2"><BarChart3 /> Reporting & Analytics</div>
                         <ChevronDown className={`transition-transform duration-200 ${openSubMenu === 'reports' ? 'rotate-180' : ''}`} />
                     </SidebarMenuButton>
