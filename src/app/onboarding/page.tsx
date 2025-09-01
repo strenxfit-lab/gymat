@@ -24,7 +24,7 @@ const formSchema = z.object({
   gymName: z.string().min(1, 'Gym Name is required.'),
   gymAddress: z.string().optional(),
   cityStatePin: z.string().optional(),
-  contactNumber: z.string().min(1, 'Contact Number is required.'),
+  contactNumber: z.string().length(10, { message: "Contact number must be 10 digits." }),
   gymEmail: z.string().email({ message: "Invalid email address." }).optional().or(z.literal('')),
   gymStartDate: z.string().optional(),
   ownerName: z.string().optional(),
