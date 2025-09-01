@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Bell, Building, Calendar, DollarSign, PlusCircle, Send, Users, UserPlus, TrendingUp, AlertCircle, Sparkles, LifeBuoy, BarChart3 } from 'lucide-react';
 import { ResponsiveContainer, BarChart, XAxis, YAxis, Tooltip, Bar, Legend } from 'recharts';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import AddMemberDialog from '@/components/add-member-dialog';
 
 interface Member {
   id: string;
@@ -188,10 +189,7 @@ export default function OwnerDashboardPage() {
                     <UserPlus className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
-                    <Button className="w-full mt-2">
-                        <PlusCircle className="mr-2 h-4 w-4" />
-                        New Member
-                    </Button>
+                    <AddMemberDialog />
                 </CardContent>
             </Card>
              <Card className="hover:bg-card/90 transition-colors">
@@ -391,3 +389,6 @@ export default function OwnerDashboardPage() {
     </ScrollArea>
   );
 }
+
+
+    
