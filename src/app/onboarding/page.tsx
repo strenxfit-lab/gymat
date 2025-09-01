@@ -97,11 +97,18 @@ export default function OnboardingPage() {
     setIsLoading(true);
 
     try {
+      // Save all details to a subcollection
       const detailsRef = doc(db, 'gyms', userDocId, 'details', 'onboarding');
       await setDoc(detailsRef, data);
       
       const userRef = doc(db, 'gyms', userDocId);
-      await updateDoc(userRef, { onboardingComplete: true });
+      
+      // Update main doc with essential info for quick access
+      await updateDoc(userRef, { 
+        onboardingComplete: true,
+        name: data.gymName,
+        location: data.gymAddress,
+       });
 
       toast({
         title: 'Setup Complete!',
