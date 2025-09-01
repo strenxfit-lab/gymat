@@ -3,7 +3,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { doc, getDoc, collection, getDocs } from 'firebase/firestore';
+import { doc, getDoc, collection, getDocs, Timestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -69,33 +69,77 @@ export default function OwnerDashboard() {
         }
 
         const gym = gymSnap.data();
+
+        const membersRef = collection(db, 'gyms', userDocId, 'members');
+        const membersSnap = await getDocs(membersRef);
         
-        // Mocking data for now as Firestore structure is not fully defined
-        const mockData: GymData = {
-          name: gym.name || 'Strenxfit Gym',
-          location: gym.location || 'Metropolis',
-          totalMembers: 150,
-          totalTrainers: 10,
-          activePackages: ['Monthly', 'Quarterly', 'Yearly'],
-          todaysCollection: 1250,
-          thisMonthsRevenue: 18500,
-          pendingDues: 3200,
-          activeMembers: 120,
-          expiredMembers: 30,
-          trainers: [
-            { id: 't1', name: 'John Doe', assignedMembers: 15 },
-            { id: 't2', name: 'Jane Smith', assignedMembers: 20 },
-          ],
-          upcomingExpiries: [
-            { id: 'm1', name: 'Alice', expiryDate: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000), plan: 'Monthly' },
-            { id: 'm2', name: 'Bob', expiryDate: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000), plan: 'Yearly' },
-          ],
-          todaysCheckIns: 45,
-          newTrialMembers: 3,
-          runningOffers: ['20% off on yearly plan', 'Bring a friend, get 1 month free'],
+        const trainersRef = collection(db, 'gyms', userDocId, 'trainers');
+        const trainersSnap = await getDocs(trainersRef);
+
+        const now = new Date();
+        const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+        const sevenDaysFromNow = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+
+        let activeMembers = 0;
+        let expiredMembers = 0;
+        let upcomingExpiries: Member[] = [];
+        const activePackages = new Set<string>();
+        
+        const members: Member[] = membersSnap.docs.map(doc => {
+            const data = doc.data();
+            const expiry = (data.expiryDate as Timestamp).toDate();
+            
+            if (expiry >= now) {
+                activeMembers++;
+                if(expiry <= sevenDaysFromNow) {
+                    upcomingExpiries.push({ id: doc.id, name: data.name, expiryDate: expiry, plan: data.plan });
+                }
+            } else {
+                expiredMembers++;
+            }
+
+            if(data.plan) {
+                activePackages.add(data.plan);
+            }
+            
+            return {
+                id: doc.id,
+                name: data.name,
+                expiryDate: expiry,
+                plan: data.plan
+            };
+        });
+        
+        const trainersData: Trainer[] = trainersSnap.docs.map(doc => {
+            const data = doc.data();
+            return {
+                id: doc.id,
+                name: data.name,
+                // assignedMembers count would need to be calculated based on member data
+                assignedMembers: members.filter(m => m.plan === data.specialty).length 
+            };
+        });
+
+        const data: GymData = {
+          name: gym.name || 'Your Gym',
+          location: gym.location || 'Your City',
+          totalMembers: members.length,
+          totalTrainers: trainersSnap.size,
+          activePackages: Array.from(activePackages),
+          todaysCollection: 0, // Needs payment data
+          thisMonthsRevenue: 0, // Needs payment data
+          pendingDues: 0, // Needs payment data
+          activeMembers: activeMembers,
+          expiredMembers: expiredMembers,
+          trainers: trainersData,
+          upcomingExpiries: upcomingExpiries,
+          todaysCheckIns: 0, // Needs attendance data
+          newTrialMembers: 0, // Needs member sign-up date
+          runningOffers: gym.runningOffers || [],
         };
 
-        setGymData(mockData);
+        setGymData(data);
 
       } catch (error) {
         console.error("Error fetching dashboard data:", error);
@@ -210,6 +254,7 @@ export default function OwnerDashboard() {
                     <p className="text-sm font-medium text-muted-foreground">Active Packages</p>
                     <div className="flex flex-wrap gap-2 mt-1">
                         {gymData.activePackages.map(pkg => <div key={pkg} className="text-xs bg-primary/20 text-primary-foreground rounded-full px-2 py-0.5">{pkg}</div>)}
+                        {gymData.activePackages.length === 0 && <p className="text-muted-foreground text-sm">No active packages.</p>}
                     </div>
                 </div>
             </CardContent>
@@ -298,6 +343,7 @@ export default function OwnerDashboard() {
                             <span className="text-muted-foreground">Assigned: {trainer.assignedMembers}</span>
                         </div>
                     ))}
+                    {gymData.trainers.length === 0 && <p className="text-muted-foreground text-sm">No trainers added.</p>}
                 </CardContent>
             </Card>
             <Card>
@@ -316,6 +362,7 @@ export default function OwnerDashboard() {
                         <p className="text-sm font-medium">Running Offers</p>
                         <ul className="list-disc list-inside mt-1 text-sm text-muted-foreground">
                             {gymData.runningOffers.map(offer => <li key={offer}>{offer}</li>)}
+                            {gymData.runningOffers.length === 0 && <p className="text-muted-foreground text-sm">No running offers.</p>}
                         </ul>
                     </div>
                 </CardContent>
