@@ -1,12 +1,44 @@
+
 "use client";
 
+import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Dumbbell } from 'lucide-react';
+import { Dumbbell, Loader2 } from 'lucide-react';
 import LoginForm from '@/components/login-form';
 import { Button } from '@/components/ui/button';
 
 export default function Home() {
+  const router = useRouter();
+  const [isCheckingAuth, setIsCheckingAuth] = useState(true);
+
+  useEffect(() => {
+    const userDocId = localStorage.getItem('userDocId');
+    const userRole = localStorage.getItem('userRole');
+
+    if (userDocId && userRole) {
+      if (userRole === 'owner') {
+        router.replace('/dashboard/owner');
+      } else if (userRole === 'member') {
+        router.replace('/dashboard/member');
+      } else {
+        setIsCheckingAuth(false);
+      }
+    } else {
+      setIsCheckingAuth(false);
+    }
+  }, [router]);
+
+  if (isCheckingAuth) {
+    return (
+      <div className="flex min-h-screen flex-col items-center justify-center bg-background">
+        <Loader2 className="h-12 w-12 animate-spin text-primary" />
+        <p className="mt-4 text-muted-foreground">Checking authentication...</p>
+      </div>
+    );
+  }
+
   return (
     <div className="relative flex min-h-screen flex-col items-center justify-center bg-background p-4 font-body">
       <main>
