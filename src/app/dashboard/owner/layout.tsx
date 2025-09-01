@@ -103,7 +103,7 @@ export default function OwnerDashboardLayout({
                     )}
                 </SidebarMenuItem>
                 <SidebarMenuItem>
-                     <SidebarMenuButton onClick={() => toggleSubSubMenu('reports')} className="justify-between">
+                     <SidebarMenuButton onClick={() => toggleSubMenu('reports')} className="justify-between">
                         <div className="flex items-center gap-2"><BarChart3 /> Reporting & Analytics</div>
                         <ChevronDown className={`transition-transform duration-200 ${openSubMenu === 'reports' ? 'rotate-180' : ''}`} />
                     </SidebarMenuButton>
