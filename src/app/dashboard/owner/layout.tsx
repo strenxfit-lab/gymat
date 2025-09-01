@@ -26,7 +26,6 @@ export default function OwnerDashboardLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const [open, setOpen] = useState(false);
   const [openSubMenus, setOpenSubMenus] = useState<{[key: string]: boolean}>({});
 
   const toggleSubMenu = (name: string) => {
@@ -34,7 +33,7 @@ export default function OwnerDashboardLayout({
   };
 
   return (
-    <SidebarProvider>
+    <SidebarProvider defaultOpen={false}>
       <Sidebar>
         <SidebarHeader>
           <div className="flex items-center gap-2">
