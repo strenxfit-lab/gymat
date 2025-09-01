@@ -259,6 +259,11 @@ export default function AddPaymentPage() {
                                 <Input type="date" value={field.value ? format(field.value, 'yyyy-MM-dd') : ''} onChange={e => field.onChange(new Date(e.target.value))} />
                              </FormControl><FormMessage /></FormItem>
                         )} />
+                         <FormField control={form.control} name="nextDueDate" render={({ field }) => (
+                             <FormItem className="flex flex-col"><FormLabel>Next Due Date (Optional)</FormLabel><FormControl>
+                                <Input type="date" value={field.value ? format(field.value, 'yyyy-MM-dd') : ''} onChange={e => field.onChange(new Date(e.target.value))} />
+                             </FormControl><FormMessage /></FormItem>
+                        )} />
                         <FormField control={form.control} name="paymentMode" render={({ field }) => (
                             <FormItem><FormLabel>Payment Mode</FormLabel>
                             <Select onValueChange={field.onChange} defaultValue={field.value}>
@@ -292,5 +297,5 @@ export default function AddPaymentPage() {
     </div>
   );
 }
- 
+
     
