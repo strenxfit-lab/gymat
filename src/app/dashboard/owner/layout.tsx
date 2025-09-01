@@ -51,7 +51,7 @@ export default function OwnerDashboardLayout({
                         <ChevronDown className={`transition-transform duration-200 ${openSubMenus['member'] ? 'rotate-180' : ''}`} />
                     </SidebarMenuButton>
                     {openSubMenus['member'] && (
-                        <SidebarMenuSub className="space-y-2">
+                        <SidebarMenuSub className="space-y-3">
                             <SidebarMenuSubButton>Multi-branch support</SidebarMenuSubButton>
                             <SidebarMenuSubButton>Member profile with history</SidebarMenuSubButton>
                             <SidebarMenuSubButton>Membership pause/freeze</SidebarMenuSubButton>
@@ -65,7 +65,7 @@ export default function OwnerDashboardLayout({
                         <ChevronDown className={`transition-transform duration-200 ${openSubMenus['billing'] ? 'rotate-180' : ''}`} />
                     </SidebarMenuButton>
                     {openSubMenus['billing'] && (
-                        <SidebarMenuSub className="space-y-2">
+                        <SidebarMenuSub className="space-y-3">
                             <SidebarMenuSubButton>Recurring billing</SidebarMenuSubButton>
                         </SidebarMenuSub>
                     )}
@@ -76,7 +76,7 @@ export default function OwnerDashboardLayout({
                         <ChevronDown className={`transition-transform duration-200 ${openSubMenus['class'] ? 'rotate-180' : ''}`} />
                     </SidebarMenuButton>
                      {openSubMenus['class'] && (
-                        <SidebarMenuSub className="space-y-2">
+                        <SidebarMenuSub className="space-y-3">
                             <SidebarMenuSubButton>Class scheduling</SidebarMenuSubButton>
                             <SidebarMenuSubButton>Waitlist management</SidebarMenuSubButton>
                             <SidebarMenuSubButton>Trainer assignments</SidebarMenuSubButton>
@@ -91,7 +91,7 @@ export default function OwnerDashboardLayout({
                         <ChevronDown className={`transition-transform duration-200 ${openSubMenus['reports'] ? 'rotate-180' : ''}`} />
                     </SidebarMenuButton>
                      {openSubMenus['reports'] && (
-                        <SidebarMenuSub className="space-y-2">
+                        <SidebarMenuSub className="space-y-3">
                             <SidebarMenuSubButton>Revenue reports</SidebarMenuSubButton>
                             <SidebarMenuSubButton>Attendance trends</SidebarMenuSubButton>
                             <SidebarMenuSubButton>Trainer performance</SidebarMenuSubButton>
@@ -104,7 +104,7 @@ export default function OwnerDashboardLayout({
                         <ChevronDown className={`transition-transform duration-200 ${openSubMenus['comms'] ? 'rotate-180' : ''}`} />
                     </SidebarMenuButton>
                      {openSubMenus['comms'] && (
-                        <SidebarMenuSub className="space-y-2">
+                        <SidebarMenuSub className="space-y-3">
                             <SidebarMenuSubButton>SMS, WhatsApp, Email</SidebarMenuSubButton>
                             <SidebarMenuSubButton>Referral programs</SidebarMenuSubButton>
                             <SidebarMenuSubButton>Event management</SidebarMenuSubButton>
@@ -118,7 +118,7 @@ export default function OwnerDashboardLayout({
                         <ChevronDown className={`transition-transform duration-200 ${openSubMenus['inventory'] ? 'rotate-180' : ''}`} />
                     </SidebarMenuButton>
                      {openSubMenus['inventory'] && (
-                        <SidebarMenuSub className="space-y-2">
+                        <SidebarMenuSub className="space-y-3">
                             <SidebarMenuSubButton>Equipment maintenance</SidebarMenuSubButton>
                             <SidebarMenuSubButton>Inventory tracking</SidebarMenuSubButton>
                             <SidebarMenuSubButton>Low-stock alerts</SidebarMenuSubButton>
