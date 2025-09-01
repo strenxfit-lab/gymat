@@ -69,14 +69,12 @@ export default function AddPaymentPage() {
       discount: undefined,
       amountPaid: 0,
       balanceDue: 0,
+      paymentDate: new Date(),
       paymentMode: '',
       transactionId: '',
+      nextDueDate: undefined
     },
   });
-
-  useEffect(() => {
-    form.setValue('paymentDate', new Date());
-  }, [form]);
 
   const fetchMembers = async () => {
     const userDocId = localStorage.getItem('userDocId');
@@ -283,3 +281,5 @@ export default function AddPaymentPage() {
     </div>
   );
 }
+
+    

@@ -78,13 +78,11 @@ export default function AddMemberPage() {
       weight: '',
       medicalConditions: '',
       fitnessGoal: '',
+      dob: new Date(),
+      startDate: new Date(),
+      endDate: addDays(new Date(), 30),
     },
   });
-
-  useEffect(() => {
-    form.setValue('startDate', new Date());
-    form.setValue('endDate', addDays(new Date(), 30));
-  }, [form]);
 
   useEffect(() => {
     const fetchTrainers = async () => {
@@ -122,7 +120,7 @@ export default function AddMemberPage() {
 
   const handleNext = async () => {
     const fieldsToValidate = steps[currentStep - 1].fields;
-    const result = await form.trigger(fieldsToValidate);
+    const result = await form.trigger(fieldsToValidate as FieldName[]);
     if(result) {
         setCurrentStep((prev) => Math.min(prev + 1, steps.length));
     }
@@ -292,3 +290,5 @@ export default function AddMemberPage() {
     </div>
   );
 }
+
+    
