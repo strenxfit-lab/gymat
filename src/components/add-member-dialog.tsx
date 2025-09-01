@@ -74,6 +74,7 @@ export default function AddMemberDialog() {
     resolver: zodResolver(formSchema),
     defaultValues: {
       startDate: new Date(),
+      endDate: addDays(new Date(), 30),
     },
   });
 
