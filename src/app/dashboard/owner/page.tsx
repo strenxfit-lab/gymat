@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import { useState, useEffect } from 'react';
@@ -12,6 +13,7 @@ import { Bell, Building, Calendar, DollarSign, PlusCircle, Send, Users, UserPlus
 import { ResponsiveContainer, BarChart, XAxis, YAxis, Tooltip, Bar, Legend } from 'recharts';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import AddMemberDialog from '@/components/add-member-dialog';
+import AddTrainerDialog from '@/components/add-trainer-dialog';
 
 interface Member {
   id: string;
@@ -119,9 +121,9 @@ export default function OwnerDashboardPage() {
             const data = doc.data();
             return {
                 id: doc.id,
-                name: data.name,
+                name: data.fullName,
                 // assignedMembers count would need to be calculated based on member data
-                assignedMembers: members.filter(m => m.plan === data.specialty).length 
+                assignedMembers: members.filter(m => m.plan === data.specialization).length 
             };
         });
 
@@ -201,10 +203,7 @@ export default function OwnerDashboardPage() {
                     <UserPlus className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
-                    <Button className="w-full mt-2">
-                        <PlusCircle className="mr-2 h-4 w-4" />
-                        New Trainer
-                    </Button>
+                    <AddTrainerDialog />
                 </CardContent>
             </Card>
             <Card className="hover:bg-card/90 transition-colors">
@@ -393,6 +392,8 @@ export default function OwnerDashboardPage() {
   );
 }
 
+
+    
 
     
 

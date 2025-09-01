@@ -284,7 +284,7 @@ export default function OnboardingPage() {
                     )}/>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                          <FormField control={form.control} name="numMachines" render={({ field }) => ( <FormItem><FormLabel>Number of Machines (approx.)</FormLabel><FormControl><Input placeholder="50" {...field} /></FormControl></FormItem> )} />
-                         <FormField control={form.control} name="keyBrands" render={({ field }) => ( <FormItem><FormLabel>Key Equipment Brands (Optional)</FormLabel><FormControl><Input placeholder="Technogym, Life Fitness" {...field} /></FormControl></FormItem> )} />
+                         <FormField control={form.control} name="keyBrands" render={({ field }) => ( <FormItem><FormLabel>Key Equipment Brands (Optional)</FormLabel><FormControl><Input placeholder="StrenxFit" {...field} /></FormControl></FormItem> )} />
                     </div>
                 </div>
               )}
