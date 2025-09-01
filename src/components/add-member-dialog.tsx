@@ -51,16 +51,17 @@ const formSchema = z.object({
 });
 
 type FormData = z.infer<typeof formSchema>;
+type FieldName = keyof FormData;
 
 interface Trainer {
   id: string;
   name: string;
 }
 
-const steps = [
-  { id: 1, title: 'Basic Information', icon: <User /> },
-  { id: 2, title: 'Membership Details', icon: <Dumbbell /> },
-  { id: 3, title: 'Health & Fitness', icon: <HeartPulse /> },
+const steps: { id: number; title: string; icon: JSX.Element; fields: FieldName[] }[] = [
+    { id: 1, title: 'Basic Information', icon: <User />, fields: ['fullName', 'gender', 'dob', 'phone', 'email'] },
+    { id: 2, title: 'Membership Details', icon: <Dumbbell />, fields: ['membershipType', 'startDate', 'endDate', 'assignedTrainer', 'plan'] },
+    { id: 3, title: 'Health & Fitness', icon: <HeartPulse />, fields: ['height', 'weight', 'medicalConditions', 'fitnessGoal'] },
 ];
 
 export default function AddMemberDialog() {
@@ -126,7 +127,8 @@ export default function AddMemberDialog() {
   }, [form]);
 
   const handleNext = async () => {
-    const result = await form.trigger();
+    const fieldsToValidate = steps[currentStep - 1].fields;
+    const result = await form.trigger(fieldsToValidate);
     if(result) {
         setCurrentStep((prev) => Math.min(prev + 1, steps.length));
     }
