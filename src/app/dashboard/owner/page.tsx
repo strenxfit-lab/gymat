@@ -81,7 +81,6 @@ export default function OwnerDashboardPage() {
         const gymSnap = await getDoc(gymRef);
 
         if (!gymSnap.exists()) {
-          toast({ title: "Error", description: "Gym data not found.", variant: "destructive" });
           setLoading(false);
           router.push('/');
           return;
@@ -521,3 +520,5 @@ export default function OwnerDashboardPage() {
     </ScrollArea>
   );
 }
+
+    
