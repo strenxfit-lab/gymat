@@ -146,7 +146,7 @@ export default function FacilitiesPage() {
                 <FormField control={form.control} name="otherFacilities" render={({ field }) => (<FormItem><FormLabel>Other Facilities</FormLabel><FormControl><Textarea placeholder="e.g., Juice Bar, Physiotherapy, etc." {...field} /></FormControl><FormMessage /></FormItem>)} />
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <FormField control={form.control} name="numMachines" render={({ field }) => (<FormItem><FormLabel>Number of Machines (approx.)</FormLabel><FormControl><Input type="number" placeholder="50" {...field} /></FormControl><FormMessage /></FormItem>)} />
-                    <FormField control={form.control} name="keyBrands" render={({ field }) => (<FormItem><FormLabel>Key Equipment Brands (optional)</FormLabel><FormControl><Input placeholder="e.g., Technogym, Life Fitness" {...field} /></FormControl><FormMessage /></FormItem>)} />
+                    <FormField control={form.control} name="keyBrands" render={({ field }) => (<FormItem><FormLabel>Key Equipment Brands (optional)</FormLabel><FormControl><Input placeholder="e.g., StrenxFit" {...field} /></FormControl><FormMessage /></FormItem>)} />
                 </div>
             </CardContent>
             <CardFooter className="flex justify-between">

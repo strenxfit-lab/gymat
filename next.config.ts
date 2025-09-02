@@ -24,6 +24,7 @@ const nextConfig: NextConfig = {
       },
     ],
   },
+  transpilePackages: ['recharts'],
 };
 
 export default nextConfig;
