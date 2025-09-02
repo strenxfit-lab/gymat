@@ -204,6 +204,9 @@ export default function OwnerDashboardPage() {
             });
         }
         
+        // As per user request, this month's revenue should EXCLUDE today's collection.
+        thisMonthsRevenue = thisMonthsRevenue - todaysCollection;
+
         const trainersData: Trainer[] = trainersSnap.docs.map(doc => {
             const data = doc.data();
             return {
