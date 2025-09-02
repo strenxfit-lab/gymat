@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import { useState, useEffect } from 'react';
@@ -95,11 +96,18 @@ export default function OwnerDashboardPage() {
         let todaysCollection = 0;
         let thisMonthsRevenue = 0;
         let pendingDues = 0;
+        let newTrialMembers = 0;
         
         const members: {id: string, plan: string, assignedTrainer?: string, totalFee: number}[] = [];
 
         for (const memberDoc of membersSnap.docs) {
             const data = memberDoc.data();
+            const createdAt = (data.createdAt as Timestamp)?.toDate();
+            
+            if (data.isTrial && createdAt && createdAt >= startOfToday) {
+                newTrialMembers++;
+            }
+
             if (!data.endDate || !(data.endDate instanceof Timestamp)) {
               continue;
             }
@@ -193,7 +201,7 @@ export default function OwnerDashboardPage() {
           upcomingExpiries: upcomingExpiries,
           upcomingExpiriesTotal: upcomingExpiriesTotal,
           todaysCheckIns: 0, // Needs attendance data
-          newTrialMembers: 0, // Needs member sign-up date
+          newTrialMembers: newTrialMembers,
           runningOffers: gym.runningOffers || [],
         };
 
@@ -472,3 +480,5 @@ export default function OwnerDashboardPage() {
     </ScrollArea>
   );
 }
+
+    
