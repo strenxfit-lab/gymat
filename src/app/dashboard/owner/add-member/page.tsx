@@ -226,7 +226,7 @@ export default function AddMemberPage() {
   };
 
   const handleGoToDashboard = () => {
-    router.push('/dashboard/owner');
+    window.location.href = '/dashboard/owner';
   };
 
   const copyToClipboard = (text: string) => {
