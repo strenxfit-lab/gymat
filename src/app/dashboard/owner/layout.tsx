@@ -54,7 +54,9 @@ export default function OwnerDashboardLayout({
                     </SidebarMenuButton>
                     {openSubMenu === 'gym-info' && (
                         <SidebarMenuSub className="space-y-3">
-                            <SidebarMenuSubButton className={subMenuButtonClass}>Basic Gym Information</SidebarMenuSubButton>
+                            <Link href="/dashboard/owner/gym-info/basic">
+                                <SidebarMenuSubButton className={subMenuButtonClass}>Basic Gym Information</SidebarMenuSubButton>
+                            </Link>
                             <SidebarMenuSubButton className={subMenuButtonClass}>Owner Information</SidebarMenuSubButton>
                             <SidebarMenuSubButton className={subMenuButtonClass}>Gym Capacity</SidebarMenuSubButton>
                             <SidebarMenuSubButton className={subMenuButtonClass}>Membership &amp; Plans</SidebarMenuSubButton>
