@@ -1,5 +1,4 @@
 
-
 "use client";
 
 import { useState, useEffect } from 'react';
@@ -19,6 +18,8 @@ interface Member {
   name: string;
   endDate: Date;
   plan: string;
+  phone: string;
+  pendingAmount: number;
 }
 
 interface Trainer {
@@ -92,7 +93,7 @@ export default function OwnerDashboardPage() {
         let thisMonthsRevenue = 0;
         let pendingDues = 0;
         
-        const members: Member[] = [];
+        const members: {id: string, plan: string, totalFee: number}[] = [];
 
         for (const memberDoc of membersSnap.docs) {
             const data = memberDoc.data();
@@ -100,33 +101,23 @@ export default function OwnerDashboardPage() {
               continue;
             }
             const expiry = (data.endDate as Timestamp).toDate();
+            const memberTotalFee = data.totalFee || 0;
             
             const memberInfo = {
                 id: memberDoc.id,
                 name: data.fullName,
                 endDate: expiry,
                 plan: data.plan,
-                totalFee: data.totalFee || 0,
+                totalFee: memberTotalFee,
+                phone: data.phone,
             };
             members.push(memberInfo);
-
-            if (expiry >= now) {
-                activeMembers++;
-                if(expiry <= sevenDaysFromNow) {
-                    upcomingExpiries.push({ id: memberDoc.id, name: data.fullName, endDate: expiry, plan: data.plan });
-                }
-            } else {
-                expiredMembers++;
-            }
-
-            if(data.plan) {
-                activePackages.add(data.plan);
-            }
 
             const paymentsRef = collection(db, 'gyms', userDocId, 'members', memberDoc.id, 'payments');
             const paymentsSnap = await getDocs(paymentsRef);
             
             let totalPaidForCurrentTerm = 0;
+            let memberPendingDue = 0;
             paymentsSnap.forEach(paymentDoc => {
                 const payment = paymentDoc.data();
                 const paymentDate = (payment.paymentDate as Timestamp).toDate();
@@ -140,15 +131,37 @@ export default function OwnerDashboardPage() {
                 }
                 
                 totalPaidForCurrentTerm += payment.amountPaid;
-                pendingDues += payment.balanceDue || 0;
+                memberPendingDue += payment.balanceDue || 0;
             });
             
-            if (expiry < now) {
-                const outstandingForExpired = (data.totalFee || 0) - totalPaidForCurrentTerm;
-                if(outstandingForExpired > 0 && !paymentsSnap.empty) {
-                    // This logic is tricky. We'll rely on balanceDue from records.
-                    // A simpler model might be to add the full fee if expired and unpaid.
+            pendingDues += memberPendingDue;
+
+            if (expiry >= now) {
+                activeMembers++;
+                if(expiry <= sevenDaysFromNow) {
+                    upcomingExpiries.push({ 
+                      id: memberDoc.id, 
+                      name: data.fullName, 
+                      endDate: expiry, 
+                      plan: data.plan,
+                      phone: data.phone,
+                      pendingAmount: memberPendingDue > 0 ? memberPendingDue : ((memberTotalFee - totalPaidForCurrentTerm > 0) ? (memberTotalFee - totalPaidForCurrentTerm) : 0),
+                    });
                 }
+            } else {
+                expiredMembers++;
+                const outstandingForExpired = memberTotalFee - totalPaidForCurrentTerm;
+                if(outstandingForExpired > 0 && !paymentsSnap.empty) {
+                     // This logic is tricky. We'll rely on balanceDue from records for active members.
+                     // For expired, we will add the diff if it wasn't already part of pendingDues from a record.
+                     if (memberPendingDue === 0) {
+                        pendingDues += outstandingForExpired;
+                     }
+                }
+            }
+
+            if(data.plan) {
+                activePackages.add(data.plan);
             }
         }
 
@@ -360,13 +373,16 @@ export default function OwnerDashboardPage() {
                     </CardTitle>
                 </CardHeader>
                 <CardContent>
-                    <ul className="space-y-2">
+                    <ul className="space-y-3">
                         {gymData.upcomingExpiries.map(member => (
                             <li key={member.id} className="flex justify-between items-center text-sm">
-                                <span>{member.name} ({member.plan})</span>
-                                <div className="flex items-center gap-2">
-                                  <span className="text-muted-foreground">{member.endDate.toLocaleDateString()}</span>
-                                  <Button size="sm" variant="outline">Renew</Button>
+                                <div>
+                                    <p className="font-semibold">{member.name} <span className="font-normal text-muted-foreground">({member.plan})</span></p>
+                                    <p className="text-xs text-muted-foreground">{member.phone}</p>
+                                </div>
+                                <div className="text-right">
+                                  <p className="font-semibold text-destructive">₹{member.pendingAmount.toLocaleString()}</p>
+                                  <p className="text-xs text-muted-foreground">Expires: {member.endDate.toLocaleDateString()}</p>
                                 </div>
                             </li>
                         ))}
@@ -440,3 +456,4 @@ export default function OwnerDashboardPage() {
   );
 }
 
+    
