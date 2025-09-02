@@ -83,6 +83,7 @@ export default function OwnerDashboardPage() {
         if (!gymSnap.exists()) {
           toast({ title: "Error", description: "Gym data not found.", variant: "destructive" });
           setLoading(false);
+          router.push('/');
           return;
         }
 
@@ -240,7 +241,8 @@ export default function OwnerDashboardPage() {
   }
 
   if (!gymData) {
-    return <div className="flex min-h-screen items-center justify-center bg-background">Could not load gym data.</div>;
+    // This case is now handled inside the useEffect, but this is a good safeguard.
+    return <div className="flex min-h-screen items-center justify-center bg-background">Redirecting to login...</div>;
   }
   
   const memberData = [
