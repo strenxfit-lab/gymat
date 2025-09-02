@@ -4,7 +4,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { doc, getDoc, collection, getDocs, Timestamp, query, where } from 'firebase/firestore';
+import { doc, getDoc, collection, getDocs, Timestamp, query, where, orderBy, limit } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -178,20 +178,30 @@ export default function OwnerDashboardPage() {
                 totalFee: data.totalFee || 0
             });
             
-            // Fetch payments for each member
-            const paymentsRef = collection(db, 'gyms', userDocId, 'branches', activeBranchId, 'members', memberDoc.id, 'payments');
-            const paymentsSnap = await getDocs(paymentsRef);
+            // Fetch payments for each member to calculate revenue
+            const paymentsQuery = query(
+              collection(db, 'gyms', userDocId, 'branches', activeBranchId, 'members', memberDoc.id, 'payments'),
+              orderBy('paymentDate', 'desc')
+            );
+            const paymentsSnap = await getDocs(paymentsQuery);
+            
+            let isDue = true;
             paymentsSnap.forEach(paymentDoc => {
                 const payment = paymentDoc.data();
                 const paymentDate = (payment.paymentDate as Timestamp).toDate();
 
-                if (paymentDate >= startOfToday) {
-                    todaysCollection += payment.amountPaid || 0;
-                }
                 if (paymentDate >= startOfMonth) {
                     thisMonthsRevenue += payment.amountPaid || 0;
                 }
-                pendingDues += payment.balanceDue || 0;
+
+                if (paymentDate >= startOfToday) {
+                    todaysCollection += payment.amountPaid || 0;
+                }
+                
+                if(isDue) {
+                    pendingDues += payment.balanceDue || 0;
+                    isDue = false; // only consider last payment for due
+                }
             });
         }
         
@@ -557,7 +567,3 @@ export default function OwnerDashboardPage() {
     </ScrollArea>
   );
 }
-
-    
-
-    
