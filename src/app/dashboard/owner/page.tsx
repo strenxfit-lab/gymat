@@ -67,6 +67,7 @@ export default function OwnerDashboardPage() {
     }
     
     const fetchData = async () => {
+      setLoading(true);
       try {
         const gymRef = doc(db, 'gyms', userDocId);
         const gymSnap = await getDoc(gymRef);
@@ -129,6 +130,7 @@ export default function OwnerDashboardPage() {
         let upcomingExpiriesTotal = 0;
         const activePackages = new Set<string>();
         let newTrialMembers = 0;
+        
         let todaysCollection = 0;
         let thisMonthsRevenue = 0;
         let pendingDues = 0;
@@ -175,8 +177,8 @@ export default function OwnerDashboardPage() {
         }
 
         const memberPaymentSnapshots = await Promise.all(memberPaymentPromises);
+        
         let totalPendingDues = 0;
-
         memberPaymentSnapshots.forEach(paymentsSnap => {
             if (!paymentsSnap.empty) {
                 const latestPayment = paymentsSnap.docs[0].data();
@@ -184,22 +186,25 @@ export default function OwnerDashboardPage() {
                     totalPendingDues += latestPayment.balanceDue;
                 }
             }
+        });
+        pendingDues = totalPendingDues;
 
-            paymentsSnap.forEach(paymentDoc => {
-                const payment = paymentDoc.data();
-                const paymentDate = (payment.paymentDate as Timestamp).toDate();
+        const paymentsCollectionGroup = query(collectionGroup(db, 'payments'), where('__name__', '>=', `gyms/${userDocId}/branches/${activeBranchId}/members/`), where('__name__', '<', `gyms/${userDocId}/branches/${activeBranchId}/members/~`));
+        const allPaymentsSnap = await getDocs(paymentsCollectionGroup);
+        
+        allPaymentsSnap.forEach(paymentDoc => {
+            const payment = paymentDoc.data();
+            const paymentDate = (payment.paymentDate as Timestamp).toDate();
 
-                if (paymentDate >= startOfMonth) {
-                    thisMonthsRevenue += payment.amountPaid || 0;
-                }
+            if (paymentDate >= startOfMonth) {
+                thisMonthsRevenue += payment.amountPaid || 0;
+            }
 
-                if (paymentDate >= startOfToday && paymentDate <= endOfToday) {
-                    todaysCollection += payment.amountPaid || 0;
-                }
-            });
+            if (paymentDate >= startOfToday && paymentDate <= endOfToday) {
+                todaysCollection += payment.amountPaid || 0;
+            }
         });
         
-        pendingDues = totalPendingDues;
 
         const trainersData: Trainer[] = trainersSnap.docs.map(doc => {
             const data = doc.data();
@@ -240,9 +245,25 @@ export default function OwnerDashboardPage() {
         setLoading(false);
       }
     };
+    
+    fetchData();
 
-    const timeoutId = setTimeout(fetchData, 500);
+    // Set up a timeout to refetch data at midnight
+    const now = new Date();
+    const night = new Date(
+      now.getFullYear(),
+      now.getMonth(),
+      now.getDate() + 1, // the next day
+      0, 0, 0 // at 00:00:00
+    );
+    const msToMidnight = night.getTime() - now.getTime();
+
+    const timeoutId = setTimeout(() => {
+        fetchData();
+    }, msToMidnight);
+
     return () => clearTimeout(timeoutId);
+
   }, [router, toast]);
 
 
