@@ -57,7 +57,9 @@ export default function OwnerDashboardLayout({
                             <Link href="/dashboard/owner/gym-info/basic">
                                 <SidebarMenuSubButton className={subMenuButtonClass}>Basic Gym Information</SidebarMenuSubButton>
                             </Link>
-                            <SidebarMenuSubButton className={subMenuButtonClass}>Owner Information</SidebarMenuSubButton>
+                            <Link href="/dashboard/owner/gym-info/owner">
+                                <SidebarMenuSubButton className={subMenuButtonClass}>Owner Information</SidebarMenuSubButton>
+                            </Link>
                             <SidebarMenuSubButton className={subMenuButtonClass}>Gym Capacity</SidebarMenuSubButton>
                             <SidebarMenuSubButton className={subMenuButtonClass}>Membership &amp; Plans</SidebarMenuSubButton>
                             <SidebarMenuSubButton className={subMenuButtonClass}>Facilities &amp; Machines</SidebarMenuSubButton>
