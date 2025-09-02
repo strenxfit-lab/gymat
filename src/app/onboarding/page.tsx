@@ -54,6 +54,7 @@ const formSchema = z.object({
   keyBrands: z.string().optional(),
   primaryGoal: z.string().optional(),
   expectedMembers: z.string().optional(),
+  expectedIncome: z.string().optional(),
 });
 
 type FormData = z.infer<typeof formSchema>;
@@ -66,7 +67,7 @@ const steps: { id: number; title: string; icon: JSX.Element, fields: FieldName[]
   { id: 3, title: "Gym Capacity & Setup", icon: <Ruler className="h-6 w-6" />, fields: ['gymArea', 'maxCapacity', 'numTrainers', 'numStaff', 'openDays', 'openingTime', 'closingTime'] },
   { id: 4, title: "Membership & Plans", icon: <Wallet className="h-6 w-6" />, fields: ['hasPlans', 'plans', 'freeTrial', 'monthlyFee'] },
   { id: 5, title: "Facilities & Machines", icon: <Dumbbell className="h-6 w-6" />, fields: ['facilities', 'numMachines', 'keyBrands'] },
-  { id: 6, title: "Goals & Insights", icon: <BarChart className="h-6 w-6" />, fields: ['primaryGoal', 'expectedMembers'] },
+  { id: 6, title: "Goals & Insights", icon: <BarChart className="h-6 w-6" />, fields: ['primaryGoal', 'expectedMembers', 'expectedIncome'] },
 ];
 
 const daysOfWeek = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
@@ -105,6 +106,7 @@ export default function OnboardingPage() {
       keyBrands: '',
       primaryGoal: '',
       expectedMembers: '',
+      expectedIncome: '',
       openDays: [],
       plans: [{ name: '', price: '' }],
       facilities: [],
@@ -141,17 +143,17 @@ export default function OnboardingPage() {
     setIsLoading(true);
 
     try {
-      // Save all details to a subcollection
       const detailsRef = doc(db, 'gyms', userDocId, 'details', 'onboarding');
       await setDoc(detailsRef, data);
       
       const userRef = doc(db, 'gyms', userDocId);
       
-      // Update main doc with essential info for quick access
       await updateDoc(userRef, { 
         onboardingComplete: true,
         name: data.gymName,
         location: data.gymAddress,
+        contactNumber: data.contactNumber,
+        email: data.gymEmail,
         multiBranch: false,
        });
 
@@ -167,6 +169,7 @@ export default function OnboardingPage() {
         description: 'Could not save your details. Please try again.',
         variant: 'destructive',
       });
+    } finally {
       setIsLoading(false);
     }
   };
@@ -345,6 +348,7 @@ export default function OnboardingPage() {
                         </FormItem>
                      )} />
                      <FormField control={form.control} name="expectedMembers" render={({ field }) => ( <FormItem><FormLabel>How many members do you expect in next 3 months?</FormLabel><FormControl><Input placeholder="50" {...field} /></FormControl></FormItem> )} />
+                     <FormField control={form.control} name="expectedIncome" render={({ field }) => ( <FormItem><FormLabel>How much income do you expect in next 3 months?</FormLabel><FormControl><Input placeholder="100000" {...field} /></FormControl></FormItem> )} />
                  </div>
               )}
             </CardContent>
