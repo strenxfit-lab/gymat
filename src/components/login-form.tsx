@@ -72,10 +72,8 @@ export default function LoginForm() {
         title: 'Welcome!',
         description: "You have been successfully logged in.",
       });
-
-      if (userData.role === 'owner' && !userData.onboardingComplete) {
-        router.push('/onboarding');
-      } else if (userData.passwordChanged === false) {
+      
+      if (userData.passwordChanged === false) {
         router.push('/change-password');
       } else if (userData.role === 'owner') {
         router.push('/dashboard/owner');

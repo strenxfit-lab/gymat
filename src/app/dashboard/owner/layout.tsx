@@ -21,7 +21,7 @@ import {
   SidebarGroupLabel,
 } from '@/components/ui/sidebar';
 import { Dumbbell, Users, CreditCard, ClipboardList, BarChart3, Megaphone, Boxes, ChevronDown, Info, Mail, Phone, Building } from 'lucide-react';
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, getDoc, collection, getDocs } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -34,7 +34,7 @@ export default function OwnerDashboardLayout({
   const [openSubMenu, setOpenSubMenu] = useState<string | null>(null);
   const [hasMultiBranch, setHasMultiBranch] = useState(false);
   const [isSupportDialogOpen, setIsSupportDialogOpen] = useState(false);
-  const [activeBranch, setActiveBranch] = useState<string | null>(null);
+  const [activeBranchName, setActiveBranchName] = useState<string | null>(null);
   const router = useRouter();
 
 
@@ -44,17 +44,29 @@ export default function OwnerDashboardLayout({
       if (userDocId) {
         const gymRef = doc(db, 'gyms', userDocId);
         const gymSnap = await getDoc(gymRef);
+
         if (gymSnap.exists()) {
             const gymData = gymSnap.data();
             if (gymData.multiBranch) {
                 setHasMultiBranch(true);
             }
-            const currentBranch = localStorage.getItem('activeBranch');
-            if (!currentBranch) {
-                localStorage.setItem('activeBranch', gymData.name);
-                setActiveBranch(gymData.name);
+
+            const branchesCollection = collection(db, 'gyms', userDocId, 'branches');
+            const branchesSnap = await getDocs(branchesCollection);
+            const branches = branchesSnap.docs.map(d => ({id: d.id, ...d.data()}));
+
+            let currentBranchId = localStorage.getItem('activeBranch');
+
+            if (branches.length > 0) {
+              if (!currentBranchId || !branches.find(b => b.id === currentBranchId)) {
+                  currentBranchId = branches[0].id;
+                  localStorage.setItem('activeBranch', currentBranchId);
+              }
+              const activeBranchDoc = branches.find(b => b.id === currentBranchId);
+              setActiveBranchName(activeBranchDoc?.name);
             } else {
-                setActiveBranch(currentBranch);
+              localStorage.removeItem('activeBranch');
+              setActiveBranchName(null);
             }
         }
       }
@@ -67,12 +79,7 @@ export default function OwnerDashboardLayout({
   };
   
   const handleMultiBranchClick = (e: React.MouseEvent) => {
-    if (!hasMultiBranch) {
-      e.preventDefault();
-      setIsSupportDialogOpen(true);
-    } else {
       router.push('/dashboard/owner/multi-branch');
-    }
   };
 
   const subMenuButtonClass = "text-muted-foreground hover:text-foreground font-normal";
@@ -105,10 +112,10 @@ export default function OwnerDashboardLayout({
             <Dumbbell className="w-6 h-6 text-primary" />
             <h1 className="text-lg font-semibold">GymLogin Pro</h1>
           </div>
-           {activeBranch && (
+           {activeBranchName && (
             <div className="mt-2 text-xs text-center p-1 rounded-md bg-primary/10 text-primary-foreground flex items-center justify-center gap-2">
               <Building className="h-4 w-4" />
-              <span>{activeBranch}</span>
+              <span>{activeBranchName}</span>
             </div>
           )}
         </SidebarHeader>
@@ -151,7 +158,7 @@ export default function OwnerDashboardLayout({
                     </SidebarMenuButton>
                     {openSubMenu === 'member' && (
                         <SidebarMenuSub className="space-y-3">
-                           <SidebarMenuSubButton onClick={handleMultiBranchClick} className={subMenuButtonClass}>
+                            <SidebarMenuSubButton onClick={handleMultiBranchClick} className={subMenuButtonClass}>
                                 Multi-branch support
                             </SidebarMenuSubButton>
                              <Link href="/dashboard/owner/members">

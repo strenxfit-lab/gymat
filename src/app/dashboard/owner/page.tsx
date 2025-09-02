@@ -60,21 +60,12 @@ export default function OwnerDashboardPage() {
 
   useEffect(() => {
     const userDocId = localStorage.getItem('userDocId');
-    const activeBranchId = localStorage.getItem('activeBranch');
 
     if (!userDocId) {
-      toast({ title: "Error", description: "No user session found.", variant: "destructive" });
       router.push('/');
       return;
     }
     
-    if (!activeBranchId) {
-        // This can happen on first load after login, layout should handle it.
-        // For now, we can wait for a bit, or redirect to branch selection.
-        setTimeout(() => window.location.reload(), 1000);
-        return;
-    }
-
     const fetchData = async () => {
       try {
         const gymRef = doc(db, 'gyms', userDocId);
@@ -89,6 +80,33 @@ export default function OwnerDashboardPage() {
         }
 
         const gym = gymSnap.data();
+        const activeBranchId = localStorage.getItem('activeBranch');
+        
+        if (!activeBranchId) {
+            // No branches exist yet for this gym.
+            setGymData({
+              name: gym.name || 'Your Gym',
+              location: gym.location || 'Your City',
+              totalMembers: 0,
+              totalTrainers: 0,
+              activePackages: [],
+              todaysCollection: 0,
+              thisMonthsRevenue: 0,
+              pendingDues: 0,
+              activeMembers: 0,
+              expiredMembers: 0,
+              trainers: [],
+              upcomingExpiries: [],
+              upcomingExpiriesTotal: 0,
+              todaysCheckIns: 0,
+              newTrialMembers: 0,
+              runningOffers: [],
+              multiBranch: gym.multiBranch || false,
+              activeBranchName: null,
+            });
+            setLoading(false);
+            return;
+        }
 
         const branchRef = doc(db, 'gyms', userDocId, 'branches', activeBranchId);
         const branchSnap = await getDoc(branchRef);
@@ -236,7 +254,8 @@ export default function OwnerDashboardPage() {
       }
     };
 
-    fetchData();
+    const timeoutId = setTimeout(fetchData, 500); // give layout time to set branch
+    return () => clearTimeout(timeoutId);
   }, [router, toast]);
 
   if (loading) {
@@ -244,9 +263,26 @@ export default function OwnerDashboardPage() {
   }
 
   if (!gymData) {
-    return <div className="flex min-h-screen items-center justify-center bg-background">Could not load gym data.</div>;
+     router.push('/');
+     return <div className="flex min-h-screen items-center justify-center bg-background">Redirecting...</div>;
   }
   
+  if (!gymData.activeBranchName) {
+    return (
+        <div className="flex flex-col min-h-screen items-center justify-center bg-background p-8 text-center">
+            <Building className="h-16 w-16 text-primary mb-4"/>
+            <h1 className="text-2xl font-bold">Welcome to {gymData.name}!</h1>
+            <p className="text-muted-foreground mt-2 mb-6">It looks like you haven't set up any branches yet. <br/>Create your first branch to start managing your members and trainers.</p>
+            <Link href="/dashboard/owner/multi-branch">
+                <Button>
+                    <PlusCircle className="mr-2 h-4 w-4"/>
+                    Create Your First Branch
+                </Button>
+            </Link>
+        </div>
+    )
+  }
+
   const memberData = [
     { name: 'Members', active: gymData.activeMembers, expired: gymData.expiredMembers },
   ];
@@ -255,7 +291,7 @@ export default function OwnerDashboardPage() {
     <ScrollArea className="h-screen bg-background">
       <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
         <div className="flex items-center justify-between space-y-2">
-          <h2 className="text-3xl font-bold tracking-tight">{gymData.activeBranchName ? `${gymData.activeBranchName} Dashboard` : 'Owner Dashboard'}</h2>
+          <h2 className="text-3xl font-bold tracking-tight">{gymData.activeBranchName} Dashboard</h2>
           <div className="flex items-center space-x-2">
             <Button>
               <Calendar className="mr-2 h-4 w-4" />
