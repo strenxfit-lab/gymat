@@ -172,7 +172,7 @@ export default function AddPaymentPage() {
         title: 'Payment Added!',
         description: `Payment for ${selectedMember?.fullName} has been recorded.`,
       });
-      router.push('/dashboard/owner');
+      window.location.href = '/dashboard/owner';
     } catch (error) {
       console.error("Error adding payment:", error);
       toast({
