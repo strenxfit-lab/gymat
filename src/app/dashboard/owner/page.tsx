@@ -9,7 +9,7 @@ import { db } from '@/lib/firebase';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Bell, Building, Calendar, DollarSign, PlusCircle, Send, Users, UserPlus, TrendingUp, AlertCircle, Sparkles, LifeBuoy, BarChart3, IndianRupee, Mail, Phone } from 'lucide-react';
+import { Bell, Building, Calendar, DollarSign, PlusCircle, Send, Users, UserPlus, TrendingUp, AlertCircle, Sparkles, LifeBuoy, BarChart3, IndianRupee, Mail, Phone, Loader2 } from 'lucide-react';
 import { ResponsiveContainer, BarChart, XAxis, YAxis, Tooltip, Bar, Legend } from 'recharts';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
@@ -258,13 +258,30 @@ export default function OwnerDashboardPage() {
     return () => clearTimeout(timeoutId);
   }, [router, toast]);
 
+  useEffect(() => {
+    // Redirect if loading is complete but no data is available.
+    if (!loading && !gymData) {
+      router.push('/');
+    }
+  }, [loading, gymData, router]);
+
+
   if (loading) {
-    return <div className="flex min-h-screen items-center justify-center bg-background">Loading dashboard...</div>;
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <p className="mt-4 text-muted-foreground">Loading Dashboard...</p>
+      </div>
+    );
   }
 
   if (!gymData) {
-     router.push('/');
-     return <div className="flex min-h-screen items-center justify-center bg-background">Redirecting...</div>;
+    // Render a blank screen or a minimal loading state while redirecting.
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background">
+        <p>Redirecting...</p>
+      </div>
+    );
   }
   
   if (!gymData.activeBranchName) {
