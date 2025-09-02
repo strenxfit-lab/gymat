@@ -4,7 +4,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { doc, getDoc, collection, getDocs, Timestamp, query, orderBy, limit, collectionGroup, where } from 'firebase/firestore';
+import { doc, getDoc, collection, getDocs, Timestamp, query, orderBy, limit } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -120,7 +120,6 @@ export default function OwnerDashboardPage() {
 
         const now = new Date();
         const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-        const endOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
         const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
         const sevenDaysFromNow = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
 
@@ -136,9 +135,8 @@ export default function OwnerDashboardPage() {
         let pendingDues = 0;
 
         const allMembersForTrainers: {id: string, assignedTrainer?: string}[] = [];
-        const memberPaymentPromises: Promise<any>[] = [];
-
-        for (const memberDoc of membersSnap.docs) {
+        
+        const memberPaymentPromises = membersSnap.docs.map(async (memberDoc) => {
             const data = memberDoc.data();
             const createdAt = (data.createdAt as Timestamp)?.toDate();
             
@@ -173,39 +171,45 @@ export default function OwnerDashboardPage() {
             allMembersForTrainers.push({ id: memberDoc.id, assignedTrainer: data.assignedTrainer });
             
             const paymentsQuery = query(collection(memberDoc.ref, 'payments'), orderBy('paymentDate', 'desc'));
-            memberPaymentPromises.push(getDocs(paymentsQuery));
-        }
+            const paymentsSnap = await getDocs(paymentsQuery);
 
-        const memberPaymentSnapshots = await Promise.all(memberPaymentPromises);
-        
-        let totalPendingDues = 0;
-        memberPaymentSnapshots.forEach(paymentsSnap => {
+            let memberPendingDues = 0;
             if (!paymentsSnap.empty) {
                 const latestPayment = paymentsSnap.docs[0].data();
                 if (latestPayment.balanceDue > 0) {
-                    totalPendingDues += latestPayment.balanceDue;
+                    memberPendingDues = latestPayment.balanceDue;
                 }
             }
+
+            let memberTodaysCollection = 0;
+            let memberMonthsRevenue = 0;
+            paymentsSnap.forEach(paymentDoc => {
+                const payment = paymentDoc.data();
+                const paymentDate = (payment.paymentDate as Timestamp).toDate();
+
+                if (paymentDate >= startOfMonth) {
+                    memberMonthsRevenue += payment.amountPaid || 0;
+                }
+                if (paymentDate >= startOfToday) {
+                    memberTodaysCollection += payment.amountPaid || 0;
+                }
+            });
+            
+            return {
+                pendingDues: memberPendingDues,
+                todaysCollection: memberTodaysCollection,
+                thisMonthsRevenue: memberMonthsRevenue
+            };
         });
-        pendingDues = totalPendingDues;
 
-        const paymentsCollectionGroup = query(collectionGroup(db, 'payments'), where('__name__', '>=', `gyms/${userDocId}/branches/${activeBranchId}/members/`), where('__name__', '<', `gyms/${userDocId}/branches/${activeBranchId}/members/~`));
-        const allPaymentsSnap = await getDocs(paymentsCollectionGroup);
+        const paymentResults = await Promise.all(memberPaymentPromises);
         
-        allPaymentsSnap.forEach(paymentDoc => {
-            const payment = paymentDoc.data();
-            const paymentDate = (payment.paymentDate as Timestamp).toDate();
-
-            if (paymentDate >= startOfMonth) {
-                thisMonthsRevenue += payment.amountPaid || 0;
-            }
-
-            if (paymentDate >= startOfToday && paymentDate <= endOfToday) {
-                todaysCollection += payment.amountPaid || 0;
-            }
+        paymentResults.forEach(result => {
+            pendingDues += result.pendingDues;
+            todaysCollection += result.todaysCollection;
+            thisMonthsRevenue += result.thisMonthsRevenue;
         });
         
-
         const trainersData: Trainer[] = trainersSnap.docs.map(doc => {
             const data = doc.data();
             return {
