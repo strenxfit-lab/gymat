@@ -60,7 +60,9 @@ export default function OwnerDashboardLayout({
                             <Link href="/dashboard/owner/gym-info/owner">
                                 <SidebarMenuSubButton className={subMenuButtonClass}>Owner Information</SidebarMenuSubButton>
                             </Link>
-                            <SidebarMenuSubButton className={subMenuButtonClass}>Gym Capacity</SidebarMenuSubButton>
+                            <Link href="/dashboard/owner/gym-info/gym-capacity">
+                                <SidebarMenuSubButton className={subMenuButtonClass}>Gym Capacity</SidebarMenuSubButton>
+                            </Link>
                             <SidebarMenuSubButton className={subMenuButtonClass}>Membership &amp; Plans</SidebarMenuSubButton>
                             <SidebarMenuSubButton className={subMenuButtonClass}>Facilities &amp; Machines</SidebarMenuSubButton>
                             <SidebarMenuSubButton className={subMenuButtonClass}>Goals &amp; Insights</SidebarMenuSubButton>
@@ -76,9 +78,7 @@ export default function OwnerDashboardLayout({
                         <SidebarMenuSub className="space-y-3">
                             <SidebarMenuSubButton className={subMenuButtonClass}>Multi-branch support</SidebarMenuSubButton>
                              <Link href="/dashboard/owner/members">
-                                <SidebarMenuSubButton className={subMenuButtonClass}>
-                                  Member profile with history
-                                </SidebarMenuSubButton>
+                                <SidebarMenuSubButton className={subMenuButtonClass}>Member profile with history</SidebarMenuSubButton>
                               </Link>
                             <SidebarMenuSubButton className={subMenuButtonClass}>Membership pause/freeze</SidebarMenuSubButton>
                             <SidebarMenuSubButton className={subMenuButtonClass}>Automated messages</SidebarMenuSubButton>

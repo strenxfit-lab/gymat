@@ -9,7 +9,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { format } from 'date-fns';
 import { Loader2, User, Briefcase, Wallet, Calendar as CalendarIcon, ChevronLeft, ChevronRight } from 'lucide-react';
-import { collection, addDoc, Timestamp } from 'firebase/firestore';
+import { collection, addDoc, Timestamp, doc, getDoc, setDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useToast } from '@/hooks/use-toast';
 
@@ -114,6 +114,16 @@ export default function AddTrainerPage() {
         joiningDate: Timestamp.fromDate(data.joiningDate),
         createdAt: Timestamp.now(),
       });
+
+      // Update trainer count
+      const detailsRef = doc(db, 'gyms', userDocId, 'details', 'onboarding');
+      const detailsSnap = await getDoc(detailsRef);
+      let currentTrainerCount = 0;
+      if (detailsSnap.exists() && detailsSnap.data().numTrainers) {
+        currentTrainerCount = parseInt(detailsSnap.data().numTrainers, 10) || 0;
+      }
+      await setDoc(detailsRef, { numTrainers: (currentTrainerCount + 1).toString() }, { merge: true });
+
 
       toast({
         title: 'Trainer Added!',
