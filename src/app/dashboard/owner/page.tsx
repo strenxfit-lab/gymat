@@ -4,7 +4,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { doc, getDoc, collection, getDocs, Timestamp, query, where } from 'firebase/firestore';
+import { doc, getDoc, collection, getDocs, Timestamp, query, where, collectionGroup } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -130,12 +130,9 @@ export default function OwnerDashboardPage() {
         let upcomingExpiriesTotal = 0;
         const activePackages = new Set<string>();
         
-        let todaysCollection = 0;
-        let thisMonthsRevenue = 0;
-        let pendingDues = 0;
         let newTrialMembers = 0;
         
-        const members: {id: string, plan: string, assignedTrainer?: string, totalFee: number}[] = [];
+        const allMembers: {id: string, plan: string, assignedTrainer?: string, totalFee: number}[] = [];
 
         for (const memberDoc of membersSnap.docs) {
             const data = memberDoc.data();
@@ -144,74 +141,62 @@ export default function OwnerDashboardPage() {
             if (data.isTrial && createdAt && createdAt >= startOfToday) {
                 newTrialMembers++;
             }
-
+            
             if (!data.endDate || !(data.endDate instanceof Timestamp)) {
-              continue;
-            }
-            const expiry = (data.endDate as Timestamp).toDate();
-            const memberTotalFee = data.totalFee || 0;
-            
-            const memberInfo = {
-                id: memberDoc.id,
-                name: data.fullName,
-                endDate: expiry,
-                plan: data.plan,
-                totalFee: memberTotalFee,
-                phone: data.phone,
-                assignedTrainer: data.assignedTrainer
-            };
-            members.push(memberInfo);
-
-            const paymentsRef = collection(db, 'gyms', userDocId, 'branches', activeBranchId, 'members', memberDoc.id, 'payments');
-            const paymentsSnap = await getDocs(paymentsRef);
-            
-            let totalPaidForCurrentTerm = 0;
-            let memberPendingDue = 0;
-            paymentsSnap.forEach(paymentDoc => {
-                const payment = paymentDoc.data();
-                const paymentDate = (payment.paymentDate as Timestamp).toDate();
-
-                if (paymentDate >= startOfMonth) {
-                    thisMonthsRevenue += payment.amountPaid;
-                }
-
-                if (paymentDate >= startOfToday) {
-                    todaysCollection += payment.amountPaid;
-                }
-                
-                totalPaidForCurrentTerm += payment.amountPaid;
-                memberPendingDue += payment.balanceDue || 0;
-            });
-            
-            pendingDues += memberPendingDue;
-
-            if (expiry >= now) {
-                activeMembers++;
-                if(expiry <= sevenDaysFromNow) {
-                    upcomingExpiries.push({ 
-                      id: memberDoc.id, 
-                      name: data.fullName, 
-                      endDate: expiry, 
-                      plan: data.plan,
-                      phone: data.phone,
-                      totalFee: memberTotalFee
-                    });
-                    upcomingExpiriesTotal += memberTotalFee;
-                }
+              // Skip members with no expiry date for now
             } else {
-                expiredMembers++;
-                const outstandingForExpired = memberTotalFee - totalPaidForCurrentTerm;
-                if(outstandingForExpired > 0 && !paymentsSnap.empty) {
-                     if (memberPendingDue === 0) {
-                        pendingDues += outstandingForExpired;
-                     }
+                 const expiry = (data.endDate as Timestamp).toDate();
+                if (expiry >= now) {
+                    activeMembers++;
+                    if(expiry <= sevenDaysFromNow) {
+                        upcomingExpiries.push({ 
+                          id: memberDoc.id, 
+                          name: data.fullName, 
+                          endDate: expiry, 
+                          plan: data.plan,
+                          phone: data.phone,
+                          totalFee: data.totalFee || 0
+                        });
+                        upcomingExpiriesTotal += data.totalFee || 0;
+                    }
+                } else {
+                    expiredMembers++;
                 }
             }
-
+            
             if(data.plan) {
                 activePackages.add(data.plan);
             }
+
+            allMembers.push({
+                id: memberDoc.id,
+                plan: data.plan,
+                assignedTrainer: data.assignedTrainer,
+                totalFee: data.totalFee || 0
+            });
         }
+        
+        // Fetch all payments for the branch to calculate revenue correctly
+        const paymentsQuery = collectionGroup(db, 'payments');
+        const branchPaymentsQuery = query(paymentsQuery, where('__name__', '>=', `gyms/${userDocId}/branches/${activeBranchId}/members`), where('__name__', '<', `gyms/${userDocId}/branches/${activeBranchId}/members~`));
+        const paymentsSnap = await getDocs(branchPaymentsQuery);
+        
+        let todaysCollection = 0;
+        let thisMonthsRevenue = 0;
+        let pendingDues = 0;
+
+        paymentsSnap.forEach(doc => {
+            const payment = doc.data();
+            const paymentDate = (payment.paymentDate as Timestamp).toDate();
+
+            if (paymentDate >= startOfToday) {
+                todaysCollection += payment.amountPaid || 0;
+            }
+            if (paymentDate >= startOfMonth) {
+                thisMonthsRevenue += payment.amountPaid || 0;
+            }
+            pendingDues += payment.balanceDue || 0;
+        });
 
 
         const trainersData: Trainer[] = trainersSnap.docs.map(doc => {
@@ -219,14 +204,14 @@ export default function OwnerDashboardPage() {
             return {
                 id: doc.id,
                 name: data.fullName,
-                assignedMembers: members.filter(m => m.assignedTrainer === doc.id).length 
+                assignedMembers: allMembers.filter(m => m.assignedTrainer === doc.id).length 
             };
         });
 
         const data: GymData = {
           name: gym.name || 'Your Gym',
           location: gym.location || 'Your City',
-          totalMembers: members.length,
+          totalMembers: membersSnap.size,
           totalTrainers: trainersSnap.size,
           activePackages: Array.from(activePackages),
           todaysCollection: todaysCollection,
