@@ -8,7 +8,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { addDays, format } from 'date-fns';
-import { Loader2, User, Calendar as CalendarIcon, Dumbbell, HeartPulse, ChevronLeft, ChevronRight, Building } from 'lucide-react';
+import { Loader2, User, Calendar as CalendarIcon, Dumbbell, HeartPulse, ChevronLeft, ChevronRight, Building, KeyRound, ClipboardCopy } from 'lucide-react';
 import { collection, addDoc, getDocs, doc, Timestamp, getDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useToast } from '@/hooks/use-toast';
@@ -33,14 +33,14 @@ import { Progress } from '@/components/ui/progress';
 
 const formSchema = z.object({
   fullName: z.string().min(2, { message: 'Full name must be at least 2 characters.' }),
-  gender: z.string().nonempty({ message: 'Please select a gender.' }),
-  dob: z.date({ required_error: 'Date of birth is required.' }),
   phone: z.string().length(10, { message: 'Phone number must be 10 digits.' }),
+  gender: z.string().optional(),
+  dob: z.date().optional(),
   email: z.string().email().optional().or(z.literal('')),
   
-  membershipType: z.string().nonempty({ message: 'Please select a membership type.' }),
-  startDate: z.date({ required_error: 'Start date is required.' }),
-  totalFee: z.string().min(1, { message: "Total fee is required."}),
+  membershipType: z.string().optional(),
+  startDate: z.date().optional(),
+  totalFee: z.string().optional(),
   assignedTrainer: z.string().optional(),
   plan: z.string().optional(),
 
@@ -96,7 +96,7 @@ export default function AddMemberPage() {
   const { toast } = useToast();
   const router = useRouter();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [newMember, setNewMember] = useState<{ id: string; name: string } | null>(null);
+  const [newMember, setNewMember] = useState<{ id: string; name: string; loginId?: string; password?: string; } | null>(null);
   const [activeBranchId, setActiveBranchId] = useState<string | null>(null);
   const [activeBranchName, setActiveBranchName] = useState<string | null>(null);
 
@@ -115,8 +115,6 @@ export default function AddMemberPage() {
       weight: '',
       medicalConditions: '',
       fitnessGoal: '',
-      dob: new Date(),
-      startDate: new Date(),
     },
   });
 
@@ -188,14 +186,21 @@ export default function AddMemberPage() {
           default: endDate = addDays(date, 30);
         }
       }
+      
+      const loginId = `${data.fullName.toLowerCase().replace(/\s/g, '')}${Math.floor(1000 + Math.random() * 9000)}`;
+      const password = Math.random().toString(36).slice(-8);
 
       const memberData: any = {
         ...data,
-        totalFee: parseFloat(data.totalFee),
-        dob: Timestamp.fromDate(data.dob),
-        startDate: Timestamp.fromDate(data.startDate),
+        totalFee: data.totalFee ? parseFloat(data.totalFee) : 0,
+        dob: data.dob ? Timestamp.fromDate(data.dob) : null,
+        startDate: data.startDate ? Timestamp.fromDate(data.startDate) : null,
         endDate: endDate ? Timestamp.fromDate(endDate) : null,
         createdAt: Timestamp.now(),
+        loginId: loginId,
+        password: password,
+        role: 'member',
+        passwordChanged: false
       };
 
       if (data.membershipType === 'trial') {
@@ -204,7 +209,7 @@ export default function AddMemberPage() {
 
       const newDocRef = await addDoc(membersCollection, memberData);
 
-      setNewMember({ id: newDocRef.id, name: data.fullName });
+      setNewMember({ id: newDocRef.id, name: data.fullName, loginId, password });
       setIsDialogOpen(true);
 
     } catch (error) {
@@ -219,15 +224,14 @@ export default function AddMemberPage() {
     }
   };
 
-  const handleCollectPayment = () => {
-    if (newMember) {
-      router.push(`/dashboard/owner/add-payment?memberId=${newMember.id}&memberName=${encodeURIComponent(newMember.name)}`);
-    }
-  };
-
   const handleGoToDashboard = () => {
     router.push('/dashboard/owner');
   };
+
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text);
+    toast({ title: 'Copied!', description: 'Credentials copied to clipboard.' });
+  }
 
   const progress = (currentStep / steps.length) * 100;
   
@@ -246,12 +250,27 @@ export default function AddMemberPage() {
           <AlertDialogHeader>
             <AlertDialogTitle>Member Added Successfully!</AlertDialogTitle>
             <AlertDialogDescription>
-              {newMember?.name} has been registered to branch {activeBranchName}. What would you like to do next?
+              Login credentials for {newMember?.name} have been created.
             </AlertDialogDescription>
           </AlertDialogHeader>
+            <div className="space-y-4 my-4">
+                <div className="space-y-2">
+                    <Label htmlFor="loginId">Login ID</Label>
+                    <div className="flex items-center gap-2">
+                        <Input id="loginId" value={newMember?.loginId} readOnly />
+                         <Button variant="outline" size="icon" onClick={() => copyToClipboard(newMember?.loginId || '')}><ClipboardCopy className="h-4 w-4" /></Button>
+                    </div>
+                </div>
+                 <div className="space-y-2">
+                    <Label htmlFor="password">Password</Label>
+                     <div className="flex items-center gap-2">
+                        <Input id="password" value={newMember?.password} readOnly />
+                        <Button variant="outline" size="icon" onClick={() => copyToClipboard(newMember?.password || '')}><ClipboardCopy className="h-4 w-4" /></Button>
+                    </div>
+                </div>
+            </div>
           <AlertDialogFooter>
-            <Button variant="outline" onClick={handleGoToDashboard}>Go to Dashboard</Button>
-            <Button onClick={handleCollectPayment}>Collect Payment</Button>
+            <Button variant="outline" onClick={handleGoToDashboard}>Done</Button>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
@@ -368,3 +387,5 @@ export default function AddMemberPage() {
     </div>
   );
 }
+
+    
