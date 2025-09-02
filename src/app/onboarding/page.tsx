@@ -21,8 +21,8 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 const planSchema = z.object({
-  name: z.string().min(1, 'Plan name is required'),
-  price: z.string().min(1, 'Price is required'),
+  name: z.string().optional(),
+  price: z.string().optional(),
 });
 
 const formSchema = z.object({
@@ -208,7 +208,7 @@ export default function OnboardingPage() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <FormField control={form.control} name="ownerName" render={({ field }) => ( <FormItem><FormLabel>Owner Full Name</FormLabel><FormControl><Input placeholder="John Doe" {...field} /></FormControl></FormItem> )} />
                   <FormField control={form.control} name="ownerMobile" render={({ field }) => ( <FormItem><FormLabel>Mobile Number</FormLabel><FormControl><Input placeholder="+1 987 654 321" {...field} /></FormControl></FormItem> )} />
-                  <FormField control={form.control} name="ownerEmail" render={({ field }) => ( <FormItem><FormLabel>Email Address</FormLabel><FormControl><Input type="email" placeholder="john.doe@example.com" {...field} /></FormControl></FormItem> )} />
+                  <FormField control={form.control} name="ownerEmail" render={({ field }) => ( <FormItem><FormLabel>Email Address</FormLabel><FormControl><Input type="email" placeholder="john.doe@example.com" /></FormControl></FormItem> )} />
                   <FormField control={form.control} name="ownerAlternateContact" render={({ field }) => ( <FormItem><FormLabel>Alternate Contact (Optional)</FormLabel><FormControl><Input placeholder="Jane Doe" {...field} /></FormControl></FormItem> )} />
                 </div>
               )}
@@ -368,4 +368,3 @@ export default function OnboardingPage() {
       </Card>
     </div>
   );
-}
