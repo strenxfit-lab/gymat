@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import { useForm, FormProvider, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { Loader2, Building, User, Ruler, Dumbbell, Wallet, BarChart, Calendar, Clock, MapPin, Phone, Mail, Users, Briefcase, Plus, Trash } from 'lucide-react';
+import { Loader2, Building, User, Ruler, Dumbbell, Wallet, BarChart, Calendar, Clock, MapPin, Phone, Mail, Users, Briefcase, Plus, Trash, GitBranch } from 'lucide-react';
 import { doc, setDoc, updateDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useToast } from '@/hooks/use-toast';
@@ -25,6 +25,10 @@ const planSchema = z.object({
   price: z.string().min(1, 'Price is required'),
 });
 
+const branchSchema = z.object({
+  name: z.string().min(1, 'Branch name is required'),
+});
+
 const formSchema = z.object({
   gymName: z.string().min(1, 'Gym Name is required.'),
   gymAddress: z.string().optional(),
@@ -32,6 +36,10 @@ const formSchema = z.object({
   contactNumber: z.string().length(10, { message: "Contact number must be 10 digits." }),
   gymEmail: z.string().email({ message: "Invalid email address." }).optional().or(z.literal('')),
   gymStartDate: z.string().optional(),
+  
+  hasMultipleGyms: z.string().optional(),
+  branches: z.array(branchSchema).optional(),
+
   ownerName: z.string().optional(),
   ownerMobile: z.string().optional(),
   ownerEmail: z.string().email().optional().or(z.literal('')),
@@ -61,11 +69,12 @@ type FieldName = keyof FormData;
 
 const steps: { id: number; title: string; icon: JSX.Element, fields: FieldName[] }[] = [
   { id: 1, title: "Basic Gym Information", icon: <Building className="h-6 w-6" />, fields: ['gymName', 'gymAddress', 'cityStatePin', 'contactNumber', 'gymEmail', 'gymStartDate'] },
-  { id: 2, title: "Owner Information", icon: <User className="h-6 w-6" />, fields: ['ownerName', 'ownerMobile', 'ownerEmail', 'ownerAlternateContact'] },
-  { id: 3, title: "Gym Capacity & Setup", icon: <Ruler className="h-6 w-6" />, fields: ['gymArea', 'maxCapacity', 'numTrainers', 'numStaff', 'openDays', 'openingTime', 'closingTime'] },
-  { id: 4, title: "Membership & Plans", icon: <Wallet className="h-6 w-6" />, fields: ['hasPlans', 'plans', 'freeTrial', 'monthlyFee'] },
-  { id: 5, title: "Facilities & Machines", icon: <Dumbbell className="h-6 w-6" />, fields: ['facilities', 'numMachines', 'keyBrands'] },
-  { id: 6, title: "Goals & Insights", icon: <BarChart className="h-6 w-6" />, fields: ['primaryGoal', 'expectedMembers'] },
+  { id: 2, title: "Multi-branch Setup", icon: <GitBranch className="h-6 w-6" />, fields: ['hasMultipleGyms', 'branches'] },
+  { id: 3, title: "Owner Information", icon: <User className="h-6 w-6" />, fields: ['ownerName', 'ownerMobile', 'ownerEmail', 'ownerAlternateContact'] },
+  { id: 4, title: "Gym Capacity & Setup", icon: <Ruler className="h-6 w-6" />, fields: ['gymArea', 'maxCapacity', 'numTrainers', 'numStaff', 'openDays', 'openingTime', 'closingTime'] },
+  { id: 5, title: "Membership & Plans", icon: <Wallet className="h-6 w-6" />, fields: ['hasPlans', 'plans', 'freeTrial', 'monthlyFee'] },
+  { id: 6, title: "Facilities & Machines", icon: <Dumbbell className="h-6 w-6" />, fields: ['facilities', 'numMachines', 'keyBrands'] },
+  { id: 7, title: "Goals & Insights", icon: <BarChart className="h-6 w-6" />, fields: ['primaryGoal', 'expectedMembers'] },
 ];
 
 const daysOfWeek = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
@@ -87,6 +96,8 @@ export default function OnboardingPage() {
       contactNumber: '',
       gymEmail: '',
       gymStartDate: '',
+      hasMultipleGyms: 'no',
+      branches: [{ name: '' }],
       ownerName: '',
       ownerMobile: '',
       ownerEmail: '',
@@ -110,9 +121,14 @@ export default function OnboardingPage() {
     },
   });
   
-  const { fields, append, remove } = useFieldArray({
+  const { fields: planFields, append: appendPlan, remove: removePlan } = useFieldArray({
     control: form.control,
     name: "plans"
+  });
+
+  const { fields: branchFields, append: appendBranch, remove: removeBranch } = useFieldArray({
+    control: form.control,
+    name: "branches"
   });
 
 
@@ -200,7 +216,35 @@ export default function OnboardingPage() {
                   <FormField control={form.control} name="gymStartDate" render={({ field }) => ( <FormItem><FormLabel>Gym Start Date</FormLabel><FormControl><Input type="date" {...field} /></FormControl><FormMessage /></FormItem> )} />
                 </div>
               )}
-               {currentStep === 2 && (
+              {currentStep === 2 && (
+                <div className="space-y-4">
+                    <FormField control={form.control} name="hasMultipleGyms" render={({ field }) => (
+                        <FormItem className="space-y-3"><FormLabel>Do you have more than one gym?</FormLabel>
+                            <FormControl>
+                                <RadioGroup onValueChange={field.onChange} value={field.value} className="flex gap-4">
+                                    <FormItem className="flex items-center space-x-3 space-y-0"><FormControl><RadioGroupItem value="yes" /></FormControl><FormLabel className="font-normal">Yes</FormLabel></FormItem>
+                                    <FormItem className="flex items-center space-x-3 space-y-0"><FormControl><RadioGroupItem value="no" /></FormControl><FormLabel className="font-normal">No</FormLabel></FormItem>
+                                </RadioGroup>
+                            </FormControl>
+                             <FormMessage />
+                        </FormItem>
+                    )} />
+
+                    {form.watch('hasMultipleGyms') === 'yes' && (
+                        <div>
+                            <FormLabel>Branch Names</FormLabel>
+                            {branchFields.map((item, index) => (
+                                <div key={item.id} className="flex gap-2 mb-2 items-center">
+                                    <FormField control={form.control} name={`branches.${index}.name`} render={({ field }) => ( <FormItem className="flex-grow"><FormControl><Input placeholder="e.g., Downtown Branch" {...field} /></FormControl><FormMessage /></FormItem>)} />
+                                    <Button type="button" variant="ghost" size="icon" onClick={() => removeBranch(index)}><Trash className="h-4 w-4" /></Button>
+                                </div>
+                            ))}
+                            <Button type="button" variant="outline" size="sm" onClick={() => appendBranch({name: ''})}><Plus className="mr-2 h-4 w-4"/>Add Branch</Button>
+                        </div>
+                    )}
+                </div>
+              )}
+               {currentStep === 3 && (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <FormField control={form.control} name="ownerName" render={({ field }) => ( <FormItem><FormLabel>Owner Full Name</FormLabel><FormControl><Input placeholder="John Doe" {...field} /></FormControl></FormItem> )} />
                   <FormField control={form.control} name="ownerMobile" render={({ field }) => ( <FormItem><FormLabel>Mobile Number</FormLabel><FormControl><Input placeholder="+1 987 654 321" {...field} /></FormControl></FormItem> )} />
@@ -208,7 +252,7 @@ export default function OnboardingPage() {
                   <FormField control={form.control} name="ownerAlternateContact" render={({ field }) => ( <FormItem><FormLabel>Alternate Contact (Optional)</FormLabel><FormControl><Input placeholder="Jane Doe" {...field} /></FormControl></FormItem> )} />
                 </div>
               )}
-               {currentStep === 3 && (
+               {currentStep === 4 && (
                 <div className="space-y-4">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                      <FormField control={form.control} name="gymArea" render={({ field }) => ( <FormItem><FormLabel>Total Gym Area (sq. ft.)</FormLabel><FormControl><Input placeholder="5000" {...field} /></FormControl></FormItem> )} />
@@ -241,7 +285,7 @@ export default function OnboardingPage() {
                   </div>
                 </div>
               )}
-              {currentStep === 4 && (
+              {currentStep === 5 && (
                 <div className="space-y-4">
                     <FormField control={form.control} name="hasPlans" render={({ field }) => (
                         <FormItem className="space-y-3"><FormLabel>Do you already have membership plans?</FormLabel>
@@ -258,14 +302,14 @@ export default function OnboardingPage() {
                     {form.watch('hasPlans') === 'yes' && (
                         <div>
                             <FormLabel>Enter Plans</FormLabel>
-                            {fields.map((item, index) => (
+                            {planFields.map((item, index) => (
                                 <div key={item.id} className="flex gap-2 mb-2 items-center">
                                     <FormField control={form.control} name={`plans.${index}.name`} render={({ field }) => ( <FormItem className="flex-grow"><FormControl><Input placeholder="e.g., Monthly" {...field} /></FormControl><FormMessage /></FormItem>)} />
                                     <FormField control={form.control} name={`plans.${index}.price`} render={({ field }) => ( <FormItem className="w-24"><FormControl><Input placeholder="e.g., 500" {...field} /></FormControl><FormMessage /></FormItem>)} />
-                                    <Button type="button" variant="ghost" size="icon" onClick={() => remove(index)}><Trash className="h-4 w-4" /></Button>
+                                    <Button type="button" variant="ghost" size="icon" onClick={() => removePlan(index)}><Trash className="h-4 w-4" /></Button>
                                 </div>
                             ))}
-                            <Button type="button" variant="outline" size="sm" onClick={() => append({name: '', price: ''})}><Plus className="mr-2 h-4 w-4"/>Add Plan</Button>
+                            <Button type="button" variant="outline" size="sm" onClick={() => appendPlan({name: '', price: ''})}><Plus className="mr-2 h-4 w-4"/>Add Plan</Button>
                         </div>
                     )}
 
@@ -303,7 +347,7 @@ export default function OnboardingPage() {
                     )} />
                 </div>
               )}
-               {currentStep === 5 && (
+               {currentStep === 6 && (
                 <div className="space-y-4">
                     <FormField control={form.control} name="facilities" render={() => (
                       <FormItem>
@@ -328,7 +372,7 @@ export default function OnboardingPage() {
                     </div>
                 </div>
               )}
-              {currentStep === 6 && (
+              {currentStep === 7 && (
                  <div className="space-y-4">
                      <FormField control={form.control} name="primaryGoal" render={({ field }) => (
                         <FormItem><FormLabel>What is your Gym’s Primary Goal?</FormLabel>
@@ -364,5 +408,3 @@ export default function OnboardingPage() {
     </div>
   );
 }
-
-    
