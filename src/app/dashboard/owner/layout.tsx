@@ -130,10 +130,8 @@ export default function OwnerDashboardLayout({
                     </SidebarMenuButton>
                     {openSubMenu === 'member' && (
                         <SidebarMenuSub className="space-y-3">
-                            <Link href={hasMultiBranch ? "/dashboard/owner/multi-branch" : "#"} passHref legacyBehavior>
-                              <a onClick={handleMultiBranchClick}>
-                                <SidebarMenuSubButton className={subMenuButtonClass}>Multi-branch support</SidebarMenuSubButton>
-                              </a>
+                            <Link href={hasMultiBranch ? "/dashboard/owner/multi-branch" : "#"} passHref>
+                                <SidebarMenuSubButton onClick={handleMultiBranchClick} className={subMenuButtonClass}>Multi-branch support</SidebarMenuSubButton>
                             </Link>
                              <Link href="/dashboard/owner/members">
                                 <SidebarMenuSubButton className={subMenuButtonClass}>Member profile with history</SidebarMenuSubButton>
