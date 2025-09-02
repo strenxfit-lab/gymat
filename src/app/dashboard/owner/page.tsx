@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Bell, Building, Calendar, DollarSign, PlusCircle, Send, Users, UserPlus, TrendingUp, AlertCircle, Sparkles, LifeBuoy, BarChart3, IndianRupee } from 'lucide-react';
 import { ResponsiveContainer, BarChart, XAxis, YAxis, Tooltip, Bar, Legend } from 'recharts';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Separator } from '@/components/ui/separator';
 
 interface Member {
   id: string;
@@ -41,6 +42,7 @@ interface GymData {
   expiredMembers: number;
   trainers: Trainer[];
   upcomingExpiries: Member[];
+  upcomingExpiriesTotal: number;
   todaysCheckIns: number;
   newTrialMembers: number;
   runningOffers: string[];
@@ -87,6 +89,7 @@ export default function OwnerDashboardPage() {
         let activeMembers = 0;
         let expiredMembers = 0;
         let upcomingExpiries: Member[] = [];
+        let upcomingExpiriesTotal = 0;
         const activePackages = new Set<string>();
         
         let todaysCollection = 0;
@@ -147,6 +150,7 @@ export default function OwnerDashboardPage() {
                       phone: data.phone,
                       pendingAmount: memberTotalFee
                     });
+                    upcomingExpiriesTotal += memberTotalFee;
                 }
             } else {
                 expiredMembers++;
@@ -187,6 +191,7 @@ export default function OwnerDashboardPage() {
           expiredMembers: expiredMembers,
           trainers: trainersData,
           upcomingExpiries: upcomingExpiries,
+          upcomingExpiriesTotal: upcomingExpiriesTotal,
           todaysCheckIns: 0, // Needs attendance data
           newTrialMembers: 0, // Needs member sign-up date
           runningOffers: gym.runningOffers || [],
@@ -371,21 +376,32 @@ export default function OwnerDashboardPage() {
                     </CardTitle>
                 </CardHeader>
                 <CardContent>
-                    <ul className="space-y-3">
-                        {gymData.upcomingExpiries.map(member => (
-                            <li key={member.id} className="flex justify-between items-center text-sm">
-                                <div>
-                                    <p className="font-semibold">{member.name} <span className="font-normal text-muted-foreground">({member.plan})</span></p>
-                                    <p className="text-xs text-muted-foreground">{member.phone}</p>
-                                </div>
-                                <div className="text-right">
-                                  <p className="font-semibold text-destructive">₹{member.pendingAmount.toLocaleString()}</p>
-                                  <p className="text-xs text-muted-foreground">Expires: {member.endDate.toLocaleDateString()}</p>
-                                </div>
-                            </li>
-                        ))}
-                         {gymData.upcomingExpiries.length === 0 && <p className="text-muted-foreground text-sm">No upcoming expiries.</p>}
-                    </ul>
+                    <ScrollArea className="h-[150px]">
+                        <ul className="space-y-3 pr-4">
+                            {gymData.upcomingExpiries.map(member => (
+                                <li key={member.id} className="flex justify-between items-center text-sm">
+                                    <div>
+                                        <p className="font-semibold">{member.name} <span className="font-normal text-muted-foreground">({member.plan})</span></p>
+                                        <p className="text-xs text-muted-foreground">{member.phone}</p>
+                                    </div>
+                                    <div className="text-right">
+                                      <p className="font-semibold">₹{member.pendingAmount.toLocaleString()}</p>
+                                      <p className="text-xs text-muted-foreground">Expires: {member.endDate.toLocaleDateString()}</p>
+                                    </div>
+                                </li>
+                            ))}
+                             {gymData.upcomingExpiries.length === 0 && <p className="text-muted-foreground text-sm">No upcoming expiries.</p>}
+                        </ul>
+                    </ScrollArea>
+                    {gymData.upcomingExpiries.length > 0 && (
+                        <>
+                            <Separator className="my-4" />
+                            <div className="flex justify-between items-center font-bold">
+                                <span>Total Upcoming Revenue</span>
+                                <span>₹{gymData.upcomingExpiriesTotal.toLocaleString()}</span>
+                            </div>
+                        </>
+                    )}
                 </CardContent>
             </Card>
         </div>
@@ -453,5 +469,3 @@ export default function OwnerDashboardPage() {
     </ScrollArea>
   );
 }
-
-    
