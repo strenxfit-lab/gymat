@@ -4,7 +4,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { doc, getDoc, collection, getDocs, Timestamp, query, where, collectionGroup } from 'firebase/firestore';
+import { doc, getDoc, collection, getDocs, Timestamp, query, where } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -131,7 +131,10 @@ export default function OwnerDashboardPage() {
         const activePackages = new Set<string>();
         
         let newTrialMembers = 0;
-        
+        let todaysCollection = 0;
+        let thisMonthsRevenue = 0;
+        let pendingDues = 0;
+
         const allMembers: {id: string, plan: string, assignedTrainer?: string, totalFee: number}[] = [];
 
         for (const memberDoc of membersSnap.docs) {
@@ -174,31 +177,24 @@ export default function OwnerDashboardPage() {
                 assignedTrainer: data.assignedTrainer,
                 totalFee: data.totalFee || 0
             });
+            
+            // Fetch payments for each member
+            const paymentsRef = collection(db, 'gyms', userDocId, 'branches', activeBranchId, 'members', memberDoc.id, 'payments');
+            const paymentsSnap = await getDocs(paymentsRef);
+            paymentsSnap.forEach(paymentDoc => {
+                const payment = paymentDoc.data();
+                const paymentDate = (payment.paymentDate as Timestamp).toDate();
+
+                if (paymentDate >= startOfToday) {
+                    todaysCollection += payment.amountPaid || 0;
+                }
+                if (paymentDate >= startOfMonth) {
+                    thisMonthsRevenue += payment.amountPaid || 0;
+                }
+                pendingDues += payment.balanceDue || 0;
+            });
         }
         
-        // Fetch all payments for the branch to calculate revenue correctly
-        const paymentsQuery = collectionGroup(db, 'payments');
-        const branchPaymentsQuery = query(paymentsQuery, where('__name__', '>=', `gyms/${userDocId}/branches/${activeBranchId}/members`), where('__name__', '<', `gyms/${userDocId}/branches/${activeBranchId}/members~`));
-        const paymentsSnap = await getDocs(branchPaymentsQuery);
-        
-        let todaysCollection = 0;
-        let thisMonthsRevenue = 0;
-        let pendingDues = 0;
-
-        paymentsSnap.forEach(doc => {
-            const payment = doc.data();
-            const paymentDate = (payment.paymentDate as Timestamp).toDate();
-
-            if (paymentDate >= startOfToday) {
-                todaysCollection += payment.amountPaid || 0;
-            }
-            if (paymentDate >= startOfMonth) {
-                thisMonthsRevenue += payment.amountPaid || 0;
-            }
-            pendingDues += payment.balanceDue || 0;
-        });
-
-
         const trainersData: Trainer[] = trainersSnap.docs.map(doc => {
             const data = doc.data();
             return {
@@ -561,5 +557,7 @@ export default function OwnerDashboardPage() {
     </ScrollArea>
   );
 }
+
+    
 
     
