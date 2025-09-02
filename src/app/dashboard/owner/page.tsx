@@ -47,6 +47,7 @@ interface GymData {
   todaysCheckIns: number;
   newTrialMembers: number;
   runningOffers: string[];
+  multiBranch?: boolean;
 }
 
 export default function OwnerDashboardPage() {
@@ -204,6 +205,7 @@ export default function OwnerDashboardPage() {
           todaysCheckIns: 0, // Needs attendance data
           newTrialMembers: newTrialMembers,
           runningOffers: gym.runningOffers || [],
+          multiBranch: gym.multiBranch || false,
         };
 
         setGymData(data);
@@ -503,5 +505,3 @@ export default function OwnerDashboardPage() {
     </ScrollArea>
   );
 }
-
-    

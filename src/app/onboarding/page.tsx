@@ -168,6 +168,7 @@ export default function OnboardingPage() {
         onboardingComplete: true,
         name: data.gymName,
         location: data.gymAddress,
+        multiBranch: data.hasMultipleGyms === 'yes',
        });
 
       toast({

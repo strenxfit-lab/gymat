@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import {
   SidebarProvider,
@@ -19,7 +19,11 @@ import {
   SidebarGroup,
   SidebarGroupLabel,
 } from '@/components/ui/sidebar';
-import { Dumbbell, Users, CreditCard, ClipboardList, BarChart3, Megaphone, Boxes, ChevronDown, Info } from 'lucide-react';
+import { Dumbbell, Users, CreditCard, ClipboardList, BarChart3, Megaphone, Boxes, ChevronDown, Info, Mail, Phone } from 'lucide-react';
+import { doc, getDoc } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
 
 export default function OwnerDashboardLayout({
   children,
@@ -27,15 +31,59 @@ export default function OwnerDashboardLayout({
   children: React.ReactNode;
 }) {
   const [openSubMenu, setOpenSubMenu] = useState<string | null>(null);
+  const [hasMultiBranch, setHasMultiBranch] = useState(false);
+  const [isSupportDialogOpen, setIsSupportDialogOpen] = useState(false);
+
+
+  useEffect(() => {
+    const fetchGymData = async () => {
+      const userDocId = localStorage.getItem('userDocId');
+      if (userDocId) {
+        const gymRef = doc(db, 'gyms', userDocId);
+        const gymSnap = await getDoc(gymRef);
+        if (gymSnap.exists() && gymSnap.data().multiBranch) {
+          setHasMultiBranch(true);
+        }
+      }
+    };
+    fetchGymData();
+  }, []);
 
   const toggleSubMenu = (name: string) => {
     setOpenSubMenu(prev => (prev === name ? null : name));
+  };
+  
+  const handleMultiBranchClick = (e: React.MouseEvent) => {
+    if (!hasMultiBranch) {
+      e.preventDefault();
+      setIsSupportDialogOpen(true);
+    }
   };
 
   const subMenuButtonClass = "text-muted-foreground hover:text-foreground font-normal";
 
   return (
     <SidebarProvider defaultOpen={false}>
+       <Dialog open={isSupportDialogOpen} onOpenChange={setIsSupportDialogOpen}>
+        <DialogContent>
+            <DialogHeader>
+            <DialogTitle>Enable Multi-Branch Support</DialogTitle>
+            <DialogDescription>
+                This feature is not enabled for your account. Please contact Strenxfit support to activate it.
+            </DialogDescription>
+            </DialogHeader>
+            <div className="flex flex-col space-y-4 py-4">
+                <a href="mailto:strenxfit@gmail.com" className="flex items-center gap-3 p-3 rounded-md hover:bg-accent transition-colors">
+                    <Mail className="h-5 w-5 text-muted-foreground" />
+                    <span>strenxfit@gmail.com</span>
+                </a>
+                <a href="https://wa.me/917988487892" target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 p-3 rounded-md hover:bg-accent transition-colors">
+                    <Phone className="h-5 w-5 text-muted-foreground" />
+                    <span>+91 79884 87892</span>
+                </a>
+            </div>
+        </DialogContent>
+       </Dialog>
       <Sidebar>
         <SidebarHeader>
           <div className="flex items-center gap-2">
@@ -82,7 +130,11 @@ export default function OwnerDashboardLayout({
                     </SidebarMenuButton>
                     {openSubMenu === 'member' && (
                         <SidebarMenuSub className="space-y-3">
-                            <SidebarMenuSubButton className={subMenuButtonClass}>Multi-branch support</SidebarMenuSubButton>
+                            <Link href={hasMultiBranch ? "/dashboard/owner/multi-branch" : "#"} passHref legacyBehavior>
+                              <a onClick={handleMultiBranchClick}>
+                                <SidebarMenuSubButton className={subMenuButtonClass}>Multi-branch support</SidebarMenuSubButton>
+                              </a>
+                            </Link>
                              <Link href="/dashboard/owner/members">
                                 <SidebarMenuSubButton className={subMenuButtonClass}>Member profile with history</SidebarMenuSubButton>
                               </Link>
