@@ -2,7 +2,7 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -61,6 +61,7 @@ export default function AddPaymentPage() {
   const [baseMonthlyFee, setBaseMonthlyFee] = useState<number>(0);
   const { toast } = useToast();
   const router = useRouter();
+  const searchParams = useSearchParams();
   
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
@@ -92,11 +93,23 @@ export default function AddPaymentPage() {
       totalFee: doc.data().totalFee,
     }));
     setMembers(membersList);
+    return membersList;
   };
 
   useEffect(() => {
-    fetchMembers();
-  }, []);
+    const memberId = searchParams.get('memberId');
+    
+    const initialize = async () => {
+        const fetchedMembers = await fetchMembers();
+        if (memberId && fetchedMembers) {
+            const member = fetchedMembers.find(m => m.id === memberId);
+            if(member) {
+                form.setValue('memberId', memberId);
+            }
+        }
+    }
+    initialize();
+  }, [searchParams, form]);
 
   useEffect(() => {
     const subscription = form.watch((values, { name }) => {

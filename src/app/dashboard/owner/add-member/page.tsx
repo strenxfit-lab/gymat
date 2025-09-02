@@ -18,8 +18,15 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter }
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Calendar } from '@/components/ui/calendar';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
 import { Progress } from '@/components/ui/progress';
@@ -64,6 +71,8 @@ export default function AddMemberPage() {
   const [trainers, setTrainers] = useState<Trainer[]>([]);
   const { toast } = useToast();
   const router = useRouter();
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [newMember, setNewMember] = useState<{ id: string; name: string } | null>(null);
   
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
@@ -140,7 +149,7 @@ export default function AddMemberPage() {
 
     try {
       const membersCollection = collection(db, 'gyms', userDocId, 'members');
-      await addDoc(membersCollection, {
+      const newDocRef = await addDoc(membersCollection, {
         ...data,
         totalFee: parseFloat(data.totalFee),
         dob: Timestamp.fromDate(data.dob),
@@ -148,12 +157,9 @@ export default function AddMemberPage() {
         endDate: Timestamp.fromDate(data.endDate),
         createdAt: Timestamp.now(),
       });
+      setNewMember({ id: newDocRef.id, name: data.fullName });
+      setIsDialogOpen(true);
 
-      toast({
-        title: 'Member Added!',
-        description: `${data.fullName} has been successfully registered.`,
-      });
-      router.push('/dashboard/owner');
     } catch (error) {
       console.error("Error adding member:", error);
       toast({
@@ -166,10 +172,35 @@ export default function AddMemberPage() {
     }
   };
 
+  const handleCollectPayment = () => {
+    if (newMember) {
+      router.push(`/dashboard/owner/add-payment?memberId=${newMember.id}&memberName=${encodeURIComponent(newMember.name)}`);
+    }
+  };
+
+  const handleGoToDashboard = () => {
+    router.push('/dashboard/owner');
+  };
+
   const progress = (currentStep / steps.length) * 100;
 
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-background p-4">
+      <AlertDialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Member Added Successfully!</AlertDialogTitle>
+            <AlertDialogDescription>
+              {newMember?.name} has been registered. What would you like to do next?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <Button variant="outline" onClick={handleGoToDashboard}>Go to Dashboard</Button>
+            <Button onClick={handleCollectPayment}>Collect Payment</Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
         <Card className="w-full max-w-2xl">
             <CardHeader>
                 <Progress value={progress} className="mb-4" />
