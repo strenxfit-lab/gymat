@@ -171,17 +171,6 @@ export default function OwnerDashboardLayout({
                     )}
                 </SidebarMenuItem>
                 <SidebarMenuItem>
-                    <SidebarMenuButton onClick={() => toggleSubMenu('billing')} className="justify-between">
-                        <div className="flex items-center gap-2"><CreditCard /> Payment &amp; Billing</div>
-                        <ChevronDown className={`transition-transform duration-200 ${openSubMenu === 'billing' ? 'rotate-180' : ''}`} />
-                    </SidebarMenuButton>
-                    {openSubMenu === 'billing' && (
-                        <SidebarMenuSub className="space-y-3">
-                            <SidebarMenuSubButton className={subMenuButtonClass}>Recurring billing</SidebarMenuSubButton>
-                        </SidebarMenuSub>
-                    )}
-                </SidebarMenuItem>
-                <SidebarMenuItem>
                     <SidebarMenuButton onClick={() => toggleSubMenu('class')} className="justify-between">
                         <div className="flex items-center gap-2"><ClipboardList /> Class &amp; Trainer Management</div>
                         <ChevronDown className={`transition-transform duration-200 ${openSubMenu === 'class' ? 'rotate-180' : ''}`} />
