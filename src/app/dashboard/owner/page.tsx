@@ -139,21 +139,26 @@ export default function OwnerDashboardPage() {
             if (expiry >= now) {
                 activeMembers++;
                 if(expiry <= sevenDaysFromNow) {
+                    let outstandingAmount = 0;
+                    if(memberPendingDue > 0) {
+                        outstandingAmount = memberPendingDue;
+                    } else if (totalPaidForCurrentTerm < memberTotalFee) {
+                        outstandingAmount = memberTotalFee - totalPaidForCurrentTerm;
+                    }
+
                     upcomingExpiries.push({ 
                       id: memberDoc.id, 
                       name: data.fullName, 
                       endDate: expiry, 
                       plan: data.plan,
                       phone: data.phone,
-                      pendingAmount: memberPendingDue > 0 ? memberPendingDue : ((memberTotalFee - totalPaidForCurrentTerm > 0) ? (memberTotalFee - totalPaidForCurrentTerm) : 0),
+                      pendingAmount: outstandingAmount
                     });
                 }
             } else {
                 expiredMembers++;
                 const outstandingForExpired = memberTotalFee - totalPaidForCurrentTerm;
                 if(outstandingForExpired > 0 && !paymentsSnap.empty) {
-                     // This logic is tricky. We'll rely on balanceDue from records for active members.
-                     // For expired, we will add the diff if it wasn't already part of pendingDues from a record.
                      if (memberPendingDue === 0) {
                         pendingDues += outstandingForExpired;
                      }
