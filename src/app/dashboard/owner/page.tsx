@@ -185,7 +185,11 @@ export default function OwnerDashboardPage() {
             );
             const paymentsSnap = await getDocs(paymentsQuery);
             
-            let isDue = true;
+            if (!paymentsSnap.empty) {
+                // Pending due is only from the latest payment record
+                pendingDues += paymentsSnap.docs[0].data().balanceDue || 0;
+            }
+
             paymentsSnap.forEach(paymentDoc => {
                 const payment = paymentDoc.data();
                 const paymentDate = (payment.paymentDate as Timestamp).toDate();
@@ -196,11 +200,6 @@ export default function OwnerDashboardPage() {
 
                 if (paymentDate >= startOfToday) {
                     todaysCollection += payment.amountPaid || 0;
-                }
-                
-                if(isDue) {
-                    pendingDues += payment.balanceDue || 0;
-                    isDue = false; // only consider last payment for due
                 }
             });
         }
