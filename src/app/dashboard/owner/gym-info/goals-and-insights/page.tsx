@@ -139,20 +139,14 @@ export default function GoalsAndInsightsPage() {
                 <FormField control={form.control} name="expectedMembers" render={({ field }) => (
                     <FormItem>
                         <FormLabel>How many members do you expect in next 3 months?</FormLabel>
-                        <div className="relative">
-                            <Users className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                            <FormControl><Input type="number" placeholder="50" {...field} /></FormControl>
-                        </div>
+                        <FormControl><Input type="number" placeholder="50" {...field} /></FormControl>
                         <FormMessage />
                     </FormItem>
                 )} />
                 <FormField control={form.control} name="expectedIncome" render={({ field }) => (
                     <FormItem>
                         <FormLabel>How much income do you expect in next 3 months?</FormLabel>
-                         <div className="relative">
-                            <IndianRupee className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                            <FormControl><Input type="number" placeholder="100000" {...field} /></FormControl>
-                        </div>
+                        <FormControl><Input type="number" placeholder="100000" {...field} /></FormControl>
                         <FormMessage />
                     </FormItem>
                 )} />
