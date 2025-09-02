@@ -65,7 +65,9 @@ export default function OwnerDashboardLayout({
                             <Link href="/dashboard/owner/gym-info/membership-plans" passHref>
                               <SidebarMenuSubButton className={subMenuButtonClass}>Membership &amp; Plans</SidebarMenuSubButton>
                             </Link>
-                            <SidebarMenuSubButton className={subMenuButtonClass}>Facilities &amp; Machines</SidebarMenuSubButton>
+                            <Link href="/dashboard/owner/gym-info/facilities" passHref>
+                                <SidebarMenuSubButton className={subMenuButtonClass}>Facilities &amp; Machines</SidebarMenuSubButton>
+                            </Link>
                             <SidebarMenuSubButton className={subMenuButtonClass}>Goals &amp; Insights</SidebarMenuSubButton>
                         </SidebarMenuSub>
                     )}
