@@ -142,14 +142,25 @@ export default function MultiBranchPage() {
                 <DialogTitle>Add a New Branch</DialogTitle>
                 <DialogDescription>Enter the name of your new gym location.</DialogDescription>
               </DialogHeader>
+               <div className="py-4">
+                <h4 className="text-sm font-medium mb-2">Current Branches:</h4>
+                <div className="space-y-2 max-h-32 overflow-y-auto pr-2">
+                    {branches.map((branch, index) => (
+                        <div key={index} className="flex items-center gap-2 text-sm text-muted-foreground">
+                            <Building className="h-4 w-4" />
+                            <span>{branch.name}</span>
+                        </div>
+                    ))}
+                </div>
+              </div>
               <Form {...form}>
-                <form onSubmit={form.handleSubmit(onAddBranch)} className="space-y-4 py-4">
+                <form onSubmit={form.handleSubmit(onAddBranch)} className="space-y-4">
                   <FormField
                     control={form.control}
                     name="name"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Branch Name</FormLabel>
+                        <FormLabel>New Branch Name</FormLabel>
                         <FormControl>
                           <Input placeholder="e.g., Downtown Branch" {...field} />
                         </FormControl>
