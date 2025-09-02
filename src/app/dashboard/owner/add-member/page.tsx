@@ -30,6 +30,7 @@ import {
 import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
 import { Progress } from '@/components/ui/progress';
+import { Label } from '@/components/ui/label';
 
 const formSchema = z.object({
   fullName: z.string().min(2, { message: 'Full name must be at least 2 characters.' }),
@@ -257,14 +258,14 @@ export default function AddMemberPage() {
                 <div className="space-y-2">
                     <Label htmlFor="loginId">Login ID</Label>
                     <div className="flex items-center gap-2">
-                        <Input id="loginId" value={newMember?.loginId} readOnly />
+                        <Input id="loginId" value={newMember?.loginId || ''} readOnly />
                          <Button variant="outline" size="icon" onClick={() => copyToClipboard(newMember?.loginId || '')}><ClipboardCopy className="h-4 w-4" /></Button>
                     </div>
                 </div>
                  <div className="space-y-2">
                     <Label htmlFor="password">Password</Label>
                      <div className="flex items-center gap-2">
-                        <Input id="password" value={newMember?.password} readOnly />
+                        <Input id="password" value={newMember?.password || ''} readOnly />
                         <Button variant="outline" size="icon" onClick={() => copyToClipboard(newMember?.password || '')}><ClipboardCopy className="h-4 w-4" /></Button>
                     </div>
                 </div>
