@@ -35,7 +35,7 @@ const formSchema = z.object({
   paymentDate: z.date(),
   paymentMode: z.string().nonempty({ message: "Please select a payment mode." }),
   transactionId: z.string().optional(),
-  nextDueDate: z.date().optional(),
+  nextDueDate: z.date({ required_error: 'Next due date is required.' }),
 });
 
 type FormData = z.infer<typeof formSchema>;
@@ -316,7 +316,7 @@ export default function AddPaymentPage() {
                              </FormControl><FormMessage /></FormItem>
                         )} />
                          <FormField control={form.control} name="nextDueDate" render={({ field }) => (
-                             <FormItem className="flex flex-col"><FormLabel>Next Due Date (Optional)</FormLabel><FormControl>
+                             <FormItem className="flex flex-col"><FormLabel>Next Due Date</FormLabel><FormControl>
                                 <Input type="date" value={field.value ? format(field.value, 'yyyy-MM-dd') : ''} onChange={e => field.onChange(new Date(e.target.value))} />
                              </FormControl><FormMessage /></FormItem>
                         )} />
