@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState } from 'react';
@@ -70,9 +71,9 @@ export default function OwnerDashboardLayout({
                     {openSubMenu === 'member' && (
                         <SidebarMenuSub className="space-y-3">
                             <SidebarMenuSubButton className={subMenuButtonClass}>Multi-branch support</SidebarMenuSubButton>
-                             <Link href="/dashboard/owner/members" passHref legacyBehavior>
-                                <SidebarMenuSubButton asChild className={subMenuButtonClass}>
-                                  <a>Member profile with history</a>
+                             <Link href="/dashboard/owner/members">
+                                <SidebarMenuSubButton className={subMenuButtonClass}>
+                                  Member profile with history
                                 </SidebarMenuSubButton>
                               </Link>
                             <SidebarMenuSubButton className={subMenuButtonClass}>Membership pause/freeze</SidebarMenuSubButton>
