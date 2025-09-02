@@ -3,6 +3,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { collection, getDocs, Timestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useToast } from '@/hooks/use-toast';
@@ -10,7 +11,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { MoreHorizontal } from "lucide-react";
+import { MoreHorizontal, ArrowLeft } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -126,7 +127,13 @@ export default function MembersListPage() {
     <div className="container mx-auto py-10">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
             <div className="flex items-center justify-between mb-4">
-                <TabsList>
+                 <Link href="/dashboard/owner" passHref>
+                    <Button variant="outline">
+                        <ArrowLeft className="mr-2 h-4 w-4"/>
+                        Back
+                    </Button>
+                </Link>
+                <TabsList className="mx-auto">
                     <TabsTrigger value="members">Members</TabsTrigger>
                     <TabsTrigger value="trainers">Trainers</TabsTrigger>
                 </TabsList>
