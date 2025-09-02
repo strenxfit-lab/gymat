@@ -50,8 +50,7 @@ const DetailItem = ({ label, value }: { label: string, value: string | undefined
     </div>
 );
 
-export default function MemberProfilePage({ params }: { params: { memberId: string } }) {
-  const { memberId } = params;
+export default function MemberProfilePage({ params: { memberId } }: { params: { memberId: string } }) {
   const [member, setMember] = useState<MemberDetails | null>(null);
   const [payments, setPayments] = useState<Payment[]>([]);
   const [loading, setLoading] = useState(true);
