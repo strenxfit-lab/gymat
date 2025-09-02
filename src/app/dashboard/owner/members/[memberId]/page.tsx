@@ -10,7 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Loader2, ArrowLeft, User, Calendar, DollarSign, Weight, Ruler, BarChart2, Edit } from 'lucide-react';
+import { Loader2, ArrowLeft, User, Calendar, DollarSign, Weight, BarChart2, Edit } from 'lucide-react';
 import Link from 'next/link';
 
 interface MemberDetails {
@@ -49,6 +49,7 @@ const DetailItem = ({ label, value }: { label: string, value: string | undefined
 );
 
 export default function MemberProfilePage({ params }: { params: { memberId: string } }) {
+  const { memberId } = params;
   const [member, setMember] = useState<MemberDetails | null>(null);
   const [payments, setPayments] = useState<Payment[]>([]);
   const [loading, setLoading] = useState(true);
@@ -59,7 +60,7 @@ export default function MemberProfilePage({ params }: { params: { memberId: stri
     const userDocId = localStorage.getItem('userDocId');
     const activeBranchId = localStorage.getItem('activeBranch');
 
-    if (!userDocId || !activeBranchId || !params.memberId) {
+    if (!userDocId || !activeBranchId || !memberId) {
       toast({ title: 'Error', description: 'Session, branch, or member ID not found.', variant: 'destructive' });
       router.push('/dashboard/owner/members');
       return;
@@ -68,7 +69,7 @@ export default function MemberProfilePage({ params }: { params: { memberId: stri
     const fetchMemberData = async () => {
       try {
         // Fetch member details
-        const memberRef = doc(db, 'gyms', userDocId, 'branches', activeBranchId, 'members', params.memberId);
+        const memberRef = doc(db, 'gyms', userDocId, 'branches', activeBranchId, 'members', memberId);
         const memberSnap = await getDoc(memberRef);
 
         if (!memberSnap.exists()) {
@@ -102,7 +103,7 @@ export default function MemberProfilePage({ params }: { params: { memberId: stri
         });
         
         // Fetch payment history
-        const paymentsRef = collection(db, 'gyms', userDocId, 'branches', activeBranchId, 'members', params.memberId, 'payments');
+        const paymentsRef = collection(db, 'gyms', userDocId, 'branches', activeBranchId, 'members', memberId, 'payments');
         const paymentsSnap = await getDocs(paymentsRef);
         const paymentsList = paymentsSnap.docs.map(doc => {
             const pData = doc.data();
@@ -134,7 +135,7 @@ export default function MemberProfilePage({ params }: { params: { memberId: stri
     };
 
     fetchMemberData();
-  }, [params.memberId, router, toast]);
+  }, [memberId, router, toast]);
 
   if (loading) {
     return <div className="flex min-h-screen items-center justify-center bg-background"><Loader2 className="h-8 w-8 animate-spin" /></div>;
