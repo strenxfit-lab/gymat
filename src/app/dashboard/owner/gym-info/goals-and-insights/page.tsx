@@ -56,8 +56,12 @@ export default function GoalsAndInsightsPage() {
             const detailsSnap = await getDoc(detailsRef);
 
             if (detailsSnap.exists()) {
-                const data = detailsSnap.data() as FormData;
-                form.reset(data);
+                const data = detailsSnap.data();
+                form.reset({
+                  primaryGoal: data.primaryGoal || '',
+                  expectedMembers: data.expectedMembers || '',
+                  expectedIncome: data.expectedIncome || '',
+                });
             }
         } catch(error) {
             console.error("Error fetching goals data:", error);
@@ -121,7 +125,7 @@ export default function GoalsAndInsightsPage() {
             <CardContent className="space-y-6 pt-6">
                 <FormField control={form.control} name="primaryGoal" render={({ field }) => (
                     <FormItem><FormLabel>What is your Gym’s Primary Goal?</FormLabel>
-                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <Select onValueChange={field.onChange} value={field.value}>
                         <FormControl><SelectTrigger><SelectValue placeholder="Select a goal" /></SelectTrigger></FormControl>
                         <SelectContent>
                             <SelectItem value="increase-members">Increase Members</SelectItem>
@@ -137,7 +141,7 @@ export default function GoalsAndInsightsPage() {
                         <FormLabel>How many members do you expect in next 3 months?</FormLabel>
                         <div className="relative">
                             <Users className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                            <FormControl><Input type="number" placeholder="50" {...field} className="pl-10" /></FormControl>
+                            <FormControl><Input type="number" placeholder="50" {...field} /></FormControl>
                         </div>
                         <FormMessage />
                     </FormItem>
@@ -147,7 +151,7 @@ export default function GoalsAndInsightsPage() {
                         <FormLabel>How much income do you expect in next 3 months?</FormLabel>
                          <div className="relative">
                             <IndianRupee className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                            <FormControl><Input type="number" placeholder="100000" {...field} className="pl-10" /></FormControl>
+                            <FormControl><Input type="number" placeholder="100000" {...field} /></FormControl>
                         </div>
                         <FormMessage />
                     </FormItem>
