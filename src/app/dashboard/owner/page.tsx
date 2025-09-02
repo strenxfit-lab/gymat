@@ -132,11 +132,11 @@ export default function OwnerDashboardPage() {
         
         let todaysCollection = 0;
         let thisMonthsRevenue = 0;
-        let pendingDues = 0;
+        let totalPendingDues = 0;
 
         const allMembersForTrainers: {id: string, assignedTrainer?: string}[] = [];
         
-        const memberPaymentPromises = membersSnap.docs.map(async (memberDoc) => {
+        for (const memberDoc of membersSnap.docs) {
             const data = memberDoc.data();
             const createdAt = (data.createdAt as Timestamp)?.toDate();
             
@@ -173,42 +173,27 @@ export default function OwnerDashboardPage() {
             const paymentsQuery = query(collection(memberDoc.ref, 'payments'), orderBy('paymentDate', 'desc'));
             const paymentsSnap = await getDocs(paymentsQuery);
 
-            let memberPendingDues = 0;
+            let hasOutstandingBalance = false;
             if (!paymentsSnap.empty) {
                 const latestPayment = paymentsSnap.docs[0].data();
                 if (latestPayment.balanceDue > 0) {
-                    memberPendingDues = latestPayment.balanceDue;
+                    totalPendingDues += latestPayment.balanceDue;
+                    hasOutstandingBalance = true;
                 }
             }
 
-            let memberTodaysCollection = 0;
-            let memberMonthsRevenue = 0;
             paymentsSnap.forEach(paymentDoc => {
                 const payment = paymentDoc.data();
                 const paymentDate = (payment.paymentDate as Timestamp).toDate();
 
                 if (paymentDate >= startOfMonth) {
-                    memberMonthsRevenue += payment.amountPaid || 0;
+                    thisMonthsRevenue += payment.amountPaid || 0;
                 }
                 if (paymentDate >= startOfToday) {
-                    memberTodaysCollection += payment.amountPaid || 0;
+                    todaysCollection += payment.amountPaid || 0;
                 }
             });
-            
-            return {
-                pendingDues: memberPendingDues,
-                todaysCollection: memberTodaysCollection,
-                thisMonthsRevenue: memberMonthsRevenue
-            };
-        });
-
-        const paymentResults = await Promise.all(memberPaymentPromises);
-        
-        paymentResults.forEach(result => {
-            pendingDues += result.pendingDues;
-            todaysCollection += result.todaysCollection;
-            thisMonthsRevenue += result.thisMonthsRevenue;
-        });
+        };
         
         const trainersData: Trainer[] = trainersSnap.docs.map(doc => {
             const data = doc.data();
@@ -227,7 +212,7 @@ export default function OwnerDashboardPage() {
           activePackages: Array.from(activePackages),
           todaysCollection: todaysCollection,
           thisMonthsRevenue: thisMonthsRevenue,
-          pendingDues: pendingDues,
+          pendingDues: totalPendingDues,
           activeMembers: activeMembers,
           expiredMembers: expiredMembers,
           trainers: trainersData,
