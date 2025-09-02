@@ -2,6 +2,7 @@
 "use client";
 
 import { useState } from 'react';
+import Link from 'next/link';
 import {
   SidebarProvider,
   Sidebar,
@@ -70,7 +71,11 @@ export default function OwnerDashboardLayout({
                     {openSubMenu === 'member' && (
                         <SidebarMenuSub className="space-y-3">
                             <SidebarMenuSubButton className={subMenuButtonClass}>Multi-branch support</SidebarMenuSubButton>
-                            <SidebarMenuSubButton className={subMenuButtonClass}>Member profile with history</SidebarMenuSubButton>
+                             <Link href="/dashboard/owner/members" passHref>
+                                <SidebarMenuSubButton asChild className={subMenuButtonClass}>
+                                  <a>Member profile with history</a>
+                                </SidebarMenuSubButton>
+                              </Link>
                             <SidebarMenuSubButton className={subMenuButtonClass}>Membership pause/freeze</SidebarMenuSubButton>
                             <SidebarMenuSubButton className={subMenuButtonClass}>Automated messages</SidebarMenuSubButton>
                         </SidebarMenuSub>
