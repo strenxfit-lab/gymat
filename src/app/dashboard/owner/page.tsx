@@ -81,7 +81,9 @@ export default function OwnerDashboardPage() {
         const gymSnap = await getDoc(gymRef);
 
         if (!gymSnap.exists()) {
-          setLoading(false);
+          localStorage.removeItem('userDocId');
+          localStorage.removeItem('userRole');
+          localStorage.removeItem('activeBranch');
           router.push('/');
           return;
         }
@@ -240,7 +242,6 @@ export default function OwnerDashboardPage() {
   }
 
   if (!gymData) {
-    // This case is now handled inside the useEffect, but this is a good safeguard.
     return <div className="flex min-h-screen items-center justify-center bg-background">Redirecting to login...</div>;
   }
   
