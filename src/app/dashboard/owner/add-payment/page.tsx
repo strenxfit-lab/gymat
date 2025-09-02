@@ -98,12 +98,14 @@ export default function AddPaymentPage() {
 
   useEffect(() => {
     const memberId = searchParams.get('memberId');
+    const memberName = searchParams.get('memberName');
     
     const initialize = async () => {
         const fetchedMembers = await fetchMembers();
-        if (memberId && fetchedMembers) {
+        if (memberId && memberName && fetchedMembers) {
             const member = fetchedMembers.find(m => m.id === memberId);
             if(member) {
+                // This will trigger the watch effect below
                 form.setValue('memberId', memberId);
             }
         }
@@ -310,5 +312,3 @@ export default function AddPaymentPage() {
     </div>
   );
 }
-
-    
