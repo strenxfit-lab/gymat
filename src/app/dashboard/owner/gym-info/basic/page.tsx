@@ -9,13 +9,14 @@ import * as z from 'zod';
 import { doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useToast } from '@/hooks/use-toast';
-import { Button } from '@/components/ui/button';
+import { Button, buttonVariants } from '@/components/ui/button';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Loader2, ArrowLeft, Dumbbell, Upload } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
+import { cn } from '@/lib/utils';
 
 const formSchema = z.object({
   gymName: z.string().min(1, 'Gym Name is required.'),
