@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect } from 'react';
@@ -67,8 +68,13 @@ export default function MembershipPlansPage() {
             const detailsSnap = await getDoc(detailsRef);
 
             if (detailsSnap.exists()) {
-                const data = detailsSnap.data() as Partial<FormData>;
-                form.reset(data);
+                const data = detailsSnap.data();
+                form.reset({
+                    hasPlans: data.hasPlans || '',
+                    plans: data.plans && data.plans.length > 0 ? data.plans : [{ name: '', price: '' }],
+                    monthlyFee: data.monthlyFee || '',
+                    freeTrial: data.freeTrial || '',
+                });
                 if (data.plans && data.plans.length > 0) {
                   replace(data.plans);
                 }
