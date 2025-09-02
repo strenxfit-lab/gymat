@@ -182,7 +182,7 @@ export default function MemberProfilePage({ params }: { params: { memberId: stri
                     <CardTitle className="flex items-center gap-2"><KeyRound /> Login Credentials</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                    <DetailItem label="Login ID" value={member.loginId} />
+                    <DetailItem label="Login ID (Member No.)" value={member.loginId} />
                     <DetailItem label="Password" value={member.password} />
                 </CardContent>
             </Card>
