@@ -58,7 +58,6 @@ export default function MembersListPage() {
 
     const userDocId = localStorage.getItem('userDocId');
     if (!userDocId || !branch) {
-      toast({ title: "Error", description: "Session or branch not found.", variant: "destructive" });
       if (!userDocId) router.push('/');
       setLoading(false);
       return;
@@ -72,16 +71,16 @@ export default function MembersListPage() {
 
         const membersList = membersSnapshot.docs.map(doc => {
           const data = doc.data();
-          const endDate = (data.endDate as Timestamp).toDate();
+          const endDate = (data.endDate as Timestamp)?.toDate();
           return {
             id: doc.id,
             fullName: data.fullName,
             email: data.email,
             phone: data.phone,
             membershipType: data.membershipType,
-            startDate: (data.startDate as Timestamp).toDate(),
+            startDate: (data.startDate as Timestamp)?.toDate(),
             endDate: endDate,
-            status: endDate >= now ? 'Active' : 'Expired',
+            status: endDate && endDate >= now ? 'Active' : 'Expired',
           } as Member;
         });
         setMembers(membersList);
@@ -178,7 +177,7 @@ export default function MembersListPage() {
                                 <div>{member.phone}</div>
                                 </TableCell>
                                 <TableCell>{member.membershipType}</TableCell>
-                                <TableCell>{member.endDate.toLocaleDateString()}</TableCell>
+                                <TableCell>{member.endDate ? member.endDate.toLocaleDateString() : 'N/A'}</TableCell>
                                 <TableCell>
                                 <Badge variant={member.status === 'Active' ? 'default' : 'destructive'}>
                                     {member.status}
@@ -194,7 +193,7 @@ export default function MembersListPage() {
                                     </DropdownMenuTrigger>
                                     <DropdownMenuContent align="end">
                                     <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                                    <DropdownMenuItem>View Profile</DropdownMenuItem>
+                                    <DropdownMenuItem onSelect={() => router.push(`/dashboard/owner/members/${member.id}`)}>View Profile</DropdownMenuItem>
                                     <DropdownMenuItem>Edit Profile</DropdownMenuItem>
                                     <DropdownMenuItem>Collect Payment</DropdownMenuItem>
                                     </DropdownMenuContent>
