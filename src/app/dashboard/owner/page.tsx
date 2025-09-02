@@ -1,5 +1,4 @@
 
-
 "use client";
 
 import { useState, useEffect } from 'react';
@@ -10,10 +9,11 @@ import { db } from '@/lib/firebase';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Bell, Building, Calendar, DollarSign, PlusCircle, Send, Users, UserPlus, TrendingUp, AlertCircle, Sparkles, LifeBuoy, BarChart3, IndianRupee } from 'lucide-react';
+import { Bell, Building, Calendar, DollarSign, PlusCircle, Send, Users, UserPlus, TrendingUp, AlertCircle, Sparkles, LifeBuoy, BarChart3, IndianRupee, Mail, Phone } from 'lucide-react';
 import { ResponsiveContainer, BarChart, XAxis, YAxis, Tooltip, Bar, Legend } from 'recharts';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 
 interface Member {
   id: string;
@@ -52,6 +52,7 @@ interface GymData {
 export default function OwnerDashboardPage() {
   const [gymData, setGymData] = useState<GymData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isSupportDialogOpen, setIsSupportDialogOpen] = useState(false);
   const router = useRouter();
   const { toast } = useToast();
 
@@ -463,18 +464,40 @@ export default function OwnerDashboardPage() {
         </div>
 
         <div className="grid gap-4">
-             <Card>
-                <CardHeader>
-                    <CardTitle className="flex items-center">
-                        <LifeBuoy className="mr-2"/>
-                        Support
-                    </CardTitle>
-                </CardHeader>
-                <CardContent>
-                    <p className="text-muted-foreground text-sm mb-4">Need help? Contact our support team.</p>
-                    <Button>Contact Strenxfit Support</Button>
-                </CardContent>
-            </Card>
+            <Dialog open={isSupportDialogOpen} onOpenChange={setIsSupportDialogOpen}>
+                <Card>
+                    <CardHeader>
+                        <CardTitle className="flex items-center">
+                            <LifeBuoy className="mr-2"/>
+                            Support
+                        </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <p className="text-muted-foreground text-sm mb-4">Need help? Contact our support team.</p>
+                        <DialogTrigger asChild>
+                            <Button>Contact Strenxfit Support</Button>
+                        </DialogTrigger>
+                    </CardContent>
+                </Card>
+                <DialogContent>
+                    <DialogHeader>
+                    <DialogTitle>Contact Support</DialogTitle>
+                    <DialogDescription>
+                        You can reach us via email or WhatsApp.
+                    </DialogDescription>
+                    </DialogHeader>
+                    <div className="flex flex-col space-y-4 py-4">
+                        <a href="mailto:strenxfit@gmail.com" className="flex items-center gap-3 p-3 rounded-md hover:bg-accent transition-colors">
+                            <Mail className="h-5 w-5 text-muted-foreground" />
+                            <span>strenxfit@gmail.com</span>
+                        </a>
+                        <a href="https://wa.me/917988487892" target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 p-3 rounded-md hover:bg-accent transition-colors">
+                            <Phone className="h-5 w-5 text-muted-foreground" />
+                            <span>+91 79884 87892</span>
+                        </a>
+                    </div>
+                </DialogContent>
+            </Dialog>
         </div>
       </div>
     </ScrollArea>
