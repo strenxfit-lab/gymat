@@ -139,20 +139,13 @@ export default function OwnerDashboardPage() {
             if (expiry >= now) {
                 activeMembers++;
                 if(expiry <= sevenDaysFromNow) {
-                    let outstandingAmount = 0;
-                    if(memberPendingDue > 0) {
-                        outstandingAmount = memberPendingDue;
-                    } else if (totalPaidForCurrentTerm < memberTotalFee) {
-                        outstandingAmount = memberTotalFee - totalPaidForCurrentTerm;
-                    }
-
                     upcomingExpiries.push({ 
                       id: memberDoc.id, 
                       name: data.fullName, 
                       endDate: expiry, 
                       plan: data.plan,
                       phone: data.phone,
-                      pendingAmount: outstandingAmount
+                      pendingAmount: memberTotalFee
                     });
                 }
             } else {
