@@ -38,21 +38,6 @@ export default function MultiBranchPage() {
     defaultValues: { name: '' },
   });
 
-  const fetchBranches = async (docId: string) => {
-    try {
-      const detailsRef = doc(db, 'gyms', docId, 'details', 'onboarding');
-      const detailsSnap = await getDoc(detailsRef);
-      if (detailsSnap.exists()) {
-        setBranches(detailsSnap.data().branches || []);
-      }
-    } catch (error) {
-      console.error("Error fetching branches:", error);
-      toast({ title: "Error", description: "Could not fetch branch information.", variant: "destructive" });
-    } finally {
-      setLoading(false);
-    }
-  };
-
   useEffect(() => {
     const docId = localStorage.getItem('userDocId');
     if (!docId) {
@@ -61,6 +46,30 @@ export default function MultiBranchPage() {
       return;
     }
     setUserDocId(docId);
+    
+    const fetchBranches = async (docId: string) => {
+        try {
+            const detailsRef = doc(db, 'gyms', docId, 'details', 'onboarding');
+            const detailsSnap = await getDoc(detailsRef);
+            let allBranches: Branch[] = [];
+            if (detailsSnap.exists()) {
+                const data = detailsSnap.data();
+                if(data.gymName) {
+                    allBranches.push({ name: data.gymName });
+                }
+                if(data.branches) {
+                    allBranches = [...allBranches, ...data.branches];
+                }
+            }
+            setBranches(allBranches);
+        } catch (error) {
+            console.error("Error fetching branches:", error);
+            toast({ title: "Error", description: "Could not fetch branch information.", variant: "destructive" });
+        } finally {
+            setLoading(false);
+        }
+    };
+
     fetchBranches(docId);
   }, [router, toast]);
 
@@ -68,12 +77,14 @@ export default function MultiBranchPage() {
     if (!userDocId) return;
 
     const newBranch = { name: values.name };
-    const updatedBranches = [...branches, newBranch];
+    // We only add the new branch, not the main one which is derived from gymName
+    const additionalBranches = branches.slice(1);
+    const updatedBranches = [...additionalBranches, newBranch];
 
     try {
       const detailsRef = doc(db, 'gyms', userDocId, 'details', 'onboarding');
       await updateDoc(detailsRef, { branches: updatedBranches });
-      setBranches(updatedBranches);
+      setBranches([branches[0], ...updatedBranches]);
       toast({ title: 'Success!', description: 'New branch has been added.' });
       setIsDialogOpen(false);
       form.reset();

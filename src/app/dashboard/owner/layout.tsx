@@ -130,9 +130,9 @@ export default function OwnerDashboardLayout({
                     </SidebarMenuButton>
                     {openSubMenu === 'member' && (
                         <SidebarMenuSub className="space-y-3">
-                            <Link href={hasMultiBranch ? "/dashboard/owner/multi-branch" : "#"} passHref>
-                                <SidebarMenuSubButton onClick={handleMultiBranchClick} className={subMenuButtonClass}>Multi-branch support</SidebarMenuSubButton>
-                            </Link>
+                            <SidebarMenuSubButton onClick={handleMultiBranchClick} className={subMenuButtonClass}>
+                              <Link href={hasMultiBranch ? "/dashboard/owner/multi-branch" : "#"}>Multi-branch support</Link>
+                            </SidebarMenuSubButton>
                              <Link href="/dashboard/owner/members">
                                 <SidebarMenuSubButton className={subMenuButtonClass}>Member profile with history</SidebarMenuSubButton>
                               </Link>
@@ -203,7 +203,6 @@ export default function OwnerDashboardLayout({
                         <SidebarMenuSub className="space-y-3">
                             <SidebarMenuSubButton className={subMenuButtonClass}>Equipment maintenance</SidebarMenuSubButton>
                             <SidebarMenuSubButton className={subMenuButtonClass}>Inventory tracking</SidebarMenuSubButton>
-                            <SidebarMenuSubButton className={subMenuButtonClass}>Low-stock alerts</SidebarMenuSubButton>
                         </SidebarMenuSub>
                     )}
                 </SidebarMenuItem>
