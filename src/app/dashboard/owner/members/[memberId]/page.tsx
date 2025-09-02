@@ -2,7 +2,7 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useParams } from 'next/navigation';
 import { doc, getDoc, collection, getDocs, Timestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useToast } from '@/hooks/use-toast';
@@ -51,12 +51,12 @@ const DetailItem = ({ label, value }: { label: string, value: string | undefined
 );
 
 export default function MemberProfilePage({ params }: { params: { memberId: string } }) {
+  const { memberId } = params;
   const [member, setMember] = useState<MemberDetails | null>(null);
   const [payments, setPayments] = useState<Payment[]>([]);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
   const { toast } = useToast();
-  const { memberId } = params;
 
   useEffect(() => {
     const userDocId = localStorage.getItem('userDocId');
@@ -155,7 +155,9 @@ export default function MemberProfilePage({ params }: { params: { memberId: stri
             <Link href="/dashboard/owner/members" passHref>
                 <Button variant="outline"><ArrowLeft className="mr-2 h-4 w-4"/>Back to Members</Button>
             </Link>
-            <Button><Edit className="mr-2 h-4 w-4"/>Edit Profile</Button>
+            <Link href={`/dashboard/owner/members/${memberId}/edit`} passHref>
+                <Button><Edit className="mr-2 h-4 w-4"/>Edit Profile</Button>
+            </Link>
         </div>
         
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
