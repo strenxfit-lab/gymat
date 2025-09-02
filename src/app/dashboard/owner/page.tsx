@@ -88,17 +88,32 @@ export default function OwnerDashboardPage() {
         let upcomingExpiries: Member[] = [];
         const activePackages = new Set<string>();
         
-        const members: Member[] = membersSnap.docs.map(doc => {
-            const data = doc.data();
+        let todaysCollection = 0;
+        let thisMonthsRevenue = 0;
+        let pendingDues = 0;
+        
+        const members: Member[] = [];
+
+        for (const memberDoc of membersSnap.docs) {
+            const data = memberDoc.data();
             if (!data.endDate || !(data.endDate instanceof Timestamp)) {
-              return null;
+              continue;
             }
             const expiry = (data.endDate as Timestamp).toDate();
             
+            const memberInfo = {
+                id: memberDoc.id,
+                name: data.fullName,
+                endDate: expiry,
+                plan: data.plan,
+                totalFee: data.totalFee || 0,
+            };
+            members.push(memberInfo);
+
             if (expiry >= now) {
                 activeMembers++;
                 if(expiry <= sevenDaysFromNow) {
-                    upcomingExpiries.push({ id: doc.id, name: data.fullName, endDate: expiry, plan: data.plan });
+                    upcomingExpiries.push({ id: memberDoc.id, name: data.fullName, endDate: expiry, plan: data.plan });
                 }
             } else {
                 expiredMembers++;
@@ -107,34 +122,34 @@ export default function OwnerDashboardPage() {
             if(data.plan) {
                 activePackages.add(data.plan);
             }
-            
-            return {
-                id: doc.id,
-                name: data.fullName,
-                endDate: expiry,
-                plan: data.plan
-            };
-        }).filter((member): member is Member => member !== null);
-        
-        let todaysCollection = 0;
-        let thisMonthsRevenue = 0;
-        let pendingDues = 0;
-        
-        for (const memberDoc of membersSnap.docs) {
+
             const paymentsRef = collection(db, 'gyms', userDocId, 'members', memberDoc.id, 'payments');
             const paymentsSnap = await getDocs(paymentsRef);
             
+            let totalPaidForCurrentTerm = 0;
             paymentsSnap.forEach(paymentDoc => {
                 const payment = paymentDoc.data();
                 const paymentDate = (payment.paymentDate as Timestamp).toDate();
 
-                thisMonthsRevenue += payment.amountPaid;
-                pendingDues += payment.balanceDue;
+                if (paymentDate >= startOfMonth) {
+                    thisMonthsRevenue += payment.amountPaid;
+                }
 
                 if (paymentDate >= startOfToday) {
                     todaysCollection += payment.amountPaid;
                 }
+                
+                totalPaidForCurrentTerm += payment.amountPaid;
+                pendingDues += payment.balanceDue || 0;
             });
+            
+            if (expiry < now) {
+                const outstandingForExpired = (data.totalFee || 0) - totalPaidForCurrentTerm;
+                if(outstandingForExpired > 0 && !paymentsSnap.empty) {
+                    // This logic is tricky. We'll rely on balanceDue from records.
+                    // A simpler model might be to add the full fee if expired and unpaid.
+                }
+            }
         }
 
 
@@ -424,3 +439,4 @@ export default function OwnerDashboardPage() {
     </ScrollArea>
   );
 }
+
