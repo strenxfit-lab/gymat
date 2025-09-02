@@ -4,7 +4,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { doc, getDoc, collection, getDocs, Timestamp, query, where, orderBy, limit } from 'firebase/firestore';
+import { doc, getDoc, collection, getDocs, Timestamp, query, orderBy, limit } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
