@@ -124,7 +124,7 @@ export default function EditMemberPage() {
         totalFee: data.totalFee ? parseFloat(data.totalFee) : 0,
         dob: data.dob ? Timestamp.fromDate(data.dob) : null,
         startDate: data.startDate ? Timestamp.fromDate(data.startDate) : null,
-        endDate: endDate ? Timestamp.fromDate(endDate) : undefined,
+        endDate: endDate ? Timestamp.fromDate(endDate) : null,
       };
 
       await updateDoc(memberRef, memberData);
