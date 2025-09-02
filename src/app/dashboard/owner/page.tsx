@@ -186,7 +186,6 @@ export default function OwnerDashboardPage() {
             const paymentsSnap = await getDocs(paymentsQuery);
             
             if (!paymentsSnap.empty) {
-                // Pending due is only from the latest payment record
                 pendingDues += paymentsSnap.docs[0].data().balanceDue || 0;
             }
 
@@ -204,9 +203,6 @@ export default function OwnerDashboardPage() {
             });
         }
         
-        // As per user request, this month's revenue should EXCLUDE today's collection.
-        thisMonthsRevenue = thisMonthsRevenue - todaysCollection;
-
         const trainersData: Trainer[] = trainersSnap.docs.map(doc => {
             const data = doc.data();
             return {
