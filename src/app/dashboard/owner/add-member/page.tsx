@@ -76,7 +76,8 @@ export default function AddMemberPage() {
   const router = useRouter();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [newMember, setNewMember] = useState<{ id: string; name: string } | null>(null);
-  
+  const [activeBranch, setActiveBranch] = useState<string | null>(null);
+
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -99,6 +100,8 @@ export default function AddMemberPage() {
 
   useEffect(() => {
     setIsMounted(true);
+    const branch = localStorage.getItem('activeBranch');
+    setActiveBranch(branch);
   }, []);
   
   useEffect(() => {
@@ -153,6 +156,7 @@ export default function AddMemberPage() {
 
       const memberData: any = {
         ...data,
+        branch: activeBranch,
         totalFee: parseFloat(data.totalFee),
         dob: Timestamp.fromDate(data.dob),
         startDate: Timestamp.fromDate(data.startDate),
@@ -204,7 +208,7 @@ export default function AddMemberPage() {
           <AlertDialogHeader>
             <AlertDialogTitle>Member Added Successfully!</AlertDialogTitle>
             <AlertDialogDescription>
-              {newMember?.name} has been registered. What would you like to do next?
+              {newMember?.name} has been registered to branch {activeBranch}. What would you like to do next?
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -217,14 +221,17 @@ export default function AddMemberPage() {
         <Card className="w-full max-w-2xl">
             <CardHeader>
                 <Progress value={progress} className="mb-4" />
-                <div className="flex items-center gap-3">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
-                        {steps[currentStep - 1].icon}
-                    </div>
-                    <div>
-                        <CardTitle>{steps[currentStep - 1].title}</CardTitle>
-                        <CardDescription>Step {currentStep} of {steps.length}</CardDescription>
-                    </div>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                      <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                          {steps[currentStep - 1].icon}
+                      </div>
+                      <div>
+                          <CardTitle>{steps[currentStep - 1].title}</CardTitle>
+                          <CardDescription>Step {currentStep} of {steps.length}</CardDescription>
+                      </div>
+                  </div>
+                  {activeBranch && <div className="text-sm font-medium text-muted-foreground">Branch: {activeBranch}</div>}
                 </div>
             </CardHeader>
             <Form {...form}>
@@ -323,5 +330,3 @@ export default function AddMemberPage() {
     </div>
   );
 }
-
-    

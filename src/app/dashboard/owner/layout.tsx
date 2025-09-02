@@ -3,6 +3,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import {
   SidebarProvider,
   Sidebar,
@@ -19,7 +20,7 @@ import {
   SidebarGroup,
   SidebarGroupLabel,
 } from '@/components/ui/sidebar';
-import { Dumbbell, Users, CreditCard, ClipboardList, BarChart3, Megaphone, Boxes, ChevronDown, Info, Mail, Phone } from 'lucide-react';
+import { Dumbbell, Users, CreditCard, ClipboardList, BarChart3, Megaphone, Boxes, ChevronDown, Info, Mail, Phone, Building } from 'lucide-react';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
@@ -33,6 +34,8 @@ export default function OwnerDashboardLayout({
   const [openSubMenu, setOpenSubMenu] = useState<string | null>(null);
   const [hasMultiBranch, setHasMultiBranch] = useState(false);
   const [isSupportDialogOpen, setIsSupportDialogOpen] = useState(false);
+  const [activeBranch, setActiveBranch] = useState<string | null>(null);
+  const router = useRouter();
 
 
   useEffect(() => {
@@ -41,8 +44,18 @@ export default function OwnerDashboardLayout({
       if (userDocId) {
         const gymRef = doc(db, 'gyms', userDocId);
         const gymSnap = await getDoc(gymRef);
-        if (gymSnap.exists() && gymSnap.data().multiBranch) {
-          setHasMultiBranch(true);
+        if (gymSnap.exists()) {
+            const gymData = gymSnap.data();
+            if (gymData.multiBranch) {
+                setHasMultiBranch(true);
+            }
+            const currentBranch = localStorage.getItem('activeBranch');
+            if (!currentBranch) {
+                localStorage.setItem('activeBranch', gymData.name);
+                setActiveBranch(gymData.name);
+            } else {
+                setActiveBranch(currentBranch);
+            }
         }
       }
     };
@@ -57,6 +70,8 @@ export default function OwnerDashboardLayout({
     if (!hasMultiBranch) {
       e.preventDefault();
       setIsSupportDialogOpen(true);
+    } else {
+      router.push('/dashboard/owner/multi-branch');
     }
   };
 
@@ -90,6 +105,12 @@ export default function OwnerDashboardLayout({
             <Dumbbell className="w-6 h-6 text-primary" />
             <h1 className="text-lg font-semibold">GymLogin Pro</h1>
           </div>
+           {activeBranch && (
+            <div className="mt-2 text-xs text-center p-1 rounded-md bg-primary/10 text-primary-foreground flex items-center justify-center gap-2">
+              <Building className="h-4 w-4" />
+              <span>{activeBranch}</span>
+            </div>
+          )}
         </SidebarHeader>
         <SidebarContent>
           <SidebarMenu>
@@ -130,8 +151,8 @@ export default function OwnerDashboardLayout({
                     </SidebarMenuButton>
                     {openSubMenu === 'member' && (
                         <SidebarMenuSub className="space-y-3">
-                            <SidebarMenuSubButton onClick={handleMultiBranchClick} className={subMenuButtonClass}>
-                              <Link href={hasMultiBranch ? "/dashboard/owner/multi-branch" : "#"}>Multi-branch support</Link>
+                           <SidebarMenuSubButton onClick={handleMultiBranchClick} className={subMenuButtonClass}>
+                                Multi-branch support
                             </SidebarMenuSubButton>
                              <Link href="/dashboard/owner/members">
                                 <SidebarMenuSubButton className={subMenuButtonClass}>Member profile with history</SidebarMenuSubButton>

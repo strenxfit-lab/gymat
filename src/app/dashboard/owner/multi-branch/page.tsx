@@ -49,17 +49,19 @@ export default function MultiBranchPage() {
     
     const fetchBranches = async (docId: string) => {
         try {
-            const detailsRef = doc(db, 'gyms', docId, 'details', 'onboarding');
-            const detailsSnap = await getDoc(detailsRef);
+            const gymRef = doc(db, 'gyms', docId);
+            const gymSnap = await getDoc(gymRef);
             let allBranches: Branch[] = [];
-            if (detailsSnap.exists()) {
-                const data = detailsSnap.data();
-                if(data.gymName) {
-                    allBranches.push({ name: data.gymName });
+            if (gymSnap.exists()) {
+                const data = gymSnap.data();
+                if(data.name) {
+                    allBranches.push({ name: data.name });
                 }
-                if(data.branches) {
-                    allBranches = [...allBranches, ...data.branches];
-                }
+                 const detailsRef = doc(db, 'gyms', docId, 'details', 'onboarding');
+                 const detailsSnap = await getDoc(detailsRef);
+                 if(detailsSnap.exists() && detailsSnap.data().branches) {
+                     allBranches = [...allBranches, ...detailsSnap.data().branches];
+                 }
             }
             setBranches(allBranches);
         } catch (error) {
@@ -77,7 +79,6 @@ export default function MultiBranchPage() {
     if (!userDocId) return;
 
     const newBranch = { name: values.name };
-    // We only add the new branch, not the main one which is derived from gymName
     const additionalBranches = branches.slice(1);
     const updatedBranches = [...additionalBranches, newBranch];
 
@@ -94,6 +95,11 @@ export default function MultiBranchPage() {
     }
   };
 
+  const handleBranchClick = (branchName: string) => {
+    localStorage.setItem('activeBranch', branchName);
+    router.push('/dashboard/owner');
+  }
+
   if (loading) {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center bg-background p-4">
@@ -109,7 +115,7 @@ export default function MultiBranchPage() {
         <CardHeader className="flex flex-row items-center justify-between">
             <div>
                 <CardTitle>Multi-branch Management</CardTitle>
-                <CardDescription>View and manage your gym locations.</CardDescription>
+                <CardDescription>Select a branch to manage or add a new one.</CardDescription>
             </div>
              <Link href="/dashboard/owner" passHref>
                 <Button variant="outline">
@@ -121,10 +127,14 @@ export default function MultiBranchPage() {
         <CardContent>
           <div className="space-y-4">
             {branches.map((branch, index) => (
-              <div key={index} className="flex items-center gap-4 rounded-md border p-4">
+              <button 
+                key={index} 
+                onClick={() => handleBranchClick(branch.name)}
+                className="w-full flex items-center gap-4 rounded-md border p-4 text-left hover:bg-accent transition-colors"
+              >
                 <Building className="h-6 w-6 text-primary" />
                 <p className="font-medium">{branch.name}</p>
-              </div>
+              </button>
             ))}
             {branches.length === 0 && (
               <p className="text-muted-foreground text-center py-8">No branches found. Add your first one!</p>

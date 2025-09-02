@@ -4,7 +4,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { collection, getDocs, Timestamp } from 'firebase/firestore';
+import { collection, getDocs, Timestamp, query, where } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -31,6 +31,7 @@ interface Member {
   startDate: Date;
   endDate: Date;
   status: 'Active' | 'Expired';
+  branch?: string;
 }
 
 interface Trainer {
@@ -40,6 +41,7 @@ interface Trainer {
   phone: string;
   specialization?: string;
   shiftTiming: string;
+  branch?: string;
 }
 
 export default function MembersListPage() {
@@ -48,21 +50,27 @@ export default function MembersListPage() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [activeTab, setActiveTab] = useState("members");
+  const [activeBranch, setActiveBranch] = useState<string | null>(null);
   const router = useRouter();
   const { toast } = useToast();
 
   useEffect(() => {
+    const branch = localStorage.getItem('activeBranch');
+    setActiveBranch(branch);
+
     const userDocId = localStorage.getItem('userDocId');
-    if (!userDocId) {
-      toast({ title: "Error", description: "No user session found.", variant: "destructive" });
-      router.push('/');
+    if (!userDocId || !branch) {
+      toast({ title: "Error", description: "Session or branch not found.", variant: "destructive" });
+      if (!userDocId) router.push('/');
+      setLoading(false);
       return;
     }
 
     const fetchData = async () => {
       try {
         const membersCollection = collection(db, 'gyms', userDocId, 'members');
-        const membersSnapshot = await getDocs(membersCollection);
+        const membersQuery = query(membersCollection, where("branch", "==", branch));
+        const membersSnapshot = await getDocs(membersQuery);
         const now = new Date();
 
         const membersList = membersSnapshot.docs.map(doc => {
@@ -77,12 +85,14 @@ export default function MembersListPage() {
             startDate: (data.startDate as Timestamp).toDate(),
             endDate: endDate,
             status: endDate >= now ? 'Active' : 'Expired',
+            branch: data.branch,
           } as Member;
         });
         setMembers(membersList);
         
         const trainersCollection = collection(db, 'gyms', userDocId, 'trainers');
-        const trainersSnapshot = await getDocs(trainersCollection);
+        const trainersQuery = query(trainersCollection, where("branch", "==", branch));
+        const trainersSnapshot = await getDocs(trainersQuery);
         const trainersList = trainersSnapshot.docs.map(doc => {
           const data = doc.data();
           return {
@@ -92,6 +102,7 @@ export default function MembersListPage() {
             phone: data.phone,
             specialization: data.specialization,
             shiftTiming: data.shiftTiming,
+            branch: data.branch,
           } as Trainer;
         });
         setTrainers(trainersList);
@@ -148,7 +159,7 @@ export default function MembersListPage() {
             <TabsContent value="members">
                 <Card>
                     <CardHeader>
-                    <CardTitle>Members List</CardTitle>
+                    <CardTitle>Members List ({activeBranch})</CardTitle>
                     <CardDescription>A list of all members in your gym.</CardDescription>
                     </CardHeader>
                     <CardContent>
@@ -200,7 +211,7 @@ export default function MembersListPage() {
                         ) : (
                             <TableRow>
                             <TableCell colSpan={6} className="h-24 text-center">
-                                No members found.
+                                No members found for this branch.
                             </TableCell>
                             </TableRow>
                         )}
@@ -212,7 +223,7 @@ export default function MembersListPage() {
             <TabsContent value="trainers">
                  <Card>
                     <CardHeader>
-                    <CardTitle>Trainers List</CardTitle>
+                    <CardTitle>Trainers List ({activeBranch})</CardTitle>
                     <CardDescription>A list of all trainers in your gym.</CardDescription>
                     </CardHeader>
                     <CardContent>
@@ -258,7 +269,7 @@ export default function MembersListPage() {
                         ) : (
                             <TableRow>
                             <TableCell colSpan={5} className="h-24 text-center">
-                                No trainers found.
+                                No trainers found for this branch.
                             </TableCell>
                             </TableRow>
                         )}
