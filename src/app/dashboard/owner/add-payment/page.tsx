@@ -125,16 +125,15 @@ export default function AddPaymentPage() {
   };
 
   useEffect(() => {
-    const memberId = searchParams.get('memberId');
-    const memberName = searchParams.get('memberName');
+    const memberIdFromUrl = searchParams.get('memberId');
     
     const initialize = async () => {
         if(activeBranchId) {
             const fetchedMembers = await fetchMembers(activeBranchId);
-            if (memberId && memberName && fetchedMembers) {
-                const member = fetchedMembers.find(m => m.id === memberId);
+            if (memberIdFromUrl && fetchedMembers) {
+                const member = fetchedMembers.find(m => m.id === memberIdFromUrl);
                 if(member) {
-                    form.setValue('memberId', memberId);
+                    form.setValue('memberId', memberIdFromUrl);
                 }
             }
         }
