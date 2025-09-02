@@ -111,8 +111,12 @@ export default function BasicGymInfoPage() {
     setIsLoading(true);
 
     try {
+      const dataToSave = { ...data };
+      // @ts-ignore
+      delete dataToSave.gymLogo; 
+
       const detailsRef = doc(db, 'gyms', userDocId, 'details', 'onboarding');
-      await setDoc(detailsRef, data, { merge: true });
+      await setDoc(detailsRef, dataToSave, { merge: true });
 
       const userRef = doc(db, 'gyms', userDocId);
       await updateDoc(userRef, {
@@ -218,3 +222,5 @@ export default function BasicGymInfoPage() {
     </div>
   );
 }
+
+    
