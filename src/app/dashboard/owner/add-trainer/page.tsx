@@ -287,3 +287,5 @@ export default function AddTrainerPage() {
     </div>
   );
 }
+
+    
