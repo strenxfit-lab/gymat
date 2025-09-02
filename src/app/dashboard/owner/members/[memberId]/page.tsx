@@ -13,6 +13,8 @@ import { Button } from "@/components/ui/button";
 import { Loader2, ArrowLeft, User, Calendar, DollarSign, Weight, BarChart2, Edit, KeyRound } from 'lucide-react';
 import Link from 'next/link';
 
+type MemberStatus = 'Active' | 'Expired' | 'Pending' | 'Frozen' | 'Stopped';
+
 interface MemberDetails {
   // Personal Info
   fullName: string;
@@ -30,7 +32,7 @@ interface MemberDetails {
   membershipType: string;
   startDate: string;
   endDate: string;
-  status: 'Active' | 'Expired' | 'Pending' | 'Frozen';
+  status: MemberStatus;
 }
 
 interface Payment {
@@ -49,6 +51,18 @@ const DetailItem = ({ label, value }: { label: string, value: string | undefined
         <p className="font-medium">{value || 'N/A'}</p>
     </div>
 );
+
+const getStatusVariant = (status: MemberStatus) => {
+    switch (status) {
+        case 'Active': return 'default';
+        case 'Expired': return 'destructive';
+        case 'Pending': return 'secondary';
+        case 'Frozen':
+        case 'Stopped':
+             return 'destructive';
+        default: return 'outline';
+    }
+}
 
 export default function MemberProfilePage({ params }: { params: { memberId: string } }) {
   const { memberId } = params;
@@ -83,11 +97,12 @@ export default function MemberProfilePage({ params }: { params: { memberId: stri
         const data = memberSnap.data();
         const now = new Date();
         const endDate = (data.endDate as Timestamp)?.toDate();
-        const memberStatus = () => {
-            if (!endDate) return 'Pending';
-            if (endDate >= now) return 'Active';
-            return 'Expired';
+        
+        let status: MemberStatus = data.status || 'Pending';
+        if (status === 'Active' && endDate && endDate < now) {
+            status = 'Expired';
         }
+
 
         setMember({
           fullName: data.fullName,
@@ -103,7 +118,7 @@ export default function MemberProfilePage({ params }: { params: { memberId: stri
           membershipType: data.membershipType,
           startDate: (data.startDate as Timestamp)?.toDate().toLocaleDateString(),
           endDate: endDate?.toLocaleDateString() || 'N/A',
-          status: memberStatus(),
+          status: status,
         });
         
         // Fetch payment history
@@ -199,7 +214,7 @@ export default function MemberProfilePage({ params }: { params: { memberId: stri
                     <DetailItem label="End Date" value={member.endDate} />
                     <div>
                         <p className="text-sm text-muted-foreground">Status</p>
-                        <Badge variant={member.status === 'Active' ? 'default' : 'destructive'}>{member.status}</Badge>
+                        <Badge variant={getStatusVariant(member.status)}>{member.status}</Badge>
                     </div>
                 </CardContent>
             </Card>

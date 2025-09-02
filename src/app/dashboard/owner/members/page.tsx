@@ -22,6 +22,8 @@ import {
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
+type MemberStatus = 'Active' | 'Expired' | 'Pending' | 'Frozen' | 'Stopped';
+
 interface Member {
   id: string;
   fullName: string;
@@ -30,7 +32,7 @@ interface Member {
   membershipType: string;
   startDate: Date;
   endDate: Date;
-  status: 'Active' | 'Expired';
+  status: MemberStatus;
 }
 
 interface Trainer {
@@ -40,6 +42,18 @@ interface Trainer {
   phone: string;
   specialization?: string;
   shiftTiming: string;
+}
+
+const getStatusVariant = (status: MemberStatus) => {
+    switch (status) {
+        case 'Active': return 'default';
+        case 'Expired': return 'destructive';
+        case 'Pending': return 'secondary';
+        case 'Frozen':
+        case 'Stopped':
+             return 'destructive';
+        default: return 'outline';
+    }
 }
 
 export default function MembersListPage() {
@@ -72,6 +86,12 @@ export default function MembersListPage() {
         const membersList = membersSnapshot.docs.map(doc => {
           const data = doc.data();
           const endDate = (data.endDate as Timestamp)?.toDate();
+          
+          let status: MemberStatus = data.status || 'Pending';
+           if (status === 'Active' && endDate && endDate < now) {
+                status = 'Expired';
+           }
+
           return {
             id: doc.id,
             fullName: data.fullName,
@@ -80,7 +100,7 @@ export default function MembersListPage() {
             membershipType: data.membershipType,
             startDate: (data.startDate as Timestamp)?.toDate(),
             endDate: endDate,
-            status: endDate && endDate >= now ? 'Active' : 'Expired',
+            status: status,
           } as Member;
         });
         setMembers(membersList);
@@ -179,7 +199,7 @@ export default function MembersListPage() {
                                 <TableCell>{member.membershipType}</TableCell>
                                 <TableCell>{member.endDate ? member.endDate.toLocaleDateString() : 'N/A'}</TableCell>
                                 <TableCell>
-                                <Badge variant={member.status === 'Active' ? 'default' : 'destructive'}>
+                                <Badge variant={getStatusVariant(member.status)}>
                                     {member.status}
                                 </Badge>
                                 </TableCell>
