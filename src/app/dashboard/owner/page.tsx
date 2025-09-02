@@ -48,7 +48,7 @@ interface GymData {
   newTrialMembers: number;
   runningOffers: string[];
   multiBranch?: boolean;
-  activeBranch?: string | null;
+  activeBranchName?: string | null;
 }
 
 export default function OwnerDashboardPage() {
@@ -60,7 +60,7 @@ export default function OwnerDashboardPage() {
 
   useEffect(() => {
     const userDocId = localStorage.getItem('userDocId');
-    const activeBranch = localStorage.getItem('activeBranch');
+    const activeBranchId = localStorage.getItem('activeBranch');
 
     if (!userDocId) {
       toast({ title: "Error", description: "No user session found.", variant: "destructive" });
@@ -68,7 +68,7 @@ export default function OwnerDashboardPage() {
       return;
     }
     
-    if (!activeBranch) {
+    if (!activeBranchId) {
         // This can happen on first load after login, layout should handle it.
         // For now, we can wait for a bit, or redirect to branch selection.
         setTimeout(() => window.location.reload(), 1000);
@@ -90,14 +90,16 @@ export default function OwnerDashboardPage() {
 
         const gym = gymSnap.data();
 
+        const branchRef = doc(db, 'gyms', userDocId, 'branches', activeBranchId);
+        const branchSnap = await getDoc(branchRef);
+        const branchName = branchSnap.exists() ? branchSnap.data().name : gym.name;
+
         // Fetch data scoped to the active branch
-        const membersRef = collection(db, 'gyms', userDocId, 'members');
-        const membersQuery = query(membersRef, where("branch", "==", activeBranch));
-        const membersSnap = await getDocs(membersQuery);
+        const membersRef = collection(db, 'gyms', userDocId, 'branches', activeBranchId, 'members');
+        const membersSnap = await getDocs(membersRef);
         
-        const trainersRef = collection(db, 'gyms', userDocId, 'trainers');
-        const trainersQuery = query(trainersRef, where("branch", "==", activeBranch));
-        const trainersSnap = await getDocs(trainersQuery);
+        const trainersRef = collection(db, 'gyms', userDocId, 'branches', activeBranchId, 'trainers');
+        const trainersSnap = await getDocs(trainersRef);
 
         const now = new Date();
         const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
@@ -142,7 +144,7 @@ export default function OwnerDashboardPage() {
             };
             members.push(memberInfo);
 
-            const paymentsRef = collection(db, 'gyms', userDocId, 'members', memberDoc.id, 'payments');
+            const paymentsRef = collection(db, 'gyms', userDocId, 'branches', activeBranchId, 'members', memberDoc.id, 'payments');
             const paymentsSnap = await getDocs(paymentsRef);
             
             let totalPaidForCurrentTerm = 0;
@@ -221,7 +223,7 @@ export default function OwnerDashboardPage() {
           newTrialMembers: newTrialMembers,
           runningOffers: gym.runningOffers || [],
           multiBranch: gym.multiBranch || false,
-          activeBranch: activeBranch,
+          activeBranchName: branchName,
         };
 
         setGymData(data);
@@ -242,7 +244,7 @@ export default function OwnerDashboardPage() {
   }
 
   if (!gymData) {
-    return <div className="flex min-h-screen items-center justify-center bg-background">Redirecting to login...</div>;
+    return <div className="flex min-h-screen items-center justify-center bg-background">Could not load gym data.</div>;
   }
   
   const memberData = [
@@ -253,7 +255,7 @@ export default function OwnerDashboardPage() {
     <ScrollArea className="h-screen bg-background">
       <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
         <div className="flex items-center justify-between space-y-2">
-          <h2 className="text-3xl font-bold tracking-tight">{gymData.activeBranch ? `${gymData.activeBranch} Dashboard` : 'Owner Dashboard'}</h2>
+          <h2 className="text-3xl font-bold tracking-tight">{gymData.activeBranchName ? `${gymData.activeBranchName} Dashboard` : 'Owner Dashboard'}</h2>
           <div className="flex items-center space-x-2">
             <Button>
               <Calendar className="mr-2 h-4 w-4" />
@@ -328,7 +330,7 @@ export default function OwnerDashboardPage() {
              <CardHeader>
                 <CardTitle className="flex items-center">
                     <Building className="mr-2"/>
-                    {gymData.name} ({gymData.activeBranch})
+                    {gymData.name} ({gymData.activeBranchName})
                 </CardTitle>
                 <CardDescription>{gymData.location}</CardDescription>
             </CardHeader>
@@ -521,5 +523,3 @@ export default function OwnerDashboardPage() {
     </ScrollArea>
   );
 }
-
-    

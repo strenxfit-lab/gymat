@@ -3,7 +3,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { doc, getDoc, updateDoc } from 'firebase/firestore';
+import { doc, getDoc, updateDoc, collection, addDoc, getDocs } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useToast } from '@/hooks/use-toast';
 import { useForm } from 'react-hook-form';
@@ -18,6 +18,7 @@ import { Loader2, PlusCircle, Building, ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
 
 interface Branch {
+  id: string;
   name: string;
 }
 
@@ -49,20 +50,10 @@ export default function MultiBranchPage() {
     
     const fetchBranches = async (docId: string) => {
         try {
-            const gymRef = doc(db, 'gyms', docId);
-            const gymSnap = await getDoc(gymRef);
-            let allBranches: Branch[] = [];
-            if (gymSnap.exists()) {
-                const data = gymSnap.data();
-                if(data.name) {
-                    allBranches.push({ name: data.name });
-                }
-                 const detailsRef = doc(db, 'gyms', docId, 'details', 'onboarding');
-                 const detailsSnap = await getDoc(detailsRef);
-                 if(detailsSnap.exists() && detailsSnap.data().branches) {
-                     allBranches = [...allBranches, ...detailsSnap.data().branches];
-                 }
-            }
+            const branchesCollection = collection(db, 'gyms', docId, 'branches');
+            const branchesSnapshot = await getDocs(branchesCollection);
+            const allBranches = branchesSnapshot.docs.map(doc => ({ id: doc.id, name: doc.data().name }));
+
             setBranches(allBranches);
         } catch (error) {
             console.error("Error fetching branches:", error);
@@ -79,13 +70,11 @@ export default function MultiBranchPage() {
     if (!userDocId) return;
 
     const newBranch = { name: values.name };
-    const additionalBranches = branches.slice(1);
-    const updatedBranches = [...additionalBranches, newBranch];
-
+    
     try {
-      const detailsRef = doc(db, 'gyms', userDocId, 'details', 'onboarding');
-      await updateDoc(detailsRef, { branches: updatedBranches });
-      setBranches([branches[0], ...updatedBranches]);
+      const branchesCollection = collection(db, 'gyms', userDocId, 'branches');
+      const docRef = await addDoc(branchesCollection, newBranch);
+      setBranches([...branches, { id: docRef.id, name: values.name }]);
       toast({ title: 'Success!', description: 'New branch has been added.' });
       setIsDialogOpen(false);
       form.reset();
@@ -95,8 +84,8 @@ export default function MultiBranchPage() {
     }
   };
 
-  const handleBranchClick = (branchName: string) => {
-    localStorage.setItem('activeBranch', branchName);
+  const handleBranchClick = (branchId: string) => {
+    localStorage.setItem('activeBranch', branchId);
     router.push('/dashboard/owner');
   }
 
@@ -126,10 +115,10 @@ export default function MultiBranchPage() {
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            {branches.map((branch, index) => (
+            {branches.map((branch) => (
               <button 
-                key={index} 
-                onClick={() => handleBranchClick(branch.name)}
+                key={branch.id} 
+                onClick={() => handleBranchClick(branch.id)}
                 className="w-full flex items-center gap-4 rounded-md border p-4 text-left hover:bg-accent transition-colors"
               >
                 <Building className="h-6 w-6 text-primary" />
@@ -155,8 +144,8 @@ export default function MultiBranchPage() {
                <div className="py-4">
                 <h4 className="text-sm font-medium mb-2">Current Branches:</h4>
                 <div className="space-y-2 max-h-32 overflow-y-auto pr-2">
-                    {branches.map((branch, index) => (
-                        <div key={index} className="flex items-center gap-2 text-sm text-muted-foreground">
+                    {branches.map((branch) => (
+                        <div key={branch.id} className="flex items-center gap-2 text-sm text-muted-foreground">
                             <Building className="h-4 w-4" />
                             <span>{branch.name}</span>
                         </div>

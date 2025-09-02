@@ -107,16 +107,18 @@ export default function AddMemberPage() {
   useEffect(() => {
     const fetchTrainers = async () => {
       const userDocId = localStorage.getItem('userDocId');
-      if (!userDocId) return;
+      const branch = localStorage.getItem('activeBranch');
+      if (!userDocId || !branch) return;
       
-      const trainersCollection = collection(db, 'gyms', userDocId, 'trainers');
+      const trainersCollection = collection(db, 'gyms', userDocId, 'branches', branch, 'trainers');
       const trainersSnapshot = await getDocs(trainersCollection);
       const trainersList = trainersSnapshot.docs.map(doc => ({ id: doc.id, name: doc.data().fullName }));
       setTrainers(trainersList);
     };
-
-    fetchTrainers();
-  }, []);
+    if (activeBranch) {
+        fetchTrainers();
+    }
+  }, [activeBranch]);
 
 
   const handleNext = async () => {
@@ -130,15 +132,15 @@ export default function AddMemberPage() {
 
   const onSubmit = async (data: FormData) => {
     const userDocId = localStorage.getItem('userDocId');
-    if (!userDocId) {
-      toast({ title: 'Error', description: 'Gym owner session not found.', variant: 'destructive' });
+    if (!userDocId || !activeBranch) {
+      toast({ title: 'Error', description: 'Gym owner session or branch not found.', variant: 'destructive' });
       return;
     }
     
     setIsLoading(true);
 
     try {
-      const membersCollection = collection(db, 'gyms', userDocId, 'members');
+      const membersCollection = collection(db, 'gyms', userDocId, 'branches', activeBranch, 'members');
       
       let endDate;
       const { membershipType, startDate } = data;
@@ -156,7 +158,6 @@ export default function AddMemberPage() {
 
       const memberData: any = {
         ...data,
-        branch: activeBranch,
         totalFee: parseFloat(data.totalFee),
         dob: Timestamp.fromDate(data.dob),
         startDate: Timestamp.fromDate(data.startDate),

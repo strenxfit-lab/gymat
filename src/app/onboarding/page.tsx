@@ -7,7 +7,7 @@ import { useForm, FormProvider, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { Loader2, Building, User, Ruler, Dumbbell, Wallet, BarChart, Calendar, Clock, MapPin, Phone, Mail, Users, Briefcase, Plus, Trash } from 'lucide-react';
-import { doc, setDoc, updateDoc } from 'firebase/firestore';
+import { doc, setDoc, updateDoc, collection, addDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useToast } from '@/hooks/use-toast';
 
@@ -154,8 +154,12 @@ export default function OnboardingPage() {
         location: data.gymAddress,
         contactNumber: data.contactNumber,
         email: data.gymEmail,
-        multiBranch: false,
+        multiBranch: false, // Default to false
        });
+
+      // Create a default branch
+      const branchesCollection = collection(db, 'gyms', userDocId, 'branches');
+      await addDoc(branchesCollection, { name: data.gymName });
 
       toast({
         title: 'Setup Complete!',

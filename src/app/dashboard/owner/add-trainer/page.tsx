@@ -105,36 +105,25 @@ export default function AddTrainerPage() {
 
   const onSubmit = async (data: FormData) => {
     const userDocId = localStorage.getItem('userDocId');
-    if (!userDocId) {
-      toast({ title: 'Error', description: 'Gym owner session not found.', variant: 'destructive' });
+    if (!userDocId || !activeBranch) {
+      toast({ title: 'Error', description: 'Gym owner session or branch not found.', variant: 'destructive' });
       return;
     }
     
     setIsLoading(true);
 
     try {
-      const trainersCollection = collection(db, 'gyms', userDocId, 'trainers');
+      const trainersCollection = collection(db, 'gyms', userDocId, 'branches', activeBranch, 'trainers');
       await addDoc(trainersCollection, {
         ...data,
-        branch: activeBranch,
         dob: Timestamp.fromDate(data.dob),
         joiningDate: Timestamp.fromDate(data.joiningDate),
         createdAt: Timestamp.now(),
       });
 
-      // Update trainer count
-      const detailsRef = doc(db, 'gyms', userDocId, 'details', 'onboarding');
-      const detailsSnap = await getDoc(detailsRef);
-      let currentTrainerCount = 0;
-      if (detailsSnap.exists() && detailsSnap.data().numTrainers) {
-        currentTrainerCount = parseInt(detailsSnap.data().numTrainers, 10) || 0;
-      }
-      await setDoc(detailsRef, { numTrainers: (currentTrainerCount + 1).toString() }, { merge: true });
-
-
       toast({
         title: 'Trainer Added!',
-        description: `${data.fullName} has been successfully registered.`,
+        description: `${data.fullName} has been successfully registered to ${activeBranch}.`,
       });
       router.push('/dashboard/owner');
     } catch (error) {
