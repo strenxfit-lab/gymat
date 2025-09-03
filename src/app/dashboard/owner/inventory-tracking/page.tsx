@@ -39,8 +39,8 @@ const inventoryFeatures = [
         title: "Integration with Expenses",
         description: "Automatically log inventory purchases as business expenses.",
         icon: <IndianRupee className="h-8 w-8 text-primary" />,
-        link: "#",
-        disabled: true,
+        link: "/dashboard/owner/inventory",
+        disabled: false,
     },
 ];
 
@@ -82,3 +82,5 @@ export default function InventoryTrackingPage() {
     </div>
   );
 }
+
+    
