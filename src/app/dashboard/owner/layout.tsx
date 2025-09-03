@@ -215,9 +215,11 @@ export default function OwnerDashboardLayout({
                     )}
                 </SidebarMenuItem>
                 <SidebarMenuItem>
-                     <SidebarMenuButton>
-                        <div className="flex items-center gap-2"><Megaphone /> Make offers</div>
-                    </SidebarMenuButton>
+                    <Link href="/dashboard/owner/make-offers" passHref>
+                        <SidebarMenuButton>
+                            <div className="flex items-center gap-2"><Megaphone /> Make offers</div>
+                        </SidebarMenuButton>
+                    </Link>
                 </SidebarMenuItem>
                  <SidebarMenuItem>
                      <SidebarMenuButton onClick={() => toggleSubMenu('inventory')} className="justify-between">
