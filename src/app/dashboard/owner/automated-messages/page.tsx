@@ -12,8 +12,8 @@ import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Textarea } from '@/components/ui/textarea';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Loader2, ArrowLeft, MessageSquare, IndianRupee, Cake, Repeat } from 'lucide-react';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
+import { Loader2, ArrowLeft, MessageSquare, IndianRupee, Cake, Repeat, Send } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import Link from 'next/link';
 
@@ -197,15 +197,19 @@ export default function AutomatedMessagesPage() {
                                         <p>You can use placeholders like {"{memberName}"}, {"{gymName}"}, {"{amount}"}, etc. which will be replaced automatically.</p>
                                     </div>
                                 </CardContent>
+                                <CardFooter className="justify-end gap-2">
+                                    <Button type="submit" variant="outline" disabled={isLoading}>
+                                        {isLoading ? <Loader2 className="animate-spin" /> : 'Save Template'}
+                                    </Button>
+                                    <Button type="button" disabled={isLoading}>
+                                        <Send className="mr-2 h-4 w-4" />
+                                        Send
+                                    </Button>
+                                </CardFooter>
                             </Card>
                         </TabsContent>
                     ))}
                 </Tabs>
-                <div className="mt-6 flex justify-end">
-                    <Button type="submit" disabled={isLoading}>
-                        {isLoading ? <Loader2 className="animate-spin" /> : 'Save All Templates'}
-                    </Button>
-                </div>
             </CardContent>
           </form>
         </Form>
