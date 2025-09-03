@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { collection, addDoc, getDocs, Timestamp, deleteDoc, doc, updateDoc } from 'firebase/firestore';
+import { collection, addDoc, getDocs, Timestamp, deleteDoc, doc, updateDoc, query, where } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
@@ -15,7 +15,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from "@/components/ui/input";
 import { Textarea } from '@/components/ui/textarea';
-import { Loader2, PlusCircle, ArrowLeft, MoreHorizontal, Edit, Trash, Tags, Calendar, Percent, IndianRupee } from 'lucide-react';
+import { Loader2, PlusCircle, ArrowLeft, MoreHorizontal, Edit, Trash, Tags, Calendar, Percent, IndianRupee, Users, TrendingUp } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -45,6 +45,8 @@ const offerSchema = z.object({
 
 interface Offer extends z.infer<typeof offerSchema> {
   id: string;
+  availed: number;
+  revenue: number;
 }
 
 const getStatus = (startDate: string, endDate: string): { text: 'Active' | 'Upcoming' | 'Expired', variant: 'default' | 'secondary' | 'destructive'} => {
@@ -83,13 +85,30 @@ export default function MemberOffersPage() {
         const offersCollection = collection(db, 'gyms', userDocId, 'branches', activeBranchId, 'offers');
         const offersSnapshot = await getDocs(offersCollection);
 
+        const paymentsRef = collection(db, 'gyms', userDocId, 'branches', activeBranchId, 'payments');
+        const paymentsSnap = await getDocs(query(paymentsRef, where('appliedOfferId', '!=', null)));
+        const paymentsWithOffers = paymentsSnap.docs.map(doc => doc.data());
+
+
         const offersList = offersSnapshot.docs.map(docSnap => {
             const data = docSnap.data();
+            const offerId = docSnap.id;
+
+            const analytics = paymentsWithOffers
+                .filter(p => p.appliedOfferId === offerId)
+                .reduce((acc, p) => {
+                    acc.availed += 1;
+                    acc.revenue += p.amountPaid;
+                    return acc;
+                }, { availed: 0, revenue: 0 });
+
             return {
-                id: docSnap.id,
+                id: offerId,
                 ...data,
                 startDate: (data.startDate as Timestamp).toDate().toISOString().split('T')[0],
                 endDate: (data.endDate as Timestamp).toDate().toISOString().split('T')[0],
+                availed: analytics.availed,
+                revenue: analytics.revenue,
             } as Offer;
         });
 
@@ -110,7 +129,12 @@ export default function MemberOffersPage() {
   
   useEffect(() => {
     if (editingOffer) {
-        form.reset(editingOffer);
+        form.reset({
+            ...editingOffer,
+            // @ts-ignore
+            availed: undefined,
+            revenue: undefined,
+        });
         setIsFormDialogOpen(true);
     } else {
         form.reset({ title: '', description: '', startDate: '', endDate: '', applicablePlans: [], discountType: undefined, discountValue: 0 });
@@ -283,7 +307,7 @@ export default function MemberOffersPage() {
       </div>
       
       <div>
-        <h2 className="text-2xl font-bold mb-4">Active Offers</h2>
+        <h2 className="text-2xl font-bold mb-4">Offers Dashboard</h2>
         {loading ? <p>Loading offers...</p> : (
             offers.length > 0 ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -311,6 +335,11 @@ export default function MemberOffersPage() {
                                                 <Badge key={planId} variant="secondary">{membershipPlans.find(p=>p.id === planId)?.label || planId}</Badge>
                                             ))}
                                         </div>
+                                    </div>
+                                    <div className="border-t pt-3 mt-3 space-y-2">
+                                        <h4 className="text-sm font-semibold">Analytics</h4>
+                                        <div className="flex items-center text-sm text-muted-foreground"><Users className="mr-2 h-4 w-4" /> Availed by: <span className="font-bold text-foreground ml-1">{offer.availed} members</span></div>
+                                        <div className="flex items-center text-sm text-muted-foreground"><TrendingUp className="mr-2 h-4 w-4" /> Revenue: <span className="font-bold text-foreground ml-1">₹{offer.revenue.toLocaleString()}</span></div>
                                     </div>
                                 </CardContent>
                                 <CardFooter className="bg-muted/50 p-2 flex justify-end gap-2">
