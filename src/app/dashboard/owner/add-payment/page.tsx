@@ -186,7 +186,6 @@ export default function AddPaymentPage() {
                 setSelectedMember(member);
                 form.setValue('membershipPlan', member.membershipType);
                 form.setValue('totalFee', member.totalFee);
-                form.setValue('amountPaid', member.totalFee);
                 originalFee = member.totalFee;
             }
         }
@@ -223,9 +222,16 @@ export default function AddPaymentPage() {
 
         if (name === 'totalFee' || name === 'discount' || name === 'amountPaid' || name === 'appliedOfferId') {
             const finalPayable = originalFee - finalDiscount;
-            form.setValue('amountPaid', finalPayable > 0 ? finalPayable : 0);
-            const balance = finalPayable - (amountPaid || 0);
-            form.setValue('balanceDue', balance > 0 ? balance : 0);
+            const newAmountPaid = finalPayable > 0 ? finalPayable : 0;
+            if(newAmountPaid !== amountPaid) {
+                form.setValue('amountPaid', newAmountPaid);
+            }
+
+            const balance = newAmountPaid - (amountPaid || 0);
+            const newBalanceDue = balance > 0 ? balance : 0;
+            if (newBalanceDue !== values.balanceDue) {
+              form.setValue('balanceDue', newBalanceDue);
+            }
         }
     });
     return () => subscription.unsubscribe();
@@ -437,3 +443,5 @@ export default function AddPaymentPage() {
     </div>
   );
 }
+
+    
