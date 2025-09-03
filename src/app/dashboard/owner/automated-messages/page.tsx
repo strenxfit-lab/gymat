@@ -214,6 +214,13 @@ export default function AutomatedMessagesPage() {
     return encodeURIComponent(message);
   }
 
+  const handleMessageSent = (type: MessageType, memberId: string) => {
+    setMessageLists(prev => ({
+        ...prev,
+        [type]: prev[type].filter(m => m.id !== memberId)
+    }));
+  };
+
   if (isFetching) {
     return (
         <div className="flex min-h-screen flex-col items-center justify-center bg-background p-4">
@@ -309,6 +316,7 @@ export default function AutomatedMessagesPage() {
                                                             href={`https://wa.me/91${member.phone}?text=${generateMessage(form.getValues(template.value), member)}`}
                                                             target="_blank" 
                                                             rel="noopener noreferrer"
+                                                            onClick={() => handleMessageSent(template.value, member.id)}
                                                           >
                                                             <Button size="sm" variant="outline"><Send className="mr-2 h-3 w-3"/>Send</Button>
                                                           </a>
@@ -339,4 +347,3 @@ export default function AutomatedMessagesPage() {
   );
 }
 
-    
