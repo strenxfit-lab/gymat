@@ -17,9 +17,11 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
-import { Loader2, PlusCircle, ArrowLeft, MoreHorizontal, Edit, Trash, IndianRupee } from 'lucide-react';
+import { Loader2, PlusCircle, ArrowLeft, MoreHorizontal, IndianRupee, PieChart } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+import { ResponsiveContainer, Pie, Cell, Tooltip, Legend } from 'recharts';
+import { startOfMonth } from 'date-fns';
 
 const expenseSchema = z.object({
   name: z.string().min(1, 'Expense name is required.'),
@@ -33,6 +35,11 @@ interface Expense extends z.infer<typeof expenseSchema> {
   id: string;
 }
 
+interface ChartData {
+    name: string;
+    value: number;
+}
+
 const expenseCategories = [
     "Rent/Lease",
     "Salaries",
@@ -42,11 +49,15 @@ const expenseCategories = [
     "Miscellaneous"
 ];
 
+const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#AF19FF', '#FF1943'];
+
 export default function ExpensesPage() {
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [loading, setLoading] = useState(true);
   const [isFormDialogOpen, setIsFormDialogOpen] = useState(false);
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
+  const [thisMonthsExpenses, setThisMonthsExpenses] = useState(0);
+  const [categoryChartData, setCategoryChartData] = useState<ChartData[]>([]);
   const { toast } = useToast();
 
   const form = useForm<z.infer<typeof expenseSchema>>({
@@ -79,6 +90,22 @@ export default function ExpensesPage() {
 
         expensesList.sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime());
         setExpenses(expensesList);
+
+        // Calculate summaries
+        const now = new Date();
+        const startOfThisMonth = startOfMonth(now);
+        let monthTotal = 0;
+        const categoryTotals: Record<string, number> = {};
+
+        expensesList.forEach(expense => {
+            if (new Date(expense.date) >= startOfThisMonth) {
+                monthTotal += expense.amount;
+            }
+            categoryTotals[expense.category] = (categoryTotals[expense.category] || 0) + expense.amount;
+        });
+        
+        setThisMonthsExpenses(monthTotal);
+        setCategoryChartData(Object.entries(categoryTotals).map(([name, value]) => ({ name, value })));
 
     } catch (error) {
         console.error("Error fetching expenses:", error);
@@ -231,6 +258,35 @@ export default function ExpensesPage() {
           </DialogContent>
         </Dialog>
       </div>
+
+       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7 mb-6">
+            <Card className="col-span-full lg:col-span-3">
+                <CardHeader>
+                    <CardTitle className="flex items-center gap-2"><IndianRupee />This Month's Expenses</CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <p className="text-4xl font-bold">₹{thisMonthsExpenses.toLocaleString()}</p>
+                </CardContent>
+            </Card>
+            <Card className="col-span-full lg:col-span-4">
+                <CardHeader>
+                    <CardTitle className="flex items-center gap-2"><PieChart />Expenses by Category</CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <ResponsiveContainer width="100%" height={200}>
+                        <PieChart>
+                            <Pie data={categoryChartData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={80} label>
+                                {categoryChartData.map((entry, index) => (
+                                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                                ))}
+                            </Pie>
+                            <Tooltip />
+                            <Legend />
+                        </PieChart>
+                    </ResponsiveContainer>
+                </CardContent>
+            </Card>
+       </div>
 
       <Card>
         <CardHeader>
