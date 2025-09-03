@@ -11,7 +11,7 @@
 import { ai } from '@/ai/genkit';
 import { z } from 'zod';
 
-export const SessionDataSchema = z.object({
+const SessionDataSchema = z.object({
     className: z.string().describe("The name of the class, e.g., 'Morning Yoga'."),
     trainerName: z.string().describe("The name of the trainer who conducted the class."),
     timeOfDay: z.string().describe("The time the class started, in HH:MM format."),
@@ -25,7 +25,7 @@ const SessionAnalysisInputSchema = z.object({
 });
 export type SessionAnalysisInput = z.infer<typeof SessionAnalysisInputSchema>;
 
-export const SessionAnalysisOutputSchema = z.object({
+const SessionAnalysisOutputSchema = z.object({
   topTrainer: z.object({
     name: z.string().describe("The name of the top-performing trainer."),
     analysis: z.string().describe("A brief, one-sentence analysis of why this trainer is performing well, based on the data provided (e.g., high average attendance)."),
