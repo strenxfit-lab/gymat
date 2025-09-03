@@ -25,8 +25,8 @@ const inventoryFeatures = [
         title: "Expiry Management",
         description: "Monitor product expiry dates to reduce waste and ensure quality.",
         icon: <CalendarClock className="h-8 w-8 text-primary" />,
-        link: "#",
-        disabled: true,
+        link: "/dashboard/owner/inventory",
+        disabled: false,
     },
     {
         title: "Reports & Analytics",

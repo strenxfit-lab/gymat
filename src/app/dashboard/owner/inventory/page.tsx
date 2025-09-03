@@ -16,10 +16,11 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Loader2, PlusCircle, ArrowLeft, MoreHorizontal, Edit, Trash, AlertTriangle } from 'lucide-react';
+import { Loader2, PlusCircle, ArrowLeft, MoreHorizontal, Edit, Trash, AlertTriangle, CalendarClock } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Badge } from '@/components/ui/badge';
+import { isBefore, isWithinInterval, addDays, parseISO } from 'date-fns';
 
 const inventorySchema = z.object({
   name: z.string().min(1, 'Item name is required.'),
@@ -30,6 +31,7 @@ const inventorySchema = z.object({
   purchasePrice: z.coerce.number().optional(),
   sellingPrice: z.coerce.number().optional(),
   supplier: z.string().optional(),
+  expiryDate: z.string().optional(),
 });
 
 interface InventoryItem extends z.infer<typeof inventorySchema> {
@@ -57,7 +59,7 @@ export default function InventoryPage() {
 
   const form = useForm<z.infer<typeof inventorySchema>>({
     resolver: zodResolver(inventorySchema),
-    defaultValues: { name: '', category: '', quantity: 0, unit: '', reorderPoint: 0, purchasePrice: 0, sellingPrice: 0, supplier: '' },
+    defaultValues: { name: '', category: '', quantity: 0, unit: '', reorderPoint: 0, purchasePrice: 0, sellingPrice: 0, supplier: '', expiryDate: '' },
   });
   
   const fetchInventory = async () => {
@@ -79,6 +81,7 @@ export default function InventoryPage() {
             return {
                 id: docSnap.id,
                 ...data,
+                 expiryDate: data.expiryDate ? (data.expiryDate as Timestamp).toDate().toISOString().split('T')[0] : '',
             } as InventoryItem;
         });
 
@@ -102,7 +105,7 @@ export default function InventoryPage() {
         form.reset(editingItem);
         setIsFormDialogOpen(true);
     } else {
-        form.reset({ name: '', category: '', quantity: 0, unit: '', reorderPoint: 0, purchasePrice: 0, sellingPrice: 0, supplier: '' });
+        form.reset({ name: '', category: '', quantity: 0, unit: '', reorderPoint: 0, purchasePrice: 0, sellingPrice: 0, supplier: '', expiryDate: '' });
     }
   }, [editingItem, form]);
 
@@ -131,6 +134,7 @@ export default function InventoryPage() {
       
       await addDoc(inventoryCollection, {
         ...values,
+        expiryDate: values.expiryDate ? Timestamp.fromDate(new Date(values.expiryDate)) : null,
         createdAt: Timestamp.now(),
       });
 
@@ -152,7 +156,10 @@ export default function InventoryPage() {
       try {
         const itemRef = doc(db, 'gyms', userDocId, 'branches', activeBranchId, 'inventory', editingItem.id);
 
-        await updateDoc(itemRef, { ...values });
+        await updateDoc(itemRef, { 
+            ...values,
+            expiryDate: values.expiryDate ? Timestamp.fromDate(new Date(values.expiryDate)) : null,
+        });
         
         toast({ title: 'Success!', description: 'Item details have been updated.' });
         handleFormDialogStateChange(false);
@@ -178,6 +185,17 @@ export default function InventoryPage() {
         toast({ title: "Error", description: "Could not delete item.", variant: "destructive"});
     }
   };
+  
+  const getExpiryStatus = (expiryDate?: string) => {
+    if (!expiryDate) return { isExpiringSoon: false, isExpired: false };
+    const now = new Date();
+    const expiry = parseISO(expiryDate);
+    const thirtyDaysFromNow = addDays(now, 30);
+    const isExpired = isBefore(expiry, now);
+    const isExpiringSoon = !isExpired && isWithinInterval(expiry, { start: now, end: thirtyDaysFromNow });
+    return { isExpiringSoon, isExpired };
+  }
+
 
   if (loading) {
     return <div className="flex min-h-screen items-center justify-center bg-background"><Loader2 className="h-8 w-8 animate-spin" /></div>;
@@ -238,6 +256,7 @@ export default function InventoryPage() {
                     </div>
                      <FormField control={form.control} name="reorderPoint" render={({ field }) => ( <FormItem><FormLabel>Low Stock Alert At</FormLabel><FormControl><Input type="number" placeholder="Set a reorder point" {...field} value={field.value ?? ''} /></FormControl><FormMessage /></FormItem> )} />
                     <FormField control={form.control} name="supplier" render={({ field }) => ( <FormItem><FormLabel>Supplier / Vendor</FormLabel><FormControl><Input placeholder="e.g., HealthFirst Suppliers" {...field} value={field.value ?? ''} /></FormControl><FormMessage /></FormItem> )} />
+                    <FormField control={form.control} name="expiryDate" render={({ field }) => ( <FormItem><FormLabel>Expiry Date (Optional)</FormLabel><FormControl><Input type="date" {...field} value={field.value ?? ''} /></FormControl><FormMessage /></FormItem> )} />
                     
                     <DialogFooter>
                     <Button type="button" variant="outline" onClick={() => handleFormDialogStateChange(false)}>Cancel</Button>
@@ -264,8 +283,7 @@ export default function InventoryPage() {
                 <TableHead>Item Name</TableHead>
                 <TableHead>Category</TableHead>
                 <TableHead>Quantity</TableHead>
-                <TableHead>Purchase Price</TableHead>
-                <TableHead>Selling Price</TableHead>
+                <TableHead>Expiry Date</TableHead>
                 <TableHead><span className="sr-only">Actions</span></TableHead>
               </TableRow>
             </TableHeader>
@@ -273,18 +291,22 @@ export default function InventoryPage() {
               {inventory.length > 0 ? (
                 inventory.map((item) => {
                   const isLowStock = item.reorderPoint && item.quantity <= item.reorderPoint;
+                  const { isExpiringSoon, isExpired } = getExpiryStatus(item.expiryDate);
+                  const rowClass = isExpired ? 'bg-destructive/10 hover:bg-destructive/20' : (isLowStock ? 'bg-yellow-400/10 hover:bg-yellow-400/20' : '');
+
                   return (
-                  <TableRow key={item.id} className={isLowStock ? 'bg-destructive/10 hover:bg-destructive/20' : ''}>
+                  <TableRow key={item.id} className={rowClass}>
                     <TableCell className="font-medium">
                         <div className="flex items-center gap-2">
-                            {isLowStock && <AlertTriangle className="h-4 w-4 text-destructive" title="Low stock"/>}
+                            {isLowStock && !isExpired && <AlertTriangle className="h-4 w-4 text-yellow-500" title="Low stock"/>}
+                            {isExpired && <AlertTriangle className="h-4 w-4 text-destructive" title="Expired"/>}
+                            {isExpiringSoon && !isExpired && <CalendarClock className="h-4 w-4 text-orange-500" title="Expiring Soon"/>}
                             {item.name}
                         </div>
                     </TableCell>
                     <TableCell>{item.category}</TableCell>
                     <TableCell>{item.quantity} {item.unit}</TableCell>
-                    <TableCell>₹{item.purchasePrice?.toLocaleString() || 'N/A'}</TableCell>
-                    <TableCell>₹{item.sellingPrice?.toLocaleString() || 'N/A'}</TableCell>
+                    <TableCell>{item.expiryDate ? new Date(item.expiryDate).toLocaleDateString() : 'N/A'}</TableCell>
                     <TableCell className="text-right">
                        <AlertDialog>
                           <DropdownMenu>
@@ -319,7 +341,7 @@ export default function InventoryPage() {
                 })
               ) : (
                 <TableRow>
-                  <TableCell colSpan={6} className="h-24 text-center">
+                  <TableCell colSpan={5} className="h-24 text-center">
                     No items in inventory yet.
                   </TableCell>
                 </TableRow>
@@ -331,6 +353,4 @@ export default function InventoryPage() {
     </div>
   );
 }
-    
-
     
