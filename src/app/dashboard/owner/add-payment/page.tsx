@@ -36,7 +36,6 @@ const formSchema = z.object({
   balanceDue: z.number().min(0),
   paymentDate: z.date(),
   paymentMode: z.string().nonempty({ message: "Please select a payment mode." }),
-  transactionId: z.string().optional(),
   nextDueDate: z.date({ required_error: 'Next due date is required.' }),
 });
 
@@ -375,7 +374,7 @@ export default function AddPaymentPage() {
                                 <Select onValueChange={field.onChange} value={field.value}>
                                     <FormControl><SelectTrigger><SelectValue placeholder="Select an offer" /></SelectTrigger></FormControl>
                                     <SelectContent>
-                                        <SelectItem value="">No Offer</SelectItem>
+                                        <SelectItem value="none">No Offer</SelectItem>
                                         {applicableOffers.map(offer => (
                                             <SelectItem key={offer.id} value={offer.id}>{offer.title}</SelectItem>
                                         ))}
@@ -443,5 +442,7 @@ export default function AddPaymentPage() {
     </div>
   );
 }
+
+    
 
     
