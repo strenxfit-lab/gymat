@@ -173,7 +173,7 @@ export default function AddPaymentPage() {
             const { totalFee, discount, amountPaid, membershipPlan, paymentDate, appliedOfferId } = values;
 
             let originalFee = totalFee || 0;
-            let finalDiscount = typeof discount === 'string' ? parseFloat(discount) : (discount || 0);
+            let finalDiscount = typeof discount === 'string' ? parseFloat(discount) || 0 : (discount || 0);
 
             if (name === 'memberId' && values.memberId) {
                 const member = members.find(m => m.id === values.memberId);
@@ -218,23 +218,19 @@ export default function AddPaymentPage() {
                      form.setValue('appliedOfferTitle', '');
                 }
             }
-
-            // Calculations
-            if (name === 'totalFee' || name === 'discount' || name === 'appliedOfferId') {
-                const finalPayable = originalFee - finalDiscount;
-                const newAmountPaid = finalPayable > 0 ? finalPayable : 0;
-                if (newAmountPaid !== amountPaid) {
-                    form.setValue('amountPaid', newAmountPaid);
-                }
-            }
             
-            if (name === 'totalFee' || name === 'discount' || name === 'appliedOfferId' || name === 'amountPaid') {
-                const finalPayable = originalFee - finalDiscount;
-                const newBalanceDue = (finalPayable > 0 ? finalPayable : 0) - (amountPaid || 0);
+            const finalPayable = originalFee - finalDiscount;
 
-                if ((newBalanceDue > 0 ? newBalanceDue : 0) !== values.balanceDue) {
-                  form.setValue('balanceDue', newBalanceDue > 0 ? newBalanceDue : 0);
-                }
+            // Auto-fill amountPaid when totalFee or discount changes
+            if (name === 'totalFee' || name === 'discount' || name === 'appliedOfferId') {
+                const newAmountPaid = finalPayable > 0 ? finalPayable : 0;
+                form.setValue('amountPaid', newAmountPaid);
+            }
+
+            // Always calculate balanceDue based on the current amountPaid
+            const newBalanceDue = (finalPayable > 0 ? finalPayable : 0) - (amountPaid || 0);
+            if ((newBalanceDue > 0 ? newBalanceDue : 0) !== values.balanceDue) {
+                form.setValue('balanceDue', newBalanceDue > 0 ? newBalanceDue : 0);
             }
         });
         return () => subscription.unsubscribe();
@@ -375,7 +371,7 @@ export default function AddPaymentPage() {
                             <FormField control={form.control} name="appliedOfferId" render={({ field }) => (
                                 <FormItem>
                                 <FormLabel className="flex items-center gap-2"><Tags className="h-4 w-4"/> Apply Offer (Optional)</FormLabel>
-                                <Select onValueChange={field.onChange} value={field.value}>
+                                <Select onValueChange={field.onChange} value={field.value ?? 'none'}>
                                     <FormControl><SelectTrigger><SelectValue placeholder="Select an offer" /></SelectTrigger></FormControl>
                                     <SelectContent>
                                         <SelectItem value="none">No Offer</SelectItem>
