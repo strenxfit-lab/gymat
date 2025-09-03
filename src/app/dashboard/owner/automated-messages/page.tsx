@@ -6,28 +6,28 @@ import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { doc, getDoc, setDoc, collection, getDocs, Timestamp } from 'firebase/firestore';
+import { doc, getDoc, setDoc, collection, getDocs, Timestamp, addDoc, query, orderBy, limit } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
-import { Loader2, ArrowLeft, MessageSquare, IndianRupee, Cake, Repeat, Send, Search, User } from 'lucide-react';
+import { Loader2, ArrowLeft, MessageSquare, IndianRupee, Cake, Repeat, Send, Search, User, History } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import Link from 'next/link';
 import { Separator } from '@/components/ui/separator';
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 const formSchema = z.object({
   paymentReminder: z.string().optional(),
   renewalAlert: z.string().optional(),
   birthdayWish: z.string().optional(),
-  motivationalQuote: z.string().optional(),
 });
 
 type FormData = z.infer<typeof formSchema>;
 
-type MessageType = "paymentReminder" | "renewalAlert" | "birthdayWish" | "motivationalQuote";
+type MessageType = "paymentReminder" | "renewalAlert" | "birthdayWish";
 
 interface MemberForMessage {
     id: string;
@@ -37,6 +37,14 @@ interface MemberForMessage {
     dob?: Date;
     gymName?: string;
     amount?: number;
+}
+
+interface MessageHistory {
+    id: string;
+    memberName: string;
+    message: string;
+    type: string;
+    sentAt: string;
 }
 
 const messageTemplates = [
@@ -61,13 +69,6 @@ const messageTemplates = [
         description: "A special message on a member's birthday.",
         placeholder: "Happy Birthday {memberName}! We wish you a day full of joy and a year full of fitness. - Team {gymName}"
     },
-    { 
-        value: "motivationalQuote" as MessageType, 
-        label: "Motivational Quotes", 
-        icon: <MessageSquare className="h-5 w-5" />,
-        description: "Periodic quotes to keep members motivated.",
-        placeholder: "Hey {memberName}, remember why you started! 'The only bad workout is the one that didn't happen.' Keep pushing!"
-    },
 ];
 
 export default function AutomatedMessagesPage() {
@@ -76,12 +77,15 @@ export default function AutomatedMessagesPage() {
   const [isFetchingMembers, setIsFetchingMembers] = useState(false);
   const [userDocId, setUserDocId] = useState<string | null>(null);
   const [gymName, setGymName] = useState<string>('');
+  const [activeBranchId, setActiveBranchId] = useState<string | null>(null);
   const [messageLists, setMessageLists] = useState<Record<MessageType, MemberForMessage[]>>({
     paymentReminder: [],
     renewalAlert: [],
     birthdayWish: [],
-    motivationalQuote: [],
   });
+  const [history, setHistory] = useState<MessageHistory[]>([]);
+  const [isFetchingHistory, setIsFetchingHistory] = useState(false);
+
   const router = useRouter();
   const { toast } = useToast();
 
@@ -91,7 +95,6 @@ export default function AutomatedMessagesPage() {
       paymentReminder: '',
       renewalAlert: '',
       birthdayWish: '',
-      motivationalQuote: '',
     },
   });
 
@@ -103,6 +106,7 @@ export default function AutomatedMessagesPage() {
       return;
     }
     setUserDocId(docId);
+    setActiveBranchId(localStorage.getItem('activeBranch'));
 
     const fetchInitialData = async () => {
         try {
@@ -150,7 +154,6 @@ export default function AutomatedMessagesPage() {
   };
 
   const fetchMembersForList = async (type: MessageType) => {
-    const activeBranchId = localStorage.getItem('activeBranch');
     if (!userDocId || !activeBranchId) {
         toast({ title: "Error", description: "Branch not selected.", variant: "destructive" });
         return;
@@ -187,9 +190,6 @@ export default function AutomatedMessagesPage() {
                     return dob && dob.getMonth() === todayMonth && dob.getDate() === todayDate;
                 }).map(m => ({ id: m.id, fullName: m.fullName, phone: m.phone, dob: (m.dob as Timestamp).toDate(), gymName }));
                 break;
-            case 'motivationalQuote': // Fetches all active members
-                filteredMembers = allMembers.map(m => ({ id: m.id, fullName: m.fullName, phone: m.phone, gymName }));
-                break;
         }
 
         setMessageLists(prev => ({ ...prev, [type]: filteredMembers }));
@@ -211,15 +211,63 @@ export default function AutomatedMessagesPage() {
     if (member.amount) {
         message = message.replace(/{amount}/g, member.amount.toString());
     }
-    return encodeURIComponent(message);
+    return message;
   }
 
-  const handleMessageSent = (type: MessageType, memberId: string) => {
-    setMessageLists(prev => ({
-        ...prev,
-        [type]: prev[type].filter(m => m.id !== memberId)
-    }));
+  const handleMessageSent = async (type: MessageType, member: MemberForMessage) => {
+    if (!userDocId || !activeBranchId) return;
+
+    const messageContent = generateMessage(form.getValues(type), member);
+    
+    try {
+        const historyCollection = collection(db, 'gyms', userDocId, 'branches', activeBranchId, 'messageHistory');
+        await addDoc(historyCollection, {
+            memberName: member.fullName,
+            memberPhone: member.phone,
+            message: messageContent,
+            type: type,
+            sentAt: Timestamp.now(),
+        });
+
+        setMessageLists(prev => ({
+            ...prev,
+            [type]: prev[type].filter(m => m.id !== member.id)
+        }));
+
+        toast({ title: 'Logged!', description: `Message to ${member.fullName} logged in history.` });
+
+    } catch(error) {
+        console.error('Error logging message:', error);
+        toast({ title: 'Error', description: 'Could not log message to history.', variant: 'destructive' });
+    }
   };
+
+  const handleTabChange = async (tabValue: string) => {
+      if (tabValue === 'history' && userDocId && activeBranchId) {
+          setIsFetchingHistory(true);
+          try {
+              const historyCollection = collection(db, 'gyms', userDocId, 'branches', activeBranchId, 'messageHistory');
+              const historyQuery = query(historyCollection, orderBy('sentAt', 'desc'), limit(50));
+              const historySnap = await getDocs(historyQuery);
+              const historyList = historySnap.docs.map(d => {
+                  const data = d.data();
+                  return {
+                      id: d.id,
+                      memberName: data.memberName,
+                      message: data.message,
+                      type: data.type,
+                      sentAt: (data.sentAt as Timestamp).toDate().toLocaleString(),
+                  }
+              });
+              setHistory(historyList);
+          } catch(error) {
+              console.error("Error fetching history:", error);
+              toast({ title: "Error", description: "Failed to fetch message history.", variant: "destructive" });
+          } finally {
+              setIsFetchingHistory(false);
+          }
+      }
+  }
 
   if (isFetching) {
     return (
@@ -253,7 +301,7 @@ export default function AutomatedMessagesPage() {
               </div>
             </CardHeader>
             <CardContent>
-                <Tabs defaultValue="paymentReminder" className="w-full">
+                <Tabs defaultValue="paymentReminder" className="w-full" onValueChange={handleTabChange}>
                     <TabsList className="grid w-full grid-cols-2 md:grid-cols-4 h-auto">
                         {messageTemplates.map(template => (
                            <TabsTrigger key={template.value} value={template.value} className="flex flex-col md:flex-row gap-2 h-auto py-2">
@@ -261,6 +309,10 @@ export default function AutomatedMessagesPage() {
                                {template.label}
                            </TabsTrigger>
                         ))}
+                         <TabsTrigger value="history" className="flex flex-col md:flex-row gap-2 h-auto py-2">
+                            <History className="h-5 w-5" />
+                            History
+                        </TabsTrigger>
                     </TabsList>
 
                     {messageTemplates.map(template => (
@@ -313,10 +365,10 @@ export default function AutomatedMessagesPage() {
                                                             </div>
                                                           </div>
                                                           <a 
-                                                            href={`https://wa.me/91${member.phone}?text=${generateMessage(form.getValues(template.value), member)}`}
+                                                            href={`https://wa.me/91${member.phone}?text=${encodeURIComponent(generateMessage(form.getValues(template.value), member))}`}
                                                             target="_blank" 
                                                             rel="noopener noreferrer"
-                                                            onClick={() => handleMessageSent(template.value, member.id)}
+                                                            onClick={() => handleMessageSent(template.value, member)}
                                                           >
                                                             <Button size="sm" variant="outline"><Send className="mr-2 h-3 w-3"/>Send</Button>
                                                           </a>
@@ -338,6 +390,39 @@ export default function AutomatedMessagesPage() {
                             </Card>
                         </TabsContent>
                     ))}
+
+                    <TabsContent value="history">
+                        <Card className="mt-4">
+                            <CardHeader>
+                                <CardTitle>Message History</CardTitle>
+                                <CardDescription>Showing the last 50 messages sent.</CardDescription>
+                            </CardHeader>
+                             <CardContent>
+                                {isFetchingHistory ? (
+                                    <div className="flex items-center justify-center p-8">
+                                        <Loader2 className="h-6 w-6 animate-spin" />
+                                    </div>
+                                ) : history.length > 0 ? (
+                                    <ScrollArea className="h-96">
+                                        <div className="space-y-4">
+                                            {history.map(item => (
+                                                <div key={item.id} className="p-3 rounded-md border text-sm">
+                                                    <div className="flex justify-between items-center mb-1">
+                                                        <span className="font-semibold">{item.memberName}</span>
+                                                        <span className="text-xs text-muted-foreground">{item.sentAt}</span>
+                                                    </div>
+                                                    <p className="text-muted-foreground bg-muted p-2 rounded-md">{item.message}</p>
+                                                    <Badge variant="secondary" className="mt-2">{item.type}</Badge>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </ScrollArea>
+                                ) : (
+                                    <p className="text-center text-muted-foreground py-8">No message history found.</p>
+                                )}
+                            </CardContent>
+                        </Card>
+                    </TabsContent>
                 </Tabs>
             </CardContent>
           </form>
@@ -347,3 +432,5 @@ export default function AutomatedMessagesPage() {
   );
 }
 
+
+    
