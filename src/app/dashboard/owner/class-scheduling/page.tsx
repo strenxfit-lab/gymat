@@ -7,7 +7,7 @@ import Link from 'next/link';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { collection, addDoc, getDocs, Timestamp, deleteDoc, doc, updateDoc } from 'firebase/firestore';
+import { collection, addDoc, getDocs, Timestamp, deleteDoc, doc, updateDoc, getDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -17,7 +17,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Loader2, PlusCircle, ArrowLeft, MoreHorizontal, Calendar, Clock, Users, Edit, Trash } from 'lucide-react';
+import { Loader2, PlusCircle, ArrowLeft, MoreHorizontal, Edit, Trash, Eye, User } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -36,10 +36,15 @@ const classSchema = z.object({
   location: z.string().min(1, 'Location is required.'),
 });
 
+interface BookedMember {
+  id: string;
+  name: string;
+}
 interface Class extends z.infer<typeof classSchema> {
   id: string;
   trainerName: string;
   booked: number;
+  bookedMembers: BookedMember[];
 }
 
 interface Trainer {
@@ -47,11 +52,35 @@ interface Trainer {
   name: string;
 }
 
+const ViewBookingsDialog = ({ members }: { members: BookedMember[] }) => (
+  <DialogContent>
+    <DialogHeader>
+      <DialogTitle>Booked Members</DialogTitle>
+      <DialogDescription>
+        Here is the list of members who have booked this class.
+      </DialogDescription>
+    </DialogHeader>
+    <div className="max-h-80 overflow-y-auto">
+        <ul className="space-y-3 py-4">
+            {members.length > 0 ? members.map(member => (
+                <li key={member.id} className="flex items-center gap-3 text-sm">
+                    <User className="h-4 w-4 text-muted-foreground" />
+                    <span>{member.name}</span>
+                </li>
+            )) : (
+                <p className="text-muted-foreground text-center">No members have booked this class yet.</p>
+            )}
+        </ul>
+    </div>
+  </DialogContent>
+);
+
+
 export default function ClassSchedulingPage() {
   const [classes, setClasses] = useState<Class[]>([]);
   const [trainers, setTrainers] = useState<Trainer[]>([]);
   const [loading, setLoading] = useState(true);
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isFormDialogOpen, setIsFormDialogOpen] = useState(false);
   const [editingClass, setEditingClass] = useState<Class | null>(null);
   const router = useRouter();
   const { toast } = useToast();
@@ -72,13 +101,11 @@ export default function ClassSchedulingPage() {
       return;
     }
     try {
-        // Fetch trainers first
         const trainersCollection = collection(db, 'gyms', userDocId, 'branches', activeBranchId, 'trainers');
         const trainersSnapshot = await getDocs(trainersCollection);
         const trainersList = trainersSnapshot.docs.map(doc => ({ id: doc.id, name: doc.data().fullName }));
         setTrainers(trainersList);
         
-        // Fetch classes
         const classesCollection = collection(db, 'gyms', userDocId, 'branches', activeBranchId, 'classes');
         const classesSnapshot = await getDocs(classesCollection);
 
@@ -89,17 +116,28 @@ export default function ClassSchedulingPage() {
 
             const bookingsCollection = collection(docSnap.ref, 'bookings');
             const bookingsSnapshot = await getDocs(bookingsCollection);
+
+            const bookedMembersPromises = bookingsSnapshot.docs.map(async bookingDoc => {
+                const memberRef = doc(db, 'gyms', userDocId, 'branches', activeBranchId, 'members', bookingDoc.id);
+                const memberSnap = await getDoc(memberRef);
+                if(memberSnap.exists()){
+                    return { id: memberSnap.id, name: memberSnap.data().fullName };
+                }
+                return null;
+            });
+            const bookedMembers = (await Promise.all(bookedMembersPromises)).filter(m => m !== null) as BookedMember[];
             
             return {
                 id: docSnap.id,
                 className: data.className,
                 trainerId: data.trainerId,
                 trainerName: trainer?.name || 'Unknown',
-                date: classDateTime.toISOString().split('T')[0], // YYYY-MM-DD
-                time: classDateTime.toTimeString().substring(0,5), // HH:MM
+                date: classDateTime.toISOString().split('T')[0],
+                time: classDateTime.toTimeString().substring(0,5),
                 capacity: data.capacity,
                 location: data.location,
                 booked: bookingsSnapshot.size,
+                bookedMembers,
             };
         });
 
@@ -122,15 +160,15 @@ export default function ClassSchedulingPage() {
   useEffect(() => {
     if (editingClass) {
         form.reset(editingClass);
-        setIsDialogOpen(true);
+        setIsFormDialogOpen(true);
     } else {
         form.reset({ className: '', trainerId: '', date: '', time: '', capacity: 10, location: '' });
     }
   }, [editingClass, form]);
 
 
-  const handleDialogStateChange = (open: boolean) => {
-      setIsDialogOpen(open);
+  const handleFormDialogStateChange = (open: boolean) => {
+      setIsFormDialogOpen(open);
       if (!open) {
           setEditingClass(null);
       }
@@ -163,7 +201,7 @@ export default function ClassSchedulingPage() {
       });
 
       toast({ title: 'Success!', description: 'New class has been scheduled.' });
-      handleDialogStateChange(false);
+      handleFormDialogStateChange(false);
       await fetchAllData();
     } catch (error) {
       console.error("Error adding class:", error);
@@ -190,7 +228,7 @@ export default function ClassSchedulingPage() {
         });
         
         toast({ title: 'Success!', description: 'Class details have been updated.' });
-        handleDialogStateChange(false);
+        handleFormDialogStateChange(false);
         await fetchAllData();
 
       } catch (error) {
@@ -227,7 +265,7 @@ export default function ClassSchedulingPage() {
           <h1 className="text-3xl font-bold">Class Schedule</h1>
           <p className="text-muted-foreground">Manage your upcoming group classes and workshops.</p>
         </div>
-        <Dialog open={isDialogOpen} onOpenChange={handleDialogStateChange}>
+        <Dialog open={isFormDialogOpen} onOpenChange={handleFormDialogStateChange}>
           <DialogTrigger asChild>
             <Button>
               <PlusCircle className="mr-2 h-4 w-4" />
@@ -261,7 +299,7 @@ export default function ClassSchedulingPage() {
                     <FormField control={form.control} name="location" render={({ field }) => ( <FormItem><FormLabel>Room/Studio</FormLabel><FormControl><Input placeholder="Main Studio" {...field} /></FormControl><FormMessage /></FormItem> )} />
                 </div>
                 <DialogFooter>
-                  <Button type="button" variant="outline" onClick={() => handleDialogStateChange(false)}>Cancel</Button>
+                  <Button type="button" variant="outline" onClick={() => handleFormDialogStateChange(false)}>Cancel</Button>
                   <Button type="submit" disabled={form.formState.isSubmitting}>
                     {form.formState.isSubmitting ? <Loader2 className="animate-spin" /> : (editingClass ? 'Save Changes' : 'Add Class')}
                   </Button>
@@ -285,7 +323,7 @@ export default function ClassSchedulingPage() {
                 <TableHead>Date & Time</TableHead>
                 <TableHead>Trainer</TableHead>
                 <TableHead>Location</TableHead>
-                <TableHead>Booked/Capacity</TableHead>
+                <TableHead>Bookings</TableHead>
                 <TableHead><span className="sr-only">Actions</span></TableHead>
               </TableRow>
             </TableHeader>
@@ -297,7 +335,17 @@ export default function ClassSchedulingPage() {
                     <TableCell>{new Date(cls.date + 'T' + cls.time).toLocaleString([], { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</TableCell>
                     <TableCell>{cls.trainerName}</TableCell>
                     <TableCell>{cls.location}</TableCell>
-                    <TableCell>{cls.booked} / {cls.capacity}</TableCell>
+                    <TableCell>
+                      <Dialog>
+                        <DialogTrigger asChild>
+                           <Button variant="ghost" size="sm" className="flex gap-2">
+                            {cls.booked} / {cls.capacity}
+                            <Eye className="h-4 w-4" />
+                           </Button>
+                        </DialogTrigger>
+                        <ViewBookingsDialog members={cls.bookedMembers} />
+                      </Dialog>
+                    </TableCell>
                     <TableCell className="text-right">
                        <AlertDialog>
                           <DropdownMenu>
