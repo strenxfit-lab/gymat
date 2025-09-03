@@ -32,8 +32,8 @@ const inventoryFeatures = [
         title: "Reports & Analytics",
         description: "Generate reports on stock value, consumption rates, and sales.",
         icon: <BarChart2 className="h-8 w-8 text-primary" />,
-        link: "#",
-        disabled: true,
+        link: "/dashboard/owner/expenses",
+        disabled: false,
     },
     {
         title: "Integration with Expenses",

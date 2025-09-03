@@ -17,7 +17,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
-import { Loader2, PlusCircle, ArrowLeft, MoreHorizontal, IndianRupee, PieChart, Edit, Trash } from 'lucide-react';
+import { Loader2, PlusCircle, ArrowLeft, MoreHorizontal, IndianRupee, PieChart, Edit, Trash, Boxes } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { ResponsiveContainer, Pie, Cell, Tooltip, Legend } from 'recharts';
@@ -49,7 +49,7 @@ const expenseCategories = [
     "Miscellaneous"
 ];
 
-const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#AF19FF', '#FF1943'];
+const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#AF19FF', '#FF1943', '#FF4F81'];
 
 export default function ExpensesPage() {
   const [expenses, setExpenses] = useState<Expense[]>([]);
@@ -57,6 +57,7 @@ export default function ExpensesPage() {
   const [isFormDialogOpen, setIsFormDialogOpen] = useState(false);
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
   const [thisMonthsExpenses, setThisMonthsExpenses] = useState(0);
+  const [totalInventoryValue, setTotalInventoryValue] = useState(0);
   const [categoryChartData, setCategoryChartData] = useState<ChartData[]>([]);
   const { toast } = useToast();
 
@@ -65,7 +66,7 @@ export default function ExpensesPage() {
     defaultValues: { name: '', category: '', amount: 0, date: '', description: '' },
   });
   
-  const fetchExpenses = async () => {
+  const fetchExpensesAndInventory = async () => {
     setLoading(true);
     const userDocId = localStorage.getItem('userDocId');
     const activeBranchId = localStorage.getItem('activeBranch');
@@ -91,6 +92,15 @@ export default function ExpensesPage() {
         expensesList.sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime());
         setExpenses(expensesList);
 
+        const inventoryCollection = collection(db, 'gyms', userDocId, 'branches', activeBranchId, 'inventory');
+        const inventorySnapshot = await getDocs(inventoryCollection);
+        let inventoryValue = 0;
+        inventorySnapshot.forEach(doc => {
+            const item = doc.data();
+            inventoryValue += (item.purchasePrice || 0) * (item.quantity || 0);
+        });
+        setTotalInventoryValue(inventoryValue);
+
         // Calculate summaries
         const now = new Date();
         const startOfThisMonth = startOfMonth(now);
@@ -105,18 +115,23 @@ export default function ExpensesPage() {
         });
         
         setThisMonthsExpenses(monthTotal);
-        setCategoryChartData(Object.entries(categoryTotals).map(([name, value]) => ({ name, value })));
+        
+        const chartData = Object.entries(categoryTotals).map(([name, value]) => ({ name, value }));
+        if(inventoryValue > 0) {
+            chartData.push({ name: 'Inventory Value', value: inventoryValue });
+        }
+        setCategoryChartData(chartData);
 
     } catch (error) {
-        console.error("Error fetching expenses:", error);
-        toast({ title: "Error", description: "Failed to fetch expenses data.", variant: "destructive" });
+        console.error("Error fetching data:", error);
+        toast({ title: "Error", description: "Failed to fetch financial data.", variant: "destructive" });
     } finally {
         setLoading(false);
     }
   }
 
   useEffect(() => {
-    fetchExpenses();
+    fetchExpensesAndInventory();
   }, [toast]);
   
   useEffect(() => {
@@ -159,7 +174,7 @@ export default function ExpensesPage() {
 
       toast({ title: 'Success!', description: 'New expense has been added.' });
       handleFormDialogStateChange(false);
-      await fetchExpenses();
+      await fetchExpensesAndInventory();
     } catch (error) {
       console.error("Error adding expense:", error);
       toast({ title: 'Error', description: 'Could not add expense. Please try again.', variant: 'destructive' });
@@ -182,7 +197,7 @@ export default function ExpensesPage() {
         
         toast({ title: 'Success!', description: 'Expense details have been updated.' });
         handleFormDialogStateChange(false);
-        await fetchExpenses();
+        await fetchExpensesAndInventory();
       } catch (error) {
           console.error("Error updating expense:", error);
           toast({ title: 'Error', description: 'Could not update expense.', variant: 'destructive'});
@@ -198,7 +213,7 @@ export default function ExpensesPage() {
         const expenseRef = doc(db, 'gyms', userDocId, 'branches', activeBranchId, 'expenses', expenseId);
         await deleteDoc(expenseRef);
         toast({ title: "Expense Deleted", description: "The expense has been removed."});
-        await fetchExpenses();
+        await fetchExpensesAndInventory();
     } catch (error) {
         console.error("Error deleting expense:", error);
         toast({ title: "Error", description: "Could not delete expense.", variant: "destructive"});
@@ -213,8 +228,8 @@ export default function ExpensesPage() {
     <div className="container mx-auto py-10">
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-3xl font-bold">Expense Management</h1>
-          <p className="text-muted-foreground">Track and manage all your business expenses.</p>
+          <h1 className="text-3xl font-bold">Expense & Inventory Analytics</h1>
+          <p className="text-muted-foreground">Track and manage all your business expenses and stock value.</p>
         </div>
         <Dialog open={isFormDialogOpen} onOpenChange={handleFormDialogStateChange}>
           <DialogTrigger asChild>
@@ -260,7 +275,7 @@ export default function ExpensesPage() {
       </div>
 
        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7 mb-6">
-            <Card className="col-span-full lg:col-span-3">
+            <Card className="col-span-full lg:col-span-2">
                 <CardHeader>
                     <CardTitle className="flex items-center gap-2"><IndianRupee />This Month's Expenses</CardTitle>
                 </CardHeader>
@@ -268,9 +283,17 @@ export default function ExpensesPage() {
                     <p className="text-4xl font-bold">₹{thisMonthsExpenses.toLocaleString()}</p>
                 </CardContent>
             </Card>
-            <Card className="col-span-full lg:col-span-4">
+             <Card className="col-span-full lg:col-span-2">
                 <CardHeader>
-                    <CardTitle className="flex items-center gap-2"><PieChart />Expenses by Category</CardTitle>
+                    <CardTitle className="flex items-center gap-2"><Boxes />Total Inventory Value</CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <p className="text-4xl font-bold">₹{totalInventoryValue.toLocaleString()}</p>
+                </CardContent>
+            </Card>
+            <Card className="col-span-full lg:col-span-3">
+                <CardHeader>
+                    <CardTitle className="flex items-center gap-2"><PieChart />Financial Snapshot</CardTitle>
                 </CardHeader>
                 <CardContent>
                     <ResponsiveContainer width="100%" height={200}>
