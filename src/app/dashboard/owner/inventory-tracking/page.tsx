@@ -8,10 +8,10 @@ import { ArrowLeft, PlusSquare, Boxes, ClipboardList, CalendarClock, BarChart2, 
 
 const inventoryFeatures = [
     {
-        title: "Add Items to Inventory",
+        title: "Add & View Items",
         description: "Add new products, supplements, or other items to your inventory list.",
         icon: <PlusSquare className="h-8 w-8 text-primary" />,
-        link: "#",
+        link: "/dashboard/owner/inventory",
         disabled: false,
     },
     {
@@ -89,3 +89,5 @@ export default function InventoryTrackingPage() {
     </div>
   );
 }
+
+    
