@@ -180,7 +180,9 @@ export default function OwnerDashboardLayout({
                     </SidebarMenuButton>
                      {openSubMenu === 'class' && (
                         <SidebarMenuSub className="space-y-3">
-                            <SidebarMenuSubButton className={subMenuButtonClass}>Class scheduling</SidebarMenuSubButton>
+                            <Link href="/dashboard/owner/class-scheduling">
+                                <SidebarMenuSubButton className={subMenuButtonClass}>Class scheduling</SidebarMenuSubButton>
+                            </Link>
                             <SidebarMenuSubButton className={subMenuButtonClass}>Waitlist management</SidebarMenuSubButton>
                             <SidebarMenuSubButton className={subMenuButtonClass}>Trainer assignments</SidebarMenuSubButton>
                             <SidebarMenuSubButton className={subMenuButtonClass}>Session tracking</SidebarMenuSubButton>
@@ -245,4 +247,3 @@ export default function OwnerDashboardLayout({
     </SidebarProvider>
   );
 }
-
