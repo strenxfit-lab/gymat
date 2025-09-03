@@ -57,11 +57,8 @@ export default function LoginForm() {
 
         toast({ title: 'Welcome!', description: "You have been successfully logged in." });
         
-        if (userData.passwordChanged === false) {
-          router.push('/change-password');
-        } else {
-          router.push('/dashboard/owner');
-        }
+        // This password change check is not relevant for owner, so we skip it.
+        router.push('/dashboard/owner');
         return;
       }
 
@@ -70,38 +67,71 @@ export default function LoginForm() {
       const memberQuery = query(membersCollectionGroup, where('loginId', '==', values.email));
       const memberSnapshot = await getDocs(memberQuery);
 
-      if (memberSnapshot.empty) {
-        toast({ title: 'Login Failed', description: 'No user found with that email or login ID.', variant: 'destructive' });
-        setIsLoading(false);
+      if (!memberSnapshot.empty) {
+        const memberDoc = memberSnapshot.docs[0];
+        const memberData = memberDoc.data();
+
+        if (memberData.password !== values.password) {
+            toast({ title: 'Login Failed', description: 'Incorrect password.', variant: 'destructive' });
+            setIsLoading(false);
+            return;
+        }
+        // For members, we need the gym ID and branch ID from the document path
+        const pathSegments = memberDoc.ref.path.split('/');
+        const gymId = pathSegments[1];
+        const branchId = pathSegments[3];
+        
+        localStorage.setItem('userDocId', gymId);
+        localStorage.setItem('activeBranch', branchId);
+        localStorage.setItem('memberId', memberDoc.id);
+        localStorage.setItem('userRole', memberData.role);
+
+        toast({ title: 'Welcome!', description: "You have been successfully logged in." });
+
+        if (memberData.passwordChanged === false) {
+            router.push('/change-password');
+        } else {
+            router.push('/dashboard/member');
+        }
         return;
       }
 
-      const memberDoc = memberSnapshot.docs[0];
-      const memberData = memberDoc.data();
+      // If not owner or member, query for a trainer across all branches
+      const trainersCollectionGroup = collectionGroup(db, 'trainers');
+      const trainerQuery = query(trainersCollectionGroup, where('loginId', '==', values.email));
+      const trainerSnapshot = await getDocs(trainerQuery);
 
-      if (memberData.password !== values.password) {
-        toast({ title: 'Login Failed', description: 'Incorrect password.', variant: 'destructive' });
-        setIsLoading(false);
+      if (!trainerSnapshot.empty) {
+        const trainerDoc = trainerSnapshot.docs[0];
+        const trainerData = trainerDoc.data();
+
+        if (trainerData.password !== values.password) {
+            toast({ title: 'Login Failed', description: 'Incorrect password.', variant: 'destructive' });
+            setIsLoading(false);
+            return;
+        }
+
+        const pathSegments = trainerDoc.ref.path.split('/');
+        const gymId = pathSegments[1];
+        const branchId = pathSegments[3];
+        
+        localStorage.setItem('userDocId', gymId);
+        localStorage.setItem('activeBranch', branchId);
+        localStorage.setItem('trainerId', trainerDoc.id);
+        localStorage.setItem('userRole', trainerData.role);
+
+        toast({ title: 'Welcome!', description: "You have been successfully logged in as a trainer." });
+
+        if (trainerData.passwordChanged === false) {
+            router.push('/change-password');
+        } else {
+            router.push('/dashboard/trainer');
+        }
         return;
       }
 
-      // For members, we need the gym ID and branch ID from the document path
-      const pathSegments = memberDoc.ref.path.split('/');
-      const gymId = pathSegments[1];
-      const branchId = pathSegments[3];
-      
-      localStorage.setItem('userDocId', gymId);
-      localStorage.setItem('activeBranch', branchId);
-      localStorage.setItem('memberId', memberDoc.id);
-      localStorage.setItem('userRole', memberData.role);
-
-      toast({ title: 'Welcome!', description: "You have been successfully logged in." });
-
-      if (memberData.passwordChanged === false) {
-        router.push('/change-password');
-      } else {
-        router.push('/dashboard/member');
-      }
+      // If no user is found in any collection
+      toast({ title: 'Login Failed', description: 'No user found with that email or login ID.', variant: 'destructive' });
 
     } catch (error) {
       console.error("Error logging in:", error);
@@ -110,6 +140,7 @@ export default function LoginForm() {
         description: 'An unexpected error occurred. Please try again.',
         variant: 'destructive',
       });
+    } finally {
       setIsLoading(false);
     }
   }
@@ -126,7 +157,7 @@ export default function LoginForm() {
               <div className="relative">
                 <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <FormControl>
-                  <Input placeholder="you@example.com or Member No." {...field} className="pl-10"/>
+                  <Input placeholder="you@example.com or Member/Phone No." {...field} className="pl-10"/>
                 </FormControl>
               </div>
               <FormMessage />
@@ -156,3 +187,5 @@ export default function LoginForm() {
     </Form>
   );
 }
+
+    
