@@ -4,7 +4,7 @@
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { CalendarCheck, Tags, IndianRupee, Percent } from "lucide-react";
+import { CalendarCheck, Tags, IndianRupee, Percent, ShieldCheck } from "lucide-react";
 import Link from 'next/link';
 import { collection, getDocs, query, where, Timestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
@@ -20,6 +20,13 @@ interface Offer {
   applicablePlans: string[];
 }
 
+interface Equipment {
+  id: string;
+  name: string;
+  status: 'Active' | 'Under Maintenance' | 'Out of Order';
+}
+
+
 const membershipPlans = [
     { id: "monthly", label: "Monthly" },
     { id: "quarterly", label: "Quarterly" },
@@ -28,20 +35,32 @@ const membershipPlans = [
     { id: "trial", label: "Trial" },
 ];
 
+const getStatusVariant = (status: Equipment['status']) => {
+    switch (status) {
+        case 'Active': return 'default';
+        case 'Under Maintenance': return 'secondary';
+        case 'Out of Order': return 'destructive';
+        default: return 'outline';
+    }
+}
+
 export default function MemberDashboard() {
     const [offers, setOffers] = useState<Offer[]>([]);
+    const [equipment, setEquipment] = useState<Equipment[]>([]);
     const [loadingOffers, setLoadingOffers] = useState(true);
+    const [loadingEquipment, setLoadingEquipment] = useState(true);
 
     useEffect(() => {
+        const userDocId = localStorage.getItem('userDocId');
+        const activeBranchId = localStorage.getItem('activeBranch');
+
+        if (!userDocId || !activeBranchId) {
+            setLoadingOffers(false);
+            setLoadingEquipment(false);
+            return;
+        }
+
         const fetchOffers = async () => {
-            const userDocId = localStorage.getItem('userDocId');
-            const activeBranchId = localStorage.getItem('activeBranch');
-
-            if (!userDocId || !activeBranchId) {
-                setLoadingOffers(false);
-                return;
-            }
-
             try {
                 const now = new Date();
                 const offersRef = collection(db, 'gyms', userDocId, 'branches', activeBranchId, 'offers');
@@ -56,8 +75,22 @@ export default function MemberDashboard() {
                 setLoadingOffers(false);
             }
         };
+        
+        const fetchEquipment = async () => {
+             try {
+                const equipmentRef = collection(db, 'gyms', userDocId, 'branches', activeBranchId, 'equipment');
+                const equipmentSnap = await getDocs(equipmentRef);
+                const equipmentList = equipmentSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Equipment));
+                setEquipment(equipmentList);
+            } catch (error) {
+                console.error("Failed to fetch equipment:", error);
+            } finally {
+                setLoadingEquipment(false);
+            }
+        }
 
         fetchOffers();
+        fetchEquipment();
     }, []);
 
   return (
@@ -115,6 +148,28 @@ export default function MemberDashboard() {
                                 </div>
                             ) : (
                                 <p className="text-muted-foreground text-center py-4">No active offers at the moment. Check back later!</p>
+                            )
+                        )}
+                    </CardContent>
+                </Card>
+                 <Card>
+                    <CardHeader>
+                        <CardTitle className="flex items-center gap-2"><ShieldCheck/> Equipment Status</CardTitle>
+                        <CardDescription>Check the availability of gym equipment.</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        {loadingEquipment ? <p>Loading equipment status...</p> : (
+                            equipment.length > 0 ? (
+                                <div className="grid md:grid-cols-3 gap-4 max-h-60 overflow-y-auto">
+                                {equipment.map(item => (
+                                    <div key={item.id} className="p-3 border rounded-lg bg-background flex items-center justify-between">
+                                        <span className="font-medium text-sm">{item.name}</span>
+                                        <Badge variant={getStatusVariant(item.status)}>{item.status}</Badge>
+                                    </div>
+                                ))}
+                                </div>
+                            ) : (
+                                <p className="text-muted-foreground text-center py-4">Equipment status is not available at the moment.</p>
                             )
                         )}
                     </CardContent>

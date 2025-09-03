@@ -19,10 +19,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Loader2, PlusCircle, ArrowLeft, MoreHorizontal, Edit, Trash } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+import { Badge } from '@/components/ui/badge';
 
 const equipmentSchema = z.object({
   name: z.string().min(1, 'Equipment name is required.'),
   category: z.string().min(1, 'Please select a category.'),
+  status: z.enum(['Active', 'Under Maintenance', 'Out of Order']).default('Active'),
   purchaseDate: z.string().optional(),
   vendor: z.string().optional(),
   warrantyExpiryDate: z.string().optional(),
@@ -42,6 +44,15 @@ const equipmentCategories = [
     "Other"
 ];
 
+const getStatusVariant = (status: Equipment['status']) => {
+    switch (status) {
+        case 'Active': return 'default';
+        case 'Under Maintenance': return 'secondary';
+        case 'Out of Order': return 'destructive';
+        default: return 'outline';
+    }
+}
+
 export default function EquipmentPage() {
   const [equipmentList, setEquipmentList] = useState<Equipment[]>([]);
   const [loading, setLoading] = useState(true);
@@ -51,7 +62,7 @@ export default function EquipmentPage() {
 
   const form = useForm<z.infer<typeof equipmentSchema>>({
     resolver: zodResolver(equipmentSchema),
-    defaultValues: { name: '', category: '', purchaseDate: '', vendor: '', warrantyExpiryDate: '', serialNumber: '' },
+    defaultValues: { name: '', category: '', status: 'Active', purchaseDate: '', vendor: '', warrantyExpiryDate: '', serialNumber: '' },
   });
   
   const fetchEquipment = async () => {
@@ -98,7 +109,7 @@ export default function EquipmentPage() {
         form.reset(editingEquipment);
         setIsFormDialogOpen(true);
     } else {
-        form.reset({ name: '', category: '', purchaseDate: '', vendor: '', warrantyExpiryDate: '', serialNumber: '' });
+        form.reset({ name: '', category: '', status: 'Active', purchaseDate: '', vendor: '', warrantyExpiryDate: '', serialNumber: '' });
     }
   }, [editingEquipment, form]);
 
@@ -211,16 +222,30 @@ export default function EquipmentPage() {
                 <Form {...form}>
                 <form onSubmit={form.handleSubmit(handleFormSubmit)} className="space-y-4 py-4">
                     <FormField control={form.control} name="name" render={({ field }) => ( <FormItem><FormLabel>Equipment Name</FormLabel><FormControl><Input placeholder="e.g., Treadmill" {...field} /></FormControl><FormMessage /></FormItem> )} />
-                    <FormField control={form.control} name="category" render={({ field }) => (
-                    <FormItem><FormLabel>Category</FormLabel>
-                        <Select onValueChange={field.onChange} value={field.value}>
-                        <FormControl><SelectTrigger><SelectValue placeholder="Select a category" /></SelectTrigger></FormControl>
-                        <SelectContent>
-                            {equipmentCategories.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
-                        </SelectContent>
-                        </Select>
-                    <FormMessage /></FormItem>
-                    )} />
+                    <div className="grid grid-cols-2 gap-4">
+                        <FormField control={form.control} name="category" render={({ field }) => (
+                        <FormItem><FormLabel>Category</FormLabel>
+                            <Select onValueChange={field.onChange} value={field.value}>
+                            <FormControl><SelectTrigger><SelectValue placeholder="Select a category" /></SelectTrigger></FormControl>
+                            <SelectContent>
+                                {equipmentCategories.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                            </SelectContent>
+                            </Select>
+                        <FormMessage /></FormItem>
+                        )} />
+                         <FormField control={form.control} name="status" render={({ field }) => (
+                        <FormItem><FormLabel>Status</FormLabel>
+                            <Select onValueChange={field.onChange} value={field.value}>
+                            <FormControl><SelectTrigger><SelectValue placeholder="Select a status" /></SelectTrigger></FormControl>
+                            <SelectContent>
+                                <SelectItem value="Active">Active</SelectItem>
+                                <SelectItem value="Under Maintenance">Under Maintenance</SelectItem>
+                                <SelectItem value="Out of Order">Out of Order</SelectItem>
+                            </SelectContent>
+                            </Select>
+                        <FormMessage /></FormItem>
+                        )} />
+                    </div>
                     <FormField control={form.control} name="vendor" render={({ field }) => ( <FormItem><FormLabel>Vendor / Manufacturer</FormLabel><FormControl><Input placeholder="e.g., StrenxFit" {...field} /></FormControl><FormMessage /></FormItem> )} />
                     <div className="grid grid-cols-2 gap-4">
                         <FormField control={form.control} name="purchaseDate" render={({ field }) => ( <FormItem><FormLabel>Purchase Date</FormLabel><FormControl><Input type="date" {...field} /></FormControl><FormMessage /></FormItem> )} />
@@ -252,6 +277,7 @@ export default function EquipmentPage() {
               <TableRow>
                 <TableHead>Name</TableHead>
                 <TableHead>Category</TableHead>
+                <TableHead>Status</TableHead>
                 <TableHead>Purchase Date</TableHead>
                 <TableHead>Warranty Expiry</TableHead>
                 <TableHead><span className="sr-only">Actions</span></TableHead>
@@ -263,6 +289,7 @@ export default function EquipmentPage() {
                   <TableRow key={item.id}>
                     <TableCell className="font-medium">{item.name}</TableCell>
                     <TableCell>{item.category}</TableCell>
+                    <TableCell><Badge variant={getStatusVariant(item.status)}>{item.status}</Badge></TableCell>
                     <TableCell>{item.purchaseDate ? new Date(item.purchaseDate).toLocaleDateString() : 'N/A'}</TableCell>
                     <TableCell>{item.warrantyExpiryDate ? new Date(item.warrantyExpiryDate).toLocaleDateString() : 'N/A'}</TableCell>
                     <TableCell className="text-right">
@@ -298,7 +325,7 @@ export default function EquipmentPage() {
                 ))
               ) : (
                 <TableRow>
-                  <TableCell colSpan={5} className="h-24 text-center">
+                  <TableCell colSpan={6} className="h-24 text-center">
                     No equipment added yet.
                   </TableCell>
                 </TableRow>
