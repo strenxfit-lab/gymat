@@ -206,6 +206,9 @@ export default function OwnerDashboardLayout({
                             <Link href="/dashboard/owner/revenue-reports">
                                 <SidebarMenuSubButton className={subMenuButtonClass}>Revenue reports</SidebarMenuSubButton>
                             </Link>
+                             <Link href="/dashboard/owner/expenses">
+                                <SidebarMenuSubButton className={subMenuButtonClass}>Expenses</SidebarMenuSubButton>
+                            </Link>
                             <SidebarMenuSubButton className={subMenuButtonClass}>Attendance trends</SidebarMenuSubButton>
                             <SidebarMenuSubButton className={subMenuButtonClass}>Trainer performance</SidebarMenuSubButton>
                         </SidebarMenuSub>
