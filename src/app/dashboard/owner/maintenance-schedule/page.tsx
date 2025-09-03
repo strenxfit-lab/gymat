@@ -64,7 +64,7 @@ export default function MaintenanceSchedulePage() {
 
   const form = useForm<z.infer<typeof maintenanceSchema>>({
     resolver: zodResolver(maintenanceSchema),
-    defaultValues: { status: 'Pending' },
+    defaultValues: { equipmentId: '', taskDescription: '', dueDate: '', assignedTo: '', status: 'Pending', notes: '' },
   });
   
   const fetchAllData = async () => {
