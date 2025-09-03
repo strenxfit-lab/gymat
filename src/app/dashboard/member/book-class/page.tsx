@@ -3,12 +3,12 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { collection, getDocs, Timestamp, doc, addDoc, setDoc, getDoc } from 'firebase/firestore';
+import { collection, getDocs, Timestamp, doc, addDoc, setDoc, getDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Loader2, ArrowLeft, Calendar, Clock, Users, User, CheckCircle, XCircle } from 'lucide-react';
+import { Loader2, ArrowLeft, Calendar, Clock, Users, User, CheckCircle, XCircle, ListPlus, History } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import Link from 'next/link';
 
@@ -21,6 +21,7 @@ interface ClassInfo {
   location: string;
   booked: number;
   isBookedByMe: boolean;
+  isOnWaitlist: boolean;
   isFull: boolean;
 }
 
@@ -32,7 +33,7 @@ interface Trainer {
 export default function BookClassPage() {
   const [classes, setClasses] = useState<ClassInfo[]>([]);
   const [loading, setLoading] = useState(true);
-  const [bookingStatus, setBookingStatus] = useState<Record<string, 'booking' | 'cancelling' | null>>({});
+  const [bookingStatus, setBookingStatus] = useState<Record<string, 'booking' | 'cancelling' | 'waitlisting' | null>>({});
   const router = useRouter();
   const { toast } = useToast();
 
@@ -70,6 +71,10 @@ export default function BookClassPage() {
           
           const memberBookingDoc = doc(bookingsCollection, memberId);
           const memberBookingSnap = await getDoc(memberBookingDoc);
+          
+          const waitlistCollection = collection(docSnap.ref, 'waitlist');
+          const memberWaitlistDoc = doc(waitlistCollection, memberId);
+          const memberWaitlistSnap = await getDoc(memberWaitlistDoc);
 
           return {
             id: docSnap.id,
@@ -80,6 +85,7 @@ export default function BookClassPage() {
             location: data.location,
             booked: bookedCount,
             isBookedByMe: memberBookingSnap.exists(),
+            isOnWaitlist: memberWaitlistSnap.exists(),
             isFull: bookedCount >= data.capacity,
           };
       });
@@ -130,6 +136,31 @@ export default function BookClassPage() {
     }
   }
 
+  const handleWaitlist = async (classId: string) => {
+    setBookingStatus(prev => ({...prev, [classId]: 'waitlisting'}));
+    const userDocId = localStorage.getItem('userDocId');
+    const activeBranchId = localStorage.getItem('activeBranch');
+    const memberId = localStorage.getItem('memberId');
+
+    if (!userDocId || !activeBranchId || !memberId) {
+        toast({ title: 'Error', description: 'Session expired.', variant: 'destructive'});
+        setBookingStatus(prev => ({...prev, [classId]: null}));
+        return;
+    }
+    
+    try {
+        const waitlistRef = doc(db, 'gyms', userDocId, 'branches', activeBranchId, 'classes', classId, 'waitlist', memberId);
+        await setDoc(waitlistRef, { joinedAt: serverTimestamp() });
+        toast({ title: 'Joined Waitlist!', description: 'We will notify you if a spot opens up.'});
+        await fetchClasses(); // Refresh list
+    } catch (error) {
+        console.error("Waitlist error:", error);
+        toast({ title: 'Error', description: 'Could not join waitlist. Please try again.', variant: 'destructive'});
+    } finally {
+        setBookingStatus(prev => ({...prev, [classId]: null}));
+    }
+  }
+
 
   if (loading) {
     return <div className="flex min-h-screen items-center justify-center bg-background"><Loader2 className="h-8 w-8 animate-spin" /></div>;
@@ -168,13 +199,28 @@ export default function BookClassPage() {
                      >
                         {bookingStatus[cls.id] === 'cancelling' ? <Loader2 className="animate-spin" /> : <><XCircle className="mr-2" /> Cancel Booking</>}
                     </Button>
+                ) : cls.isFull ? (
+                    cls.isOnWaitlist ? (
+                        <Button className="w-full" disabled>
+                           <History className="mr-2" /> On Waitlist
+                        </Button>
+                    ) : (
+                        <Button 
+                            variant="secondary"
+                            className="w-full" 
+                            onClick={() => handleWaitlist(cls.id)}
+                            disabled={bookingStatus[cls.id] === 'waitlisting'}
+                        >
+                            {bookingStatus[cls.id] === 'waitlisting' ? <Loader2 className="animate-spin" /> : <><ListPlus className="mr-2" />Join Waitlist</>}
+                        </Button>
+                    )
                 ) : (
                     <Button 
                         className="w-full" 
                         onClick={() => handleBooking(cls.id, false)}
                         disabled={cls.isFull || bookingStatus[cls.id] === 'booking'}
                     >
-                        {bookingStatus[cls.id] === 'booking' ? <Loader2 className="animate-spin" /> : (cls.isFull ? 'Class Full' : <><CheckCircle className="mr-2" />Book Now</>)}
+                        {bookingStatus[cls.id] === 'booking' ? <Loader2 className="animate-spin" /> : <><CheckCircle className="mr-2" />Book Now</>}
                     </Button>
                 )}
               </CardFooter>
