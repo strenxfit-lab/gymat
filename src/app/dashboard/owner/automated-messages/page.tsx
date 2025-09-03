@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import { useState, useEffect } from 'react';
@@ -18,6 +19,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import Link from 'next/link';
 import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Badge } from '@/components/ui/badge';
 
 const formSchema = z.object({
   paymentReminder: z.string().optional(),
@@ -71,7 +73,7 @@ const messageTemplates = [
     },
 ];
 
-export default function AutomatedMessagesPage() {
+export default function RemindersPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [isFetching, setIsFetching] = useState(true);
   const [isFetchingMembers, setIsFetchingMembers] = useState(false);
@@ -365,7 +367,7 @@ export default function AutomatedMessagesPage() {
                                                             </div>
                                                           </div>
                                                           <a 
-                                                            href={`https://wa.me/91${member.phone}?text=${encodeURIComponent(generateMessage(form.getValues(template.value), member))}`}
+                                                            href={`https://wa.me/91${member.phone}?text=${encodeURIComponent(generateMessage(form.getValues(template.value as MessageType) || template.placeholder, member))}`}
                                                             target="_blank" 
                                                             rel="noopener noreferrer"
                                                             onClick={() => handleMessageSent(template.value, member)}
@@ -432,5 +434,3 @@ export default function AutomatedMessagesPage() {
   );
 }
 
-
-    
