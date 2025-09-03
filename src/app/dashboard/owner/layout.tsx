@@ -216,7 +216,7 @@ export default function OwnerDashboardLayout({
                 </SidebarMenuItem>
                 <SidebarMenuItem>
                      <SidebarMenuButton onClick={() => toggleSubMenu('comms')} className="justify-between">
-                        <div className="flex items-center gap-2"><Megaphone /> Communication &amp; Marketing</div>
+                        <div className="flex items-center gap-2"><Megaphone /> Make offers</div>
                         <ChevronDown className={`transition-transform duration-200 ${openSubMenu === 'comms' ? 'rotate-180' : ''}`} />
                     </SidebarMenuButton>
                      {openSubMenu === 'comms' && (
