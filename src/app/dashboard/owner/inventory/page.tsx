@@ -233,11 +233,11 @@ export default function InventoryPage() {
                         )} />
                     </div>
                      <div className="grid grid-cols-2 gap-4">
-                        <FormField control={form.control} name="purchasePrice" render={({ field }) => ( <FormItem><FormLabel>Purchase Price (₹)</FormLabel><FormControl><Input type="number" placeholder="1000" {...field} /></FormControl><FormMessage /></FormItem> )} />
-                        <FormField control={form.control} name="sellingPrice" render={({ field }) => ( <FormItem><FormLabel>Selling Price (₹)</FormLabel><FormControl><Input type="number" placeholder="1200" {...field} /></FormControl><FormMessage /></FormItem> )} />
+                        <FormField control={form.control} name="purchasePrice" render={({ field }) => ( <FormItem><FormLabel>Purchase Price (₹)</FormLabel><FormControl><Input type="number" placeholder="1000" {...field} value={field.value ?? ''} /></FormControl><FormMessage /></FormItem> )} />
+                        <FormField control={form.control} name="sellingPrice" render={({ field }) => ( <FormItem><FormLabel>Selling Price (₹)</FormLabel><FormControl><Input type="number" placeholder="1200" {...field} value={field.value ?? ''} /></FormControl><FormMessage /></FormItem> )} />
                     </div>
-                     <FormField control={form.control} name="reorderPoint" render={({ field }) => ( <FormItem><FormLabel>Low Stock Alert At</FormLabel><FormControl><Input type="number" placeholder="Set a reorder point" {...field} /></FormControl><FormMessage /></FormItem> )} />
-                    <FormField control={form.control} name="supplier" render={({ field }) => ( <FormItem><FormLabel>Supplier / Vendor</FormLabel><FormControl><Input placeholder="e.g., HealthFirst Suppliers" {...field} /></FormControl><FormMessage /></FormItem> )} />
+                     <FormField control={form.control} name="reorderPoint" render={({ field }) => ( <FormItem><FormLabel>Low Stock Alert At</FormLabel><FormControl><Input type="number" placeholder="Set a reorder point" {...field} value={field.value ?? ''} /></FormControl><FormMessage /></FormItem> )} />
+                    <FormField control={form.control} name="supplier" render={({ field }) => ( <FormItem><FormLabel>Supplier / Vendor</FormLabel><FormControl><Input placeholder="e.g., HealthFirst Suppliers" {...field} value={field.value ?? ''} /></FormControl><FormMessage /></FormItem> )} />
                     
                     <DialogFooter>
                     <Button type="button" variant="outline" onClick={() => handleFormDialogStateChange(false)}>Cancel</Button>
@@ -331,4 +331,6 @@ export default function InventoryPage() {
     </div>
   );
 }
+    
+
     
