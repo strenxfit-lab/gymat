@@ -37,6 +37,7 @@ const formSchema = z.object({
   paymentDate: z.date(),
   paymentMode: z.string().nonempty({ message: "Please select a payment mode." }),
   nextDueDate: z.date({ required_error: 'Next due date is required.' }),
+  transactionId: z.string().optional(),
 });
 
 type FormData = z.infer<typeof formSchema>;
@@ -167,73 +168,76 @@ export default function AddPaymentPage() {
     initialize();
   }, [searchParams, form, activeBranchId]);
 
-  useEffect(() => {
-    const subscription = form.watch((values, { name }) => {
-        const { totalFee, discount, amountPaid, membershipPlan, paymentDate, appliedOfferId } = values;
+    useEffect(() => {
+        const subscription = form.watch((values, { name }) => {
+            const { totalFee, discount, amountPaid, membershipPlan, paymentDate, appliedOfferId } = values;
 
-        let originalFee = totalFee || 0;
-        let finalDiscount = typeof discount === 'string' ? parseFloat(discount) : (discount || 0);
+            let originalFee = totalFee || 0;
+            let finalDiscount = typeof discount === 'string' ? parseFloat(discount) : (discount || 0);
 
-        if (name === 'memberId' && values.memberId) {
-            const member = members.find(m => m.id === values.memberId);
-            if (member) {
-                if (member.status === 'Frozen' || member.status === 'Stopped') {
-                    setStatusDialogMessage(`This member's account is currently ${member.status}. To collect payment, please reactivate their account from the Member Status page.`);
-                    setIsStatusDialogOpen(true);
-                    return;
+            if (name === 'memberId' && values.memberId) {
+                const member = members.find(m => m.id === values.memberId);
+                if (member) {
+                    if (member.status === 'Frozen' || member.status === 'Stopped') {
+                        setStatusDialogMessage(`This member's account is currently ${member.status}. To collect payment, please reactivate their account from the Member Status page.`);
+                        setIsStatusDialogOpen(true);
+                        return;
+                    }
+                    setSelectedMember(member);
+                    form.setValue('membershipPlan', member.membershipType);
+                    form.setValue('totalFee', member.totalFee);
+                    originalFee = member.totalFee;
                 }
-                setSelectedMember(member);
-                form.setValue('membershipPlan', member.membershipType);
-                form.setValue('totalFee', member.totalFee);
-                originalFee = member.totalFee;
             }
-        }
-        
-        if ((name === 'membershipPlan' || name === 'paymentDate') && membershipPlan && paymentDate) {
-            let newEndDate = new Date(paymentDate);
-             switch (membershipPlan) {
-                case 'trial': newEndDate = addDays(newEndDate, 7); break;
-                case 'monthly': newEndDate = addDays(newEndDate, 30); break;
-                case 'quarterly': newEndDate = addDays(newEndDate, 90); break;
-                case 'half-yearly': newEndDate = addDays(newEndDate, 180); break;
-                case 'yearly': newEndDate = addDays(newEndDate, 365); break;
-            }
-            form.setValue('nextDueDate', newEndDate);
-        }
-
-        if (name === 'appliedOfferId') {
-            const offer = offers.find(o => o.id === appliedOfferId);
-            if (offer) {
-                let offerDiscount = 0;
-                if (offer.discountType === 'percentage') {
-                    offerDiscount = (originalFee * offer.discountValue) / 100;
-                } else { // flat
-                    offerDiscount = offer.discountValue;
+            
+            if ((name === 'membershipPlan' || name === 'paymentDate') && membershipPlan && paymentDate) {
+                let newEndDate = new Date(paymentDate);
+                 switch (membershipPlan) {
+                    case 'trial': newEndDate = addDays(newEndDate, 7); break;
+                    case 'monthly': newEndDate = addDays(newEndDate, 30); break;
+                    case 'quarterly': newEndDate = addDays(newEndDate, 90); break;
+                    case 'half-yearly': newEndDate = addDays(newEndDate, 180); break;
+                    case 'yearly': newEndDate = addDays(newEndDate, 365); break;
                 }
-                form.setValue('discount', offerDiscount);
-                form.setValue('appliedOfferTitle', offer.title);
-                finalDiscount = offerDiscount;
-            } else {
-                 form.setValue('discount', '');
-                 form.setValue('appliedOfferTitle', '');
-            }
-        }
-
-        if (name === 'totalFee' || name === 'discount' || name === 'amountPaid' || name === 'appliedOfferId') {
-            const finalPayable = originalFee - finalDiscount;
-            const newAmountPaid = finalPayable > 0 ? finalPayable : 0;
-            if(newAmountPaid !== amountPaid) {
-                form.setValue('amountPaid', newAmountPaid);
+                form.setValue('nextDueDate', newEndDate);
             }
 
-            const balance = newAmountPaid - (amountPaid || 0);
-            const newBalanceDue = balance > 0 ? balance : 0;
-            if (newBalanceDue !== values.balanceDue) {
-              form.setValue('balanceDue', newBalanceDue);
+            if (name === 'appliedOfferId') {
+                const offer = offers.find(o => o.id === appliedOfferId);
+                if (offer) {
+                    let offerDiscount = 0;
+                    if (offer.discountType === 'percentage') {
+                        offerDiscount = (originalFee * offer.discountValue) / 100;
+                    } else { // flat
+                        offerDiscount = offer.discountValue;
+                    }
+                    form.setValue('discount', offerDiscount);
+                    form.setValue('appliedOfferTitle', offer.title);
+                } else if (appliedOfferId === 'none') {
+                     form.setValue('discount', '');
+                     form.setValue('appliedOfferTitle', '');
+                }
             }
-        }
-    });
-    return () => subscription.unsubscribe();
+
+            // Calculations
+            if (name === 'totalFee' || name === 'discount' || name === 'appliedOfferId') {
+                const finalPayable = originalFee - finalDiscount;
+                const newAmountPaid = finalPayable > 0 ? finalPayable : 0;
+                if (newAmountPaid !== amountPaid) {
+                    form.setValue('amountPaid', newAmountPaid);
+                }
+            }
+            
+            if (name === 'totalFee' || name === 'discount' || name === 'appliedOfferId' || name === 'amountPaid') {
+                const finalPayable = originalFee - finalDiscount;
+                const newBalanceDue = (finalPayable > 0 ? finalPayable : 0) - (amountPaid || 0);
+
+                if ((newBalanceDue > 0 ? newBalanceDue : 0) !== values.balanceDue) {
+                  form.setValue('balanceDue', newBalanceDue > 0 ? newBalanceDue : 0);
+                }
+            }
+        });
+        return () => subscription.unsubscribe();
   }, [form, members, selectedMember, offers]);
 
 
@@ -389,7 +393,7 @@ export default function AddPaymentPage() {
                 <div className="space-y-4 border-b pb-4">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <FormField control={form.control} name="totalFee" render={({ field }) => ( <FormItem><FormLabel>Total Fee (₹)</FormLabel><FormControl><Input type="number" {...field} onChange={e => field.onChange(e.target.value === '' ? 0 : parseInt(e.target.value, 10))} /></FormControl><FormMessage /></FormItem> )} />
-                        <FormField control={form.control} name="discount" render={({ field }) => ( <FormItem><FormLabel>Discount (₹, Optional)</FormLabel><FormControl><Input type="number" placeholder="0" {...field} value={field.value ?? ''} onChange={e => field.onChange(e.target.value)} disabled={!!form.watch('appliedOfferId')} /></FormControl><FormMessage /></FormItem> )} />
+                        <FormField control={form.control} name="discount" render={({ field }) => ( <FormItem><FormLabel>Discount (₹, Optional)</FormLabel><FormControl><Input type="number" placeholder="0" {...field} value={field.value ?? ''} onChange={e => field.onChange(e.target.value)} disabled={!!form.watch('appliedOfferId') && form.watch('appliedOfferId') !== 'none'} /></FormControl><FormMessage /></FormItem> )} />
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <FormField control={form.control} name="amountPaid" render={({ field }) => ( <FormItem><FormLabel>Amount Paid (₹)</FormLabel><FormControl><Input type="number" {...field} onChange={e => field.onChange(e.target.value === '' ? 0 : parseInt(e.target.value, 10))} /></FormControl><FormMessage /></FormItem> )} />
@@ -406,7 +410,7 @@ export default function AddPaymentPage() {
                         )} />
                          <FormField control={form.control} name="nextDueDate" render={({ field }) => (
                              <FormItem className="flex flex-col"><FormLabel>Next Due Date</FormLabel><FormControl>
-                                <Input type="date" value={field.value ? format(field.value, 'yyyy-MM-dd') : ''} onChange={e => field.onChange(new Date(e.target.value))} />
+                                <Input type="date" value={field.value ? format(new Date(field.value), 'yyyy-MM-dd') : ''} onChange={e => field.onChange(new Date(e.target.value))} />
                              </FormControl><FormMessage /></FormItem>
                         )} />
                         <FormField control={form.control} name="paymentMode" render={({ field }) => (
@@ -424,8 +428,8 @@ export default function AddPaymentPage() {
                             </Select><FormMessage />
                             </FormItem>
                         )} />
+                         <FormField control={form.control} name="transactionId" render={({ field }) => ( <FormItem><FormLabel>Transaction ID (Optional)</FormLabel><FormControl><Input placeholder="UPI Ref / Card Txn ID" {...field} value={field.value ?? ''} /></FormControl><FormMessage /></FormItem> )} />
                     </div>
-                    <FormField control={form.control} name="transactionId" render={({ field }) => ( <FormItem><FormLabel>Transaction ID (Optional)</FormLabel><FormControl><Input placeholder="UPI Ref / Card Txn ID" {...field} /></FormControl><FormMessage /></FormItem> )} />
                 </div>
                 </CardContent>
                 <CardFooter className="flex justify-between">
@@ -442,7 +446,5 @@ export default function AddPaymentPage() {
     </div>
   );
 }
-
-    
 
     
