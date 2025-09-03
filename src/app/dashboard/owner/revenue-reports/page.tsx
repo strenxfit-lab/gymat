@@ -3,15 +3,15 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { collectionGroup, getDocs, Timestamp, query, collection, getDoc, where } from 'firebase/firestore';
+import { collectionGroup, getDocs, Timestamp, query, collection, getDoc, where, orderBy } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Loader2, ArrowLeft, IndianRupee, TrendingUp, Calendar, BarChart3, Users } from 'lucide-react';
+import { Loader2, ArrowLeft, IndianRupee, TrendingUp, Calendar, BarChart3, Users, AlertCircle } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ResponsiveContainer, BarChart, XAxis, YAxis, Tooltip, Bar, Legend } from 'recharts';
-import { startOfWeek, startOfMonth, endOfMonth, eachMonthOfInterval, format } from 'date-fns';
+import { startOfWeek, startOfMonth, eachMonthOfInterval, format } from 'date-fns';
 
 interface Payment {
   id: string;
@@ -22,6 +22,12 @@ interface Payment {
   paymentMode: string;
 }
 
+interface PendingDue {
+    memberName: string;
+    memberPhone: string;
+    amountDue: number;
+}
+
 interface MonthlyRevenue {
     name: string;
     revenue: number;
@@ -29,10 +35,12 @@ interface MonthlyRevenue {
 
 export default function RevenueReportsPage() {
   const [payments, setPayments] = useState<Payment[]>([]);
+  const [pendingDues, setPendingDues] = useState<PendingDue[]>([]);
   const [loading, setLoading] = useState(true);
   const [todaysRevenue, setTodaysRevenue] = useState(0);
   const [thisWeeksRevenue, setThisWeeksRevenue] = useState(0);
   const [thisMonthsRevenue, setThisMonthsRevenue] = useState(0);
+  const [totalPendingDues, setTotalPendingDues] = useState(0);
   const [monthlyChartData, setMonthlyChartData] = useState<MonthlyRevenue[]>([]);
   const { toast } = useToast();
 
@@ -52,30 +60,44 @@ export default function RevenueReportsPage() {
         const membersSnap = await getDocs(membersRef);
         const memberDetails = membersSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 
-        const paymentsQuery = query(collectionGroup(db, 'payments'), where('__name__', '>', `gyms/${userDocId}/branches/${activeBranchId}/`));
-        const paymentsSnapshot = await getDocs(paymentsQuery);
-        
         const allPayments: Payment[] = [];
+        const allPendingDues: PendingDue[] = [];
+        let totalDues = 0;
 
-        paymentsSnapshot.forEach(doc => {
-            // Further client-side filtering because collectionGroup query is broad
-            const path = doc.ref.path;
-            if (path.startsWith(`gyms/${userDocId}/branches/${activeBranchId}/members/`)) {
+        for (const member of memberDetails) {
+            const paymentsCollection = collection(db, 'gyms', userDocId, 'branches', activeBranchId, 'members', member.id, 'payments');
+            const paymentsQuery = query(paymentsCollection, orderBy('paymentDate', 'desc'));
+            const paymentsSnap = await getDocs(paymentsQuery);
+            
+            if (!paymentsSnap.empty) {
+                const latestPayment = paymentsSnap.docs[0].data();
+                if (latestPayment.balanceDue > 0) {
+                    allPendingDues.push({
+                        memberName: member.fullName,
+                        memberPhone: member.phone,
+                        amountDue: latestPayment.balanceDue
+                    });
+                    totalDues += latestPayment.balanceDue;
+                }
+            }
+
+            paymentsSnap.forEach(doc => {
                 const data = doc.data();
-                const member = memberDetails.find(m => path.includes(m.id));
                 allPayments.push({
                     id: doc.id,
-                    memberName: member?.fullName || 'Unknown Member',
-                    memberPhone: member?.phone || 'N/A',
+                    memberName: member.fullName,
+                    memberPhone: member.phone,
                     amountPaid: data.amountPaid,
                     paymentDate: (data.paymentDate as Timestamp).toDate(),
                     paymentMode: data.paymentMode
                 });
-            }
-        });
+            });
+        }
         
         allPayments.sort((a,b) => b.paymentDate.getTime() - a.paymentDate.getTime());
         setPayments(allPayments);
+        setPendingDues(allPendingDues);
+        setTotalPendingDues(totalDues);
         
         // Calculate stats
         const now = new Date();
@@ -139,7 +161,7 @@ export default function RevenueReportsPage() {
         </Link>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-3 mb-6">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 mb-6">
          <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">Today's Revenue</CardTitle>
@@ -165,6 +187,15 @@ export default function RevenueReportsPage() {
             </CardHeader>
             <CardContent>
                 <div className="text-2xl font-bold">₹{thisMonthsRevenue.toLocaleString()}</div>
+            </CardContent>
+        </Card>
+         <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Total Pending Dues</CardTitle>
+                <AlertCircle className="h-4 w-4 text-destructive" />
+            </CardHeader>
+            <CardContent>
+                <div className="text-2xl font-bold text-destructive">₹{totalPendingDues.toLocaleString()}</div>
             </CardContent>
         </Card>
       </div>
@@ -218,6 +249,42 @@ export default function RevenueReportsPage() {
             </CardContent>
         </Card>
       </div>
+       <Card className="mt-6">
+        <CardHeader>
+          <CardTitle>Outstanding Payments</CardTitle>
+          <CardDescription>A list of all members with pending dues.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Member Name</TableHead>
+                <TableHead>Contact</TableHead>
+                <TableHead>Amount Due</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {pendingDues.length > 0 ? (
+                pendingDues.map((due, index) => (
+                  <TableRow key={index}>
+                    <TableCell className="font-medium">{due.memberName}</TableCell>
+                    <TableCell>{due.memberPhone}</TableCell>
+                    <TableCell className="text-destructive font-medium">₹{due.amountDue.toLocaleString()}</TableCell>
+                  </TableRow>
+                ))
+              ) : (
+                <TableRow>
+                  <TableCell colSpan={3} className="h-24 text-center">
+                    No outstanding payments. Great job!
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
     </div>
   );
 }
+
+    
