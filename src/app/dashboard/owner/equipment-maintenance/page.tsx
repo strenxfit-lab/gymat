@@ -31,7 +31,9 @@ export default function EquipmentMaintenancePage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <Button className="w-full">Add New Equipment</Button>
+            <Link href="/dashboard/owner/equipment" passHref>
+                <Button className="w-full">Add & View Equipment</Button>
+            </Link>
           </CardContent>
         </Card>
         
@@ -46,7 +48,7 @@ export default function EquipmentMaintenancePage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <Button className="w-full" variant="outline">View Schedule</Button>
+            <Button className="w-full" variant="outline" disabled>View Schedule</Button>
           </CardContent>
         </Card>
         
@@ -61,7 +63,7 @@ export default function EquipmentMaintenancePage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <Button className="w-full" variant="outline">Check Status</Button>
+            <Button className="w-full" variant="outline" disabled>Check Status</Button>
           </CardContent>
         </Card>
         
@@ -76,7 +78,7 @@ export default function EquipmentMaintenancePage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <Button className="w-full" variant="outline">View Analytics</Button>
+            <Button className="w-full" variant="outline" disabled>View Analytics</Button>
           </CardContent>
         </Card>
       </div>
