@@ -31,7 +31,9 @@ export default function MakeOffersPage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <Button className="w-full">Create Member Offer</Button>
+            <Link href="/dashboard/owner/offers-members" passHref>
+                <Button className="w-full">Create Member Offer</Button>
+            </Link>
           </CardContent>
         </Card>
         
@@ -46,7 +48,7 @@ export default function MakeOffersPage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <Button className="w-full">Create Trainer Offer</Button>
+            <Button className="w-full" disabled>Create Trainer Offer</Button>
           </CardContent>
         </Card>
       </div>
