@@ -9,7 +9,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Loader2, ArrowLeft, User, Calendar, Dumbbell, HeartPulse, Mail, Phone, Briefcase } from 'lucide-react';
+import { Loader2, ArrowLeft, User, Calendar, Dumbbell, HeartPulse, Mail, Phone, Briefcase, Edit } from 'lucide-react';
 import Link from 'next/link';
 
 type MemberStatus = 'Active' | 'Expired' | 'Pending' | 'Frozen' | 'Stopped';
@@ -146,6 +146,9 @@ export default function MemberProfilePage() {
             <div className="flex items-center gap-2">
                 <Link href="/dashboard/member" passHref>
                     <Button variant="outline"><ArrowLeft className="mr-2 h-4 w-4"/>Back to Dashboard</Button>
+                </Link>
+                 <Link href="/dashboard/member/profile/edit" passHref>
+                    <Button><Edit className="mr-2 h-4 w-4"/>Edit Profile</Button>
                 </Link>
             </div>
         </div>
