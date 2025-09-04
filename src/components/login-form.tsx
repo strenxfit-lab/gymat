@@ -7,7 +7,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 import * as z from 'zod';
 import { Loader2, Lock, Mail } from 'lucide-react';
-import { collection, query, where, getDocs, collectionGroup } from 'firebase/firestore';
+import { collection, query, where, getDocs } from 'firebase/firestore';
 
 import { Button } from '@/components/ui/button';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
