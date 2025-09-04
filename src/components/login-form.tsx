@@ -7,7 +7,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 import * as z from 'zod';
 import { Loader2, Lock, Mail } from 'lucide-react';
-import { collection, query, where, getDocs } from 'firebase/firestore';
+import { collection, query, where, getDocs, DocumentData } from 'firebase/firestore';
 
 import { Button } from '@/components/ui/button';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
@@ -19,6 +19,13 @@ const formSchema = z.object({
   email: z.string().min(1, { message: 'Please enter a valid email or login ID.' }),
   password: z.string().min(1, { message: 'Password is required.' }),
 });
+
+interface FoundUser {
+    gymId: string;
+    branchId: string;
+    userId: string;
+    userData: DocumentData;
+}
 
 export default function LoginForm() {
   const [isLoading, setIsLoading] = useState(false);
@@ -37,7 +44,7 @@ export default function LoginForm() {
     setIsLoading(true);
     
     try {
-      // Query for gym owner first
+      // 1. Check if it's an owner
       const gymsCollection = collection(db, 'gyms');
       const ownerQuery = query(gymsCollection, where('email', '==', values.email));
       const ownerSnapshot = await getDocs(ownerQuery);
@@ -58,53 +65,59 @@ export default function LoginForm() {
         return;
       }
 
-      // If not an owner, search for members and trainers across all branches of all gyms
+      // 2. If not an owner, search for members/trainers across all gyms and branches
       const allGymsSnapshot = await getDocs(collection(db, 'gyms'));
-      let userFound = false;
+      const potentialUsers: FoundUser[] = [];
 
       for (const gymDoc of allGymsSnapshot.docs) {
-          if (userFound) break;
           const gymId = gymDoc.id;
           const branchesCollection = collection(db, 'gyms', gymId, 'branches');
           const allBranchesSnapshot = await getDocs(branchesCollection);
 
           for (const branchDoc of allBranchesSnapshot.docs) {
-              if (userFound) break;
               const branchId = branchDoc.id;
               const userTypes = ['members', 'trainers'];
 
               for (const userType of userTypes) {
-                  if (userFound) break;
                   const usersCollection = collection(db, 'gyms', gymId, 'branches', branchId, userType);
                   const userQuery = query(usersCollection, where('loginId', '==', values.email));
                   const userSnapshot = await getDocs(userQuery);
 
                   if (!userSnapshot.empty) {
-                      const userDoc = userSnapshot.docs[0];
-                      const userData = userDoc.data();
-
-                      if (userData.password === values.password) {
-                          localStorage.setItem('userDocId', gymId);
-                          localStorage.setItem('activeBranch', branchId);
-                          localStorage.setItem(`${userType.slice(0, -1)}Id`, userDoc.id);
-                          localStorage.setItem('userRole', userData.role);
-                          
-                          toast({ title: 'Welcome!', description: "You have been successfully logged in." });
-                          
-                          if (userData.passwordChanged === false) {
-                              router.push('/change-password');
-                          } else {
-                              router.push(`/dashboard/${userData.role}`);
-                          }
-                          userFound = true;
-                          break;
-                      }
+                      userSnapshot.forEach(userDoc => {
+                          potentialUsers.push({
+                              gymId: gymId,
+                              branchId: branchId,
+                              userId: userDoc.id,
+                              userData: userDoc.data(),
+                          });
+                      });
                   }
               }
           }
       }
+      
+      // 3. Now, check the password for any found user
+      const foundUser = potentialUsers.find(u => u.userData.password === values.password);
 
-      if (!userFound) {
+      if (foundUser) {
+          const { gymId, branchId, userId, userData } = foundUser;
+          const userRole = userData.role;
+          const userType = userRole === 'member' ? 'members' : 'trainers';
+
+          localStorage.setItem('userDocId', gymId);
+          localStorage.setItem('activeBranch', branchId);
+          localStorage.setItem(`${userRole}Id`, userId);
+          localStorage.setItem('userRole', userRole);
+          
+          toast({ title: 'Welcome!', description: "You have been successfully logged in." });
+          
+          if (userData.passwordChanged === false) {
+              router.push('/change-password');
+          } else {
+              router.push(`/dashboard/${userRole}`);
+          }
+      } else {
         toast({ title: 'Login Failed', description: 'Incorrect username or password.', variant: 'destructive' });
       }
 
