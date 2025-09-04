@@ -96,9 +96,17 @@ export default function MemberDashboard() {
   return (
     <div className="flex min-h-screen items-start justify-center bg-background p-4 sm:p-8">
       <div className="w-full max-w-6xl space-y-8">
-        <div className="text-center">
-          <h1 className="text-3xl font-bold">Member Dashboard</h1>
-          <p className="text-muted-foreground">Welcome back! Here's your fitness overview.</p>
+        <div className="flex justify-between items-center text-center">
+          <div>
+            <h1 className="text-3xl font-bold">Member Dashboard</h1>
+            <p className="text-muted-foreground">Welcome back! Here's your fitness overview.</p>
+          </div>
+           <Link href="/dashboard/member/profile" passHref>
+              <Button variant="outline" size="icon">
+                <User className="h-5 w-5" />
+                <span className="sr-only">View Profile</span>
+              </Button>
+            </Link>
         </div>
         
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -184,9 +192,6 @@ export default function MemberDashboard() {
                         <Link href="/dashboard/member/book-class" passHref>
                             <Button className="w-full justify-start"><CalendarCheck className="mr-2"/> Book a Class</Button>
                         </Link>
-                         <Link href="/dashboard/member/profile" passHref>
-                           <Button className="w-full justify-start" variant="outline"><User className="mr-2"/>View Profile</Button>
-                         </Link>
                          <Button className="w-full justify-start" variant="outline" disabled>Payment History</Button>
                     </CardContent>
                 </Card>
