@@ -81,8 +81,18 @@ export default function OwnerDashboardPage() {
         }
 
         const gym = gymSnap.data();
-        const activeBranchId = localStorage.getItem('activeBranch');
+        let activeBranchId = localStorage.getItem('activeBranch');
         
+        // Wait for layout effect to set a branch if none is active
+        if (!activeBranchId) {
+          const branchesCollection = collection(db, 'gyms', userDocId, 'branches');
+          const branchesSnap = await getDocs(branchesCollection);
+          if (branchesSnap.docs.length > 0) {
+            activeBranchId = branchesSnap.docs[0].id;
+            localStorage.setItem('activeBranch', activeBranchId);
+          }
+        }
+
         if (!activeBranchId) {
             setGymData({
               name: gym.name || 'Your Gym',
