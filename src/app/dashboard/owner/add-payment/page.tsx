@@ -221,15 +221,17 @@ export default function AddPaymentPage() {
             
             const finalPayable = originalFee - finalDiscount;
 
-            // Auto-fill amountPaid when totalFee or discount changes
+            // Auto-fill amountPaid when totalFee or discount changes, but allow override
             if (name === 'totalFee' || name === 'discount' || name === 'appliedOfferId') {
                 const newAmountPaid = finalPayable > 0 ? finalPayable : 0;
-                form.setValue('amountPaid', newAmountPaid);
+                if (newAmountPaid !== values.amountPaid) {
+                    form.setValue('amountPaid', newAmountPaid, { shouldValidate: true });
+                }
             }
 
             // Always calculate balanceDue based on the current amountPaid
             const newBalanceDue = (finalPayable > 0 ? finalPayable : 0) - (amountPaid || 0);
-            if ((newBalanceDue > 0 ? newBalanceDue : 0) !== values.balanceDue) {
+             if ((newBalanceDue > 0 ? newBalanceDue : 0) !== values.balanceDue) {
                 form.setValue('balanceDue', newBalanceDue > 0 ? newBalanceDue : 0);
             }
         });
@@ -392,7 +394,7 @@ export default function AddPaymentPage() {
                         <FormField control={form.control} name="discount" render={({ field }) => ( <FormItem><FormLabel>Discount (₹, Optional)</FormLabel><FormControl><Input type="number" placeholder="0" {...field} value={field.value ?? ''} onChange={e => field.onChange(e.target.value)} disabled={!!form.watch('appliedOfferId') && form.watch('appliedOfferId') !== 'none'} /></FormControl><FormMessage /></FormItem> )} />
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <FormField control={form.control} name="amountPaid" render={({ field }) => ( <FormItem><FormLabel>Amount Paid (₹)</FormLabel><FormControl><Input type="number" {...field} onChange={e => field.onChange(e.target.value === '' ? 0 : parseInt(e.target.value, 10))} /></FormControl><FormMessage /></FormItem> )} />
+                        <FormField control={form.control} name="amountPaid" render={({ field }) => ( <FormItem><FormLabel>Amount Paid (₹)</FormLabel><FormControl><Input type="number" {...field} onChange={e => field.onChange(e.target.value === '' ? '' : parseInt(e.target.value, 10))} /></FormControl><FormMessage /></FormItem> )} />
                         <FormField control={form.control} name="balanceDue" render={({ field }) => ( <FormItem><FormLabel>Balance Due (₹)</FormLabel><FormControl><Input type="number" {...field} readOnly disabled /></FormControl><FormMessage /></FormItem> )} />
                     </div>
                 </div>
@@ -401,12 +403,12 @@ export default function AddPaymentPage() {
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <FormField control={form.control} name="paymentDate" render={({ field }) => (
                              <FormItem className="flex flex-col"><FormLabel>Payment Date</FormLabel><FormControl>
-                                <Input type="date" value={field.value ? format(field.value, 'yyyy-MM-dd') : ''} onChange={e => field.onChange(new Date(e.target.value))} />
+                                <Input type="date" value={field.value ? format(field.value, 'yyyy-MM-dd') : ''} onChange={e => field.onChange(e.target.value ? new Date(e.target.value) : undefined)} />
                              </FormControl><FormMessage /></FormItem>
                         )} />
                          <FormField control={form.control} name="nextDueDate" render={({ field }) => (
                              <FormItem className="flex flex-col"><FormLabel>Next Due Date</FormLabel><FormControl>
-                                <Input type="date" value={field.value ? format(new Date(field.value), 'yyyy-MM-dd') : ''} onChange={e => field.onChange(new Date(e.target.value))} />
+                                <Input type="date" value={field.value ? format(new Date(field.value), 'yyyy-MM-dd') : ''} onChange={e => field.onChange(e.target.value ? new Date(e.target.value) : undefined)} />
                              </FormControl><FormMessage /></FormItem>
                         )} />
                         <FormField control={form.control} name="paymentMode" render={({ field }) => (
@@ -443,4 +445,5 @@ export default function AddPaymentPage() {
   );
 }
 
+    
     
