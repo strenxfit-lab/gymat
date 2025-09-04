@@ -58,73 +58,50 @@ export default function LoginForm() {
         return;
       }
 
-      // If not an owner, search for members and trainers across all branches
-      const allGymsSnapshot = await getDocs(gymsCollection);
+      // If not an owner, search for members and trainers across all branches of all gyms
+      const allGymsSnapshot = await getDocs(collection(db, 'gyms'));
       let userFound = false;
 
       for (const gymDoc of allGymsSnapshot.docs) {
-        if(userFound) break;
-        const gymId = gymDoc.id;
-        const branchesCollection = collection(db, 'gyms', gymId, 'branches');
-        const allBranchesSnapshot = await getDocs(branchesCollection);
+          if (userFound) break;
+          const gymId = gymDoc.id;
+          const branchesCollection = collection(db, 'gyms', gymId, 'branches');
+          const allBranchesSnapshot = await getDocs(branchesCollection);
 
-        for (const branchDoc of allBranchesSnapshot.docs) {
-            if(userFound) break;
-            const branchId = branchDoc.id;
+          for (const branchDoc of allBranchesSnapshot.docs) {
+              if (userFound) break;
+              const branchId = branchDoc.id;
+              const userTypes = ['members', 'trainers'];
 
-            // Check for member
-            const membersCollection = collection(db, 'gyms', gymId, 'branches', branchId, 'members');
-            const memberQuery = query(membersCollection, where('loginId', '==', values.email));
-            const memberSnapshot = await getDocs(memberQuery);
+              for (const userType of userTypes) {
+                  if (userFound) break;
+                  const usersCollection = collection(db, 'gyms', gymId, 'branches', branchId, userType);
+                  const userQuery = query(usersCollection, where('loginId', '==', values.email));
+                  const userSnapshot = await getDocs(userQuery);
 
-            if (!memberSnapshot.empty) {
-                const memberDoc = memberSnapshot.docs[0];
-                const memberData = memberDoc.data();
-                if (memberData.password === values.password) {
-                    localStorage.setItem('userDocId', gymId);
-                    localStorage.setItem('activeBranch', branchId);
-                    localStorage.setItem('memberId', memberDoc.id);
-                    localStorage.setItem('userRole', memberData.role);
+                  if (!userSnapshot.empty) {
+                      const userDoc = userSnapshot.docs[0];
+                      const userData = userDoc.data();
 
-                    toast({ title: 'Welcome!', description: "You have been successfully logged in." });
-
-                    if (memberData.passwordChanged === false) {
-                        router.push('/change-password');
-                    } else {
-                        router.push('/dashboard/member');
-                    }
-                    userFound = true;
-                    break;
-                }
-            }
-
-            // Check for trainer
-            const trainersCollection = collection(db, 'gyms', gymId, 'branches', branchId, 'trainers');
-            const trainerQuery = query(trainersCollection, where('loginId', '==', values.email));
-            const trainerSnapshot = await getDocs(trainerQuery);
-
-            if (!trainerSnapshot.empty) {
-                const trainerDoc = trainerSnapshot.docs[0];
-                const trainerData = trainerDoc.data();
-
-                if (trainerData.password === values.password) {
-                    localStorage.setItem('userDocId', gymId);
-                    localStorage.setItem('activeBranch', branchId);
-                    localStorage.setItem('trainerId', trainerDoc.id);
-                    localStorage.setItem('userRole', trainerData.role);
-
-                    toast({ title: 'Welcome!', description: "You have been successfully logged in as a trainer." });
-
-                    if (trainerData.passwordChanged === false) {
-                        router.push('/change-password');
-                    } else {
-                        router.push('/dashboard/trainer');
-                    }
-                    userFound = true;
-                    break;
-                }
-            }
-        }
+                      if (userData.password === values.password) {
+                          localStorage.setItem('userDocId', gymId);
+                          localStorage.setItem('activeBranch', branchId);
+                          localStorage.setItem(`${userType.slice(0, -1)}Id`, userDoc.id);
+                          localStorage.setItem('userRole', userData.role);
+                          
+                          toast({ title: 'Welcome!', description: "You have been successfully logged in." });
+                          
+                          if (userData.passwordChanged === false) {
+                              router.push('/change-password');
+                          } else {
+                              router.push(`/dashboard/${userData.role}`);
+                          }
+                          userFound = true;
+                          break;
+                      }
+                  }
+              }
+          }
       }
 
       if (!userFound) {
