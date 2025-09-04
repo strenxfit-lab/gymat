@@ -57,7 +57,6 @@ export default function LoginForm() {
 
         toast({ title: 'Welcome!', description: "You have been successfully logged in." });
         
-        // This password change check is not relevant for owner, so we skip it.
         router.push('/dashboard/owner');
         return;
       }
