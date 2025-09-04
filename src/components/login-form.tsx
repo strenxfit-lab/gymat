@@ -62,72 +62,76 @@ export default function LoginForm() {
         return;
       }
 
-      // If not an owner, query for a member across all branches
-      const membersCollectionGroup = collectionGroup(db, 'members');
-      const memberQuery = query(membersCollectionGroup, where('loginId', '==', values.email));
-      const memberSnapshot = await getDocs(memberQuery);
+      // If not an owner, iterate through all gyms and branches to find a member or trainer.
+      const allGymsSnapshot = await getDocs(gymsCollection);
+      for (const gymDoc of allGymsSnapshot.docs) {
+        const gymId = gymDoc.id;
+        const branchesCollection = collection(db, 'gyms', gymId, 'branches');
+        const allBranchesSnapshot = await getDocs(branchesCollection);
 
-      if (!memberSnapshot.empty) {
-        const memberDoc = memberSnapshot.docs[0];
-        const memberData = memberDoc.data();
+        for (const branchDoc of allBranchesSnapshot.docs) {
+            const branchId = branchDoc.id;
 
-        if (memberData.password !== values.password) {
-            toast({ title: 'Login Failed', description: 'Incorrect password.', variant: 'destructive' });
-            setIsLoading(false);
-            return;
+            // Check for member
+            const membersCollection = collection(db, 'gyms', gymId, 'branches', branchId, 'members');
+            const memberQuery = query(membersCollection, where('loginId', '==', values.email));
+            const memberSnapshot = await getDocs(memberQuery);
+
+            if (!memberSnapshot.empty) {
+                const memberDoc = memberSnapshot.docs[0];
+                const memberData = memberDoc.data();
+
+                if (memberData.password !== values.password) {
+                    toast({ title: 'Login Failed', description: 'Incorrect password.', variant: 'destructive' });
+                    setIsLoading(false);
+                    return;
+                }
+                
+                localStorage.setItem('userDocId', gymId);
+                localStorage.setItem('activeBranch', branchId);
+                localStorage.setItem('memberId', memberDoc.id);
+                localStorage.setItem('userRole', memberData.role);
+
+                toast({ title: 'Welcome!', description: "You have been successfully logged in." });
+
+                if (memberData.passwordChanged === false) {
+                    router.push('/change-password');
+                } else {
+                    router.push('/dashboard/member');
+                }
+                return;
+            }
+
+            // Check for trainer
+            const trainersCollection = collection(db, 'gyms', gymId, 'branches', branchId, 'trainers');
+            const trainerQuery = query(trainersCollection, where('loginId', '==', values.email));
+            const trainerSnapshot = await getDocs(trainerQuery);
+
+            if (!trainerSnapshot.empty) {
+                const trainerDoc = trainerSnapshot.docs[0];
+                const trainerData = trainerDoc.data();
+
+                if (trainerData.password !== values.password) {
+                    toast({ title: 'Login Failed', description: 'Incorrect password.', variant: 'destructive' });
+                    setIsLoading(false);
+                    return;
+                }
+
+                localStorage.setItem('userDocId', gymId);
+                localStorage.setItem('activeBranch', branchId);
+                localStorage.setItem('trainerId', trainerDoc.id);
+                localStorage.setItem('userRole', trainerData.role);
+
+                toast({ title: 'Welcome!', description: "You have been successfully logged in as a trainer." });
+
+                if (trainerData.passwordChanged === false) {
+                    router.push('/change-password');
+                } else {
+                    router.push('/dashboard/trainer');
+                }
+                return;
+            }
         }
-        // For members, we need the gym ID and branch ID from the document path
-        const pathSegments = memberDoc.ref.path.split('/');
-        const gymId = pathSegments[1];
-        const branchId = pathSegments[3];
-        
-        localStorage.setItem('userDocId', gymId);
-        localStorage.setItem('activeBranch', branchId);
-        localStorage.setItem('memberId', memberDoc.id);
-        localStorage.setItem('userRole', memberData.role);
-
-        toast({ title: 'Welcome!', description: "You have been successfully logged in." });
-
-        if (memberData.passwordChanged === false) {
-            router.push('/change-password');
-        } else {
-            router.push('/dashboard/member');
-        }
-        return;
-      }
-
-      // If not owner or member, query for a trainer across all branches
-      const trainersCollectionGroup = collectionGroup(db, 'trainers');
-      const trainerQuery = query(trainersCollectionGroup, where('loginId', '==', values.email));
-      const trainerSnapshot = await getDocs(trainerQuery);
-
-      if (!trainerSnapshot.empty) {
-        const trainerDoc = trainerSnapshot.docs[0];
-        const trainerData = trainerDoc.data();
-
-        if (trainerData.password !== values.password) {
-            toast({ title: 'Login Failed', description: 'Incorrect password.', variant: 'destructive' });
-            setIsLoading(false);
-            return;
-        }
-
-        const pathSegments = trainerDoc.ref.path.split('/');
-        const gymId = pathSegments[1];
-        const branchId = pathSegments[3];
-        
-        localStorage.setItem('userDocId', gymId);
-        localStorage.setItem('activeBranch', branchId);
-        localStorage.setItem('trainerId', trainerDoc.id);
-        localStorage.setItem('userRole', trainerData.role);
-
-        toast({ title: 'Welcome!', description: "You have been successfully logged in as a trainer." });
-
-        if (trainerData.passwordChanged === false) {
-            router.push('/change-password');
-        } else {
-            router.push('/dashboard/trainer');
-        }
-        return;
       }
 
       // If no user is found in any collection
@@ -187,5 +191,3 @@ export default function LoginForm() {
     </Form>
   );
 }
-
-    
