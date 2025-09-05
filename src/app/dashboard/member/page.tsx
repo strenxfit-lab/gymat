@@ -5,7 +5,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { CalendarCheck, Tags, IndianRupee, Percent, ShieldCheck, User, LogOut, Bell, Building, Cake, Clock, Loader2 } from "lucide-react";
+import { CalendarCheck, Tags, IndianRupee, Percent, ShieldCheck, User, LogOut, Bell, Building, Cake, Clock, Loader2, MessageSquare } from "lucide-react";
 import Link from 'next/link';
 import { collection, getDocs, query, where, Timestamp, doc, getDoc, collectionGroup } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
@@ -323,6 +323,9 @@ export default function MemberDashboard() {
                          <Link href="/dashboard/gym-profile" passHref>
                             <Button className="w-full justify-start" variant="outline"><Building className="mr-2"/> Your Gym Profile</Button>
                          </Link>
+                         <Link href="/dashboard/member/complaints" passHref>
+                            <Button className="w-full justify-start" variant="outline"><MessageSquare className="mr-2"/> Complaints</Button>
+                         </Link>
                     </CardContent>
                 </Card>
             </div>
@@ -331,3 +334,4 @@ export default function MemberDashboard() {
     </div>
   );
 }
+
