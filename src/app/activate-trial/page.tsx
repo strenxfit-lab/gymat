@@ -8,12 +8,14 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 import * as z from 'zod';
 import { KeyRound, Loader2, ArrowLeft } from 'lucide-react';
+import { collection, query, where, getDocs, writeBatch, serverTimestamp, Timestamp } from 'firebase/firestore';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
+import { db } from '@/lib/firebase';
 
 const formSchema = z.object({
   trialKey: z.string().min(8, { message: 'Trial key must be at least 8 characters long.' }),
@@ -31,16 +33,57 @@ export default function ActivateTrialPage() {
     },
   });
 
-  function onSubmit(values: z.infer<typeof formSchema>) {
+  async function onSubmit(values: z.infer<typeof formSchema>) {
     setIsLoading(true);
-    console.log('Activating trial key:', values.trialKey);
+    
+    try {
+        const trialKeysRef = collection(db, 'trialKeys');
+        const q = query(trialKeysRef, where("key", "==", values.trialKey));
+        const querySnapshot = await getDocs(q);
 
-    // Simulate API call and update local storage
-    setTimeout(() => {
-      try {
-        // In a real app, you would validate the key against a backend service
-        // and fetch the associated userDocId and role.
-        localStorage.setItem('userDocId', 'trial-user-id'); // Placeholder ID
+        if (querySnapshot.empty) {
+            toast({ title: "Invalid Key", description: "The trial key you entered does not exist.", variant: "destructive" });
+            setIsLoading(false);
+            return;
+        }
+
+        const trialDoc = querySnapshot.docs[0];
+        const trialData = trialDoc.data();
+
+        if (trialData.activatedAt) {
+            toast({ title: "Key Already Used", description: "This trial key has already been activated.", variant: "destructive" });
+            setIsLoading(false);
+            return;
+        }
+
+        // Create a new gym document for the trial user
+        const newGymRef = doc(collection(db, 'gyms'));
+
+        // Update the trial key and the new gym doc in a batch
+        const batch = writeBatch(db);
+        
+        const activationTime = new Date();
+        const expirationTime = new Date(activationTime.getTime() + 5 * 60 * 60 * 1000); // 5 hours from now
+
+        batch.update(trialDoc.ref, {
+            activatedAt: serverTimestamp(),
+            expiresAt: Timestamp.fromDate(expirationTime),
+            gymId: newGymRef.id,
+        });
+
+        batch.set(newGymRef, {
+            name: "My Trial Gym",
+            email: `trial-${newGymRef.id}@example.com`,
+            role: "owner",
+            isTrial: true,
+            createdAt: serverTimestamp(),
+            trialKey: values.trialKey
+        });
+
+        await batch.commit();
+
+        // Set local storage to log the user in
+        localStorage.setItem('userDocId', newGymRef.id);
         localStorage.setItem('userRole', 'owner');
         
         toast({
@@ -48,17 +91,16 @@ export default function ActivateTrialPage() {
           description: 'Welcome! Your trial has been successfully activated.',
         });
         router.push('/dashboard/owner');
-      } catch (error) {
+
+    } catch (error) {
+        console.error("Error activating trial key:", error);
         toast({
             title: 'Activation Failed',
-            description: 'Could not save trial key. Please enable storage access.',
+            description: 'An unexpected error occurred. Please try again.',
             variant: 'destructive',
         });
-      } finally {
         setIsLoading(false);
-        form.reset();
-      }
-    }, 1500);
+    }
   }
 
   return (
