@@ -53,34 +53,35 @@ export default function TrainerComplaintsPage() {
     defaultValues: { complaint: '' },
   });
   
+  const fetchComplaints = async () => {
+    const userDocId = localStorage.getItem('userDocId');
+    const activeBranchId = localStorage.getItem('activeBranch');
+    const trainerId = localStorage.getItem('trainerId');
+
+    if (!userDocId || !activeBranchId || !trainerId) {
+        toast({ title: 'Error', description: 'Session invalid.', variant: 'destructive' });
+        return;
+    }
+
+    try {
+        const complaintsCollection = collection(db, 'gyms', userDocId, 'branches', activeBranchId, 'complaints');
+        const q = query(complaintsCollection, where('authorId', '==', trainerId), orderBy('submittedAt', 'desc'));
+        const complaintsSnap = await getDocs(q);
+        const complaintsList = complaintsSnap.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data(),
+            submittedAt: (doc.data().submittedAt as Timestamp).toDate().toLocaleString()
+        } as Complaint));
+        setPastComplaints(complaintsList);
+    } catch (error) {
+        console.error("Error fetching complaints:", error);
+        toast({ title: "Error", description: "Could not fetch past complaints.", variant: "destructive" });
+    } finally {
+        setIsFetching(false);
+    }
+  };
+
   useEffect(() => {
-    const fetchComplaints = async () => {
-        const userDocId = localStorage.getItem('userDocId');
-        const activeBranchId = localStorage.getItem('activeBranch');
-        const trainerId = localStorage.getItem('trainerId');
-
-        if (!userDocId || !activeBranchId || !trainerId) {
-            toast({ title: 'Error', description: 'Session invalid.', variant: 'destructive' });
-            return;
-        }
-
-        try {
-            const complaintsCollection = collection(db, 'gyms', userDocId, 'branches', activeBranchId, 'complaints');
-            const q = query(complaintsCollection, where('authorId', '==', trainerId), orderBy('submittedAt', 'desc'));
-            const complaintsSnap = await getDocs(q);
-            const complaintsList = complaintsSnap.docs.map(doc => ({
-                id: doc.id,
-                ...doc.data(),
-                submittedAt: (doc.data().submittedAt as Timestamp).toDate().toLocaleString()
-            } as Complaint));
-            setPastComplaints(complaintsList);
-        } catch (error) {
-            console.error("Error fetching complaints:", error);
-            toast({ title: "Error", description: "Could not fetch past complaints.", variant: "destructive" });
-        } finally {
-            setIsFetching(false);
-        }
-    };
     fetchComplaints();
   }, [toast]);
 
@@ -110,38 +111,8 @@ export default function TrainerComplaintsPage() {
         });
         toast({ title: 'Complaint Submitted!', description: 'Thank you for your feedback. We will look into it shortly.'});
         form.reset();
-        // This is a simplified approach. For a more robust app, you might want to avoid a full refetch.
         setIsFetching(true);
-        useEffect(() => {
-            const fetchComplaints = async () => {
-                const userDocId = localStorage.getItem('userDocId');
-                const activeBranchId = localStorage.getItem('activeBranch');
-                const trainerId = localStorage.getItem('trainerId');
-        
-                if (!userDocId || !activeBranchId || !trainerId) {
-                    toast({ title: 'Error', description: 'Session invalid.', variant: 'destructive' });
-                    return;
-                }
-        
-                try {
-                    const complaintsCollection = collection(db, 'gyms', userDocId, 'branches', activeBranchId, 'complaints');
-                    const q = query(complaintsCollection, where('authorId', '==', trainerId), orderBy('submittedAt', 'desc'));
-                    const complaintsSnap = await getDocs(q);
-                    const complaintsList = complaintsSnap.docs.map(doc => ({
-                        id: doc.id,
-                        ...doc.data(),
-                        submittedAt: (doc.data().submittedAt as Timestamp).toDate().toLocaleString()
-                    } as Complaint));
-                    setPastComplaints(complaintsList);
-                } catch (error) {
-                    console.error("Error fetching complaints:", error);
-                    toast({ title: "Error", description: "Could not fetch past complaints.", variant: "destructive" });
-                } finally {
-                    setIsFetching(false);
-                }
-            };
-            fetchComplaints();
-        }, [toast]);
+        fetchComplaints();
     } catch (error) {
         console.error("Error submitting complaint:", error);
         toast({ title: 'Submission Failed', description: 'An error occurred. Please try again.', variant: 'destructive' });
