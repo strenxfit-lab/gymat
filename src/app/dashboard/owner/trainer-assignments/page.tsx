@@ -9,28 +9,45 @@ import { db } from '@/lib/firebase';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from "@/components/ui/button";
 import { Loader2, ArrowLeft } from 'lucide-react';
+import { format } from 'date-fns';
 
-interface ClassInfo {
-  id: string;
-  className: string;
-  dateTime: Date;
+interface Assignment {
+  memberId: string;
+  memberName: string;
+  memberDob?: string;
+  memberPhone?: string;
+  memberHeight?: string;
+  memberWeight?: string;
+  memberGoal?: string;
   trainerId: string;
-  location: string;
+  trainerName: string;
+  trainerDob?: string;
+  trainerPhone?: string;
+}
+
+interface Member {
+  id: string;
+  fullName: string;
+  dob?: Timestamp;
+  phone: string;
+  height?: string;
+  weight?: string;
+  fitnessGoal?: string;
+  assignedTrainer?: string;
 }
 
 interface Trainer {
   id: string;
-  name: string;
+  fullName: string;
+  dob?: Timestamp;
+  phone: string;
 }
 
 export default function TrainerAssignmentsPage() {
-  const [classes, setClasses] = useState<ClassInfo[]>([]);
-  const [trainers, setTrainers] = useState<Trainer[]>([]);
+  const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [loading, setLoading] = useState(true);
-  const [updating, setUpdating] = useState<string | null>(null);
   const router = useRouter();
   const { toast } = useToast();
 
@@ -45,33 +62,37 @@ export default function TrainerAssignmentsPage() {
       return;
     }
     try {
-      // Fetch Trainers first
+      const membersCollection = collection(db, 'gyms', userDocId, 'branches', activeBranchId, 'members');
+      const membersSnapshot = await getDocs(membersCollection);
+      const membersList: Member[] = membersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Member));
+      
       const trainersCollection = collection(db, 'gyms', userDocId, 'branches', activeBranchId, 'trainers');
       const trainersSnapshot = await getDocs(trainersCollection);
-      const trainersList = trainersSnapshot.docs.map(doc => ({ id: doc.id, name: doc.data().fullName }));
-      setTrainers(trainersList);
+      const trainersList: Trainer[] = trainersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Trainer));
 
-      // Fetch Classes
-      const classesCollection = collection(db, 'gyms', userDocId, 'branches', activeBranchId, 'classes');
-      const classesSnapshot = await getDocs(classesCollection);
+      const assignmentsData: Assignment[] = membersList
+        .filter(member => member.assignedTrainer)
+        .map(member => {
+            const trainer = trainersList.find(t => t.id === member.assignedTrainer);
+            return {
+                memberId: member.id,
+                memberName: member.fullName,
+                memberDob: member.dob ? format(member.dob.toDate(), 'PPP') : 'N/A',
+                memberPhone: member.phone,
+                memberHeight: member.height,
+                memberWeight: member.weight,
+                memberGoal: member.fitnessGoal,
+                trainerId: trainer?.id || 'unassigned',
+                trainerName: trainer?.fullName || 'Unassigned',
+                trainerDob: trainer?.dob ? format(trainer.dob.toDate(), 'PPP') : 'N/A',
+                trainerPhone: trainer?.phone
+            }
+        });
 
-      const classesList = classesSnapshot.docs.map(docSnap => {
-        const data = docSnap.data();
-        return {
-          id: docSnap.id,
-          className: data.className,
-          dateTime: (data.dateTime as Timestamp).toDate(),
-          trainerId: data.trainerId,
-          location: data.location,
-        };
-      });
-
-      // Sort classes by date
-      classesList.sort((a, b) => a.dateTime.getTime() - b.dateTime.getTime());
-      setClasses(classesList);
+      setAssignments(assignmentsData);
 
     } catch (error) {
-      console.error("Error fetching data:", error);
+      console.error("Error fetching assignments data:", error);
       toast({ title: "Error", description: "Failed to fetch assignments data.", variant: "destructive" });
     } finally {
       setLoading(false);
@@ -82,39 +103,6 @@ export default function TrainerAssignmentsPage() {
     fetchAllData();
   }, [toast]);
 
-  const handleTrainerChange = async (classId: string, newTrainerId: string) => {
-    setUpdating(classId);
-    const userDocId = localStorage.getItem('userDocId');
-    const activeBranchId = localStorage.getItem('activeBranch');
-    if (!userDocId || !activeBranchId) {
-      toast({ title: "Error", description: "Session invalid.", variant: "destructive" });
-      setUpdating(null);
-      return;
-    }
-
-    try {
-      const classRef = doc(db, 'gyms', userDocId, 'branches', activeBranchId, 'classes', classId);
-      await updateDoc(classRef, { trainerId: newTrainerId });
-
-      // Update local state to reflect the change immediately
-      setClasses(prevClasses =>
-        prevClasses.map(cls =>
-          cls.id === classId ? { ...cls, trainerId: newTrainerId } : cls
-        )
-      );
-
-      toast({ title: "Success!", description: "Trainer has been reassigned." });
-    } catch (error) {
-      console.error("Error updating trainer:", error);
-      toast({ title: "Error", description: "Could not reassign trainer.", variant: "destructive" });
-    } finally {
-      setUpdating(null);
-    }
-  };
-
-  const getTrainerName = (trainerId: string) => {
-    return trainers.find(t => t.id === trainerId)?.name || 'Unassigned';
-  };
 
   if (loading) {
     return (
@@ -129,7 +117,7 @@ export default function TrainerAssignmentsPage() {
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-3xl font-bold">Trainer Assignments</h1>
-          <p className="text-muted-foreground">Assign and manage trainers for your classes.</p>
+          <p className="text-muted-foreground">An overview of all member-trainer pairings in this branch.</p>
         </div>
         <Link href="/dashboard/owner" passHref>
           <Button variant="outline"><ArrowLeft className="mr-2 h-4 w-4" />Back to Dashboard</Button>
@@ -138,55 +126,41 @@ export default function TrainerAssignmentsPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Upcoming Classes</CardTitle>
-          <CardDescription>Change trainer assignments directly from this list.</CardDescription>
+          <CardTitle>Member-Trainer Assignments</CardTitle>
+          <CardDescription>This list shows all members who currently have an assigned trainer.</CardDescription>
         </CardHeader>
         <CardContent>
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Class</TableHead>
-                <TableHead>Date & Time</TableHead>
-                <TableHead>Location</TableHead>
-                <TableHead>Assigned Trainer</TableHead>
+                <TableHead>Member</TableHead>
+                <TableHead>Trainer</TableHead>
+                <TableHead>Member Details</TableHead>
+                <TableHead>Trainer Details</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {classes.length > 0 ? (
-                classes.map((cls) => (
-                  <TableRow key={cls.id}>
-                    <TableCell className="font-medium">{cls.className}</TableCell>
-                    <TableCell>{cls.dateTime.toLocaleString()}</TableCell>
-                    <TableCell>{cls.location}</TableCell>
+              {assignments.length > 0 ? (
+                assignments.map((item) => (
+                  <TableRow key={item.memberId}>
+                    <TableCell className="font-medium">{item.memberName}</TableCell>
+                    <TableCell className="font-medium">{item.trainerName}</TableCell>
                     <TableCell>
-                      {updating === cls.id ? (
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                      ) : (
-                        <Select
-                          value={cls.trainerId}
-                          onValueChange={(newTrainerId) => handleTrainerChange(cls.id, newTrainerId)}
-                        >
-                          <SelectTrigger className="w-[200px]">
-                            <SelectValue placeholder="Select a trainer" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {trainers.length > 0 ? (
-                              trainers.map(t => (
-                                <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
-                              ))
-                            ) : (
-                              <div className="p-2 text-sm text-muted-foreground">No trainers available</div>
-                            )}
-                          </SelectContent>
-                        </Select>
-                      )}
+                        <div className="text-sm">DOB: {item.memberDob}</div>
+                        <div className="text-sm">Phone: {item.memberPhone}</div>
+                        <div className="text-sm">Goal: {item.memberGoal || 'N/A'}</div>
+                        <div className="text-sm">H/W: {item.memberHeight || 'N/A'}cm / {item.memberWeight || 'N/A'}kg</div>
+                    </TableCell>
+                    <TableCell>
+                        <div className="text-sm">DOB: {item.trainerDob}</div>
+                        <div className="text-sm">Phone: {item.trainerPhone}</div>
                     </TableCell>
                   </TableRow>
                 ))
               ) : (
                 <TableRow>
                   <TableCell colSpan={4} className="h-24 text-center">
-                    No classes scheduled yet.
+                    No members have been assigned a trainer yet.
                   </TableCell>
                 </TableRow>
               )}
@@ -197,3 +171,4 @@ export default function TrainerAssignmentsPage() {
     </div>
   );
 }
+

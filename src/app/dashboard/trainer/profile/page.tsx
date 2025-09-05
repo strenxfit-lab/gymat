@@ -3,7 +3,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { doc, getDoc, updateDoc, Timestamp } from 'firebase/firestore';
+import { doc, getDoc, updateDoc, Timestamp, collection, query, where, getDocs } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useToast } from '@/hooks/use-toast';
 import { useForm, Controller } from 'react-hook-form';
@@ -13,10 +13,12 @@ import Link from 'next/link';
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Loader2, ArrowLeft, User, Briefcase, Wallet, Calendar, Mail, Phone, Clock, Edit, Star } from 'lucide-react';
+import { Loader2, ArrowLeft, User, Briefcase, Wallet, Calendar, Mail, Phone, Clock, Edit, Star, HeartPulse, Dumbbell } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+
 
 const formSchema = z.object({
   shiftTiming: z.string().nonempty({ message: 'Please select a shift.' }),
@@ -44,6 +46,15 @@ interface TrainerDetails {
   ratingCount?: number;
 }
 
+interface AssignedMember {
+    id: string;
+    fullName: string;
+    dob: string;
+    height?: string;
+    weight?: string;
+    fitnessGoal?: string;
+}
+
 const DetailItem = ({ label, value }: { label: string; value: string | undefined }) => (
     <div>
         <p className="text-sm font-medium text-muted-foreground">{label}</p>
@@ -53,6 +64,7 @@ const DetailItem = ({ label, value }: { label: string; value: string | undefined
 
 export default function TrainerProfilePage() {
   const [trainer, setTrainer] = useState<TrainerDetails | null>(null);
+  const [assignedMembers, setAssignedMembers] = useState<AssignedMember[]>([]);
   const [loading, setLoading] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
   const router = useRouter();
@@ -106,6 +118,24 @@ export default function TrainerProfilePage() {
             ratingCount: data.ratings?.ratingCount,
         });
         form.setValue('shiftTiming', data.shiftTiming);
+        
+        // Fetch assigned members
+        const membersRef = collection(db, 'gyms', userDocId, 'branches', activeBranchId, 'members');
+        const q = query(membersRef, where('assignedTrainer', '==', trainerId));
+        const membersSnap = await getDocs(q);
+        const membersList = membersSnap.docs.map(doc => {
+            const memberData = doc.data();
+            return {
+                id: doc.id,
+                fullName: memberData.fullName,
+                dob: (memberData.dob as Timestamp)?.toDate().toLocaleDateString() || 'N/A',
+                height: memberData.height,
+                weight: memberData.weight,
+                fitnessGoal: memberData.fitnessGoal
+            }
+        });
+        setAssignedMembers(membersList);
+
       } catch (error) {
         console.error("Error fetching trainer data:", error);
         toast({ title: 'Error', description: 'Failed to fetch trainer details.', variant: 'destructive' });
@@ -201,7 +231,7 @@ export default function TrainerProfilePage() {
                 </CardContent>
             </Card>
 
-            <Card>
+             <Card>
                 <CardHeader>
                     <CardTitle className="flex items-center gap-2"><Wallet /> Financial Details</CardTitle>
                 </CardHeader>
@@ -249,10 +279,43 @@ export default function TrainerProfilePage() {
                     </form>
                 </Form>
             </Card>
+
+            <Card>
+                <CardHeader>
+                    <CardTitle className="flex items-center gap-2"><Users /> My Students</CardTitle>
+                    <CardDescription>Members who have assigned you as their trainer.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <Table>
+                        <TableHeader>
+                            <TableRow>
+                                <TableHead>Name</TableHead>
+                                <TableHead>Goal</TableHead>
+                                <TableHead>Height/Weight</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                        {assignedMembers.length > 0 ? (
+                            assignedMembers.map((member) => (
+                            <TableRow key={member.id}>
+                                <TableCell className="font-medium">{member.fullName}</TableCell>
+                                <TableCell>{member.fitnessGoal || 'N/A'}</TableCell>
+                                <TableCell>{member.height || 'N/A'}cm / {member.weight || 'N/A'}kg</TableCell>
+                            </TableRow>
+                            ))
+                        ) : (
+                            <TableRow>
+                            <TableCell colSpan={3} className="h-24 text-center">
+                                No members have assigned you as their trainer yet.
+                            </TableCell>
+                            </TableRow>
+                        )}
+                        </TableBody>
+                    </Table>
+                </CardContent>
+            </Card>
         </div>
       </div>
     </div>
   );
 }
-
-    
