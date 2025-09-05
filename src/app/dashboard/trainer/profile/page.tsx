@@ -3,7 +3,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { doc, getDoc, updateDoc, Timestamp, collection, query, where, getDocs } from 'firebase/firestore';
+import { doc, getDoc, updateDoc, Timestamp, collection, query, where, getDocs, addDoc, orderBy } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useToast } from '@/hooks/use-toast';
 import { useForm, Controller } from 'react-hook-form';
@@ -13,18 +13,25 @@ import Link from 'next/link';
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Loader2, ArrowLeft, User, Briefcase, Wallet, Calendar, Mail, Phone, Clock, Edit, Star, HeartPulse, Dumbbell } from 'lucide-react';
+import { Loader2, ArrowLeft, User, Briefcase, Wallet, Calendar, Mail, Phone, Clock, Edit, Star, HeartPulse, Dumbbell, Notebook } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Textarea } from '@/components/ui/textarea';
 
 
-const formSchema = z.object({
+const shiftFormSchema = z.object({
   shiftTiming: z.string().nonempty({ message: 'Please select a shift.' }),
 });
+type ShiftFormData = z.infer<typeof shiftFormSchema>;
 
-type FormData = z.infer<typeof formSchema>;
+const notesFormSchema = z.object({
+  note: z.string().min(1, 'Note cannot be empty.'),
+});
+type NotesFormData = z.infer<typeof notesFormSchema>;
+
 
 interface TrainerDetails {
   fullName: string;
@@ -55,6 +62,12 @@ interface AssignedMember {
     fitnessGoal?: string;
 }
 
+interface PrivateNote {
+    id: string;
+    note: string;
+    createdAt: Date;
+}
+
 const DetailItem = ({ label, value }: { label: string; value: string | undefined }) => (
     <div>
         <p className="text-sm font-medium text-muted-foreground">{label}</p>
@@ -67,13 +80,23 @@ export default function TrainerProfilePage() {
   const [assignedMembers, setAssignedMembers] = useState<AssignedMember[]>([]);
   const [loading, setLoading] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
+  const [isNotesDialogOpen, setIsNotesDialogOpen] = useState(false);
+  const [selectedMemberForNotes, setSelectedMemberForNotes] = useState<AssignedMember | null>(null);
+  const [memberNotes, setMemberNotes] = useState<PrivateNote[]>([]);
+  const [isFetchingNotes, setIsFetchingNotes] = useState(false);
   const router = useRouter();
   const { toast } = useToast();
 
-  const form = useForm<FormData>({
-    resolver: zodResolver(formSchema),
+  const shiftForm = useForm<ShiftFormData>({
+    resolver: zodResolver(shiftFormSchema),
     defaultValues: { shiftTiming: '' },
   });
+  
+  const notesForm = useForm<NotesFormData>({
+    resolver: zodResolver(notesFormSchema),
+    defaultValues: { note: '' },
+  });
+
 
   useEffect(() => {
     const userDocId = localStorage.getItem('userDocId');
@@ -117,9 +140,8 @@ export default function TrainerProfilePage() {
             averageRating: data.ratings?.averageRating,
             ratingCount: data.ratings?.ratingCount,
         });
-        form.setValue('shiftTiming', data.shiftTiming);
+        shiftForm.setValue('shiftTiming', data.shiftTiming);
         
-        // Fetch assigned members
         const membersRef = collection(db, 'gyms', userDocId, 'branches', activeBranchId, 'members');
         const q = query(membersRef, where('assignedTrainer', '==', trainerId));
         const membersSnap = await getDocs(q);
@@ -145,9 +167,9 @@ export default function TrainerProfilePage() {
     };
 
     fetchTrainerData();
-  }, [router, toast, form]);
+  }, [router, toast, shiftForm]);
 
-  const onSubmit = async (data: FormData) => {
+  const onShiftSubmit = async (data: ShiftFormData) => {
     const userDocId = localStorage.getItem('userDocId');
     const activeBranchId = localStorage.getItem('activeBranch');
     const trainerId = localStorage.getItem('trainerId');
@@ -164,6 +186,55 @@ export default function TrainerProfilePage() {
     }
   }
 
+  const handleOpenNotesDialog = async (member: AssignedMember) => {
+    setSelectedMemberForNotes(member);
+    setIsNotesDialogOpen(true);
+    setIsFetchingNotes(true);
+    const userDocId = localStorage.getItem('userDocId');
+    const activeBranchId = localStorage.getItem('activeBranch');
+    const trainerId = localStorage.getItem('trainerId');
+    if (!userDocId || !activeBranchId || !trainerId) return;
+
+    try {
+        const notesCollection = collection(db, 'gyms', userDocId, 'branches', activeBranchId, 'trainers', trainerId, 'privateNotes');
+        const q = query(notesCollection, where('memberId', '==', member.id), orderBy('createdAt', 'desc'));
+        const notesSnap = await getDocs(q);
+        const notesList = notesSnap.docs.map(d => ({
+            id: d.id,
+            note: d.data().note,
+            createdAt: (d.data().createdAt as Timestamp).toDate(),
+        }));
+        setMemberNotes(notesList);
+    } catch(e) {
+        console.error("Error fetching notes: ", e);
+        toast({ title: "Error", description: "Could not fetch notes.", variant: "destructive"});
+    } finally {
+        setIsFetchingNotes(false);
+    }
+  }
+
+  const onNoteSubmit = async (data: NotesFormData) => {
+    if (!selectedMemberForNotes) return;
+    const userDocId = localStorage.getItem('userDocId');
+    const activeBranchId = localStorage.getItem('activeBranch');
+    const trainerId = localStorage.getItem('trainerId');
+    if (!userDocId || !activeBranchId || !trainerId) return;
+
+    try {
+        const notesCollection = collection(db, 'gyms', userDocId, 'branches', activeBranchId, 'trainers', trainerId, 'privateNotes');
+        await addDoc(notesCollection, {
+            memberId: selectedMemberForNotes.id,
+            note: data.note,
+            createdAt: Timestamp.now(),
+        });
+        toast({ title: "Note Saved!", description: "Your private note has been saved."});
+        notesForm.reset();
+        await handleOpenNotesDialog(selectedMemberForNotes); // Refresh notes
+    } catch(e) {
+         console.error("Error saving note: ", e);
+         toast({ title: "Error", description: "Could not save your note.", variant: "destructive"});
+    }
+  }
 
   if (loading) {
     return <div className="flex min-h-screen items-center justify-center bg-background"><Loader2 className="h-8 w-8 animate-spin" /></div>;
@@ -248,12 +319,12 @@ export default function TrainerProfilePage() {
                         {!isEditing && <Button variant="outline" size="sm" onClick={() => setIsEditing(true)}><Edit className="mr-2 h-4 w-4"/>Change</Button>}
                     </div>
                 </CardHeader>
-                <Form {...form}>
-                    <form onSubmit={form.handleSubmit(onSubmit)}>
+                <Form {...shiftForm}>
+                    <form onSubmit={shiftForm.handleSubmit(onShiftSubmit)}>
                         <CardContent>
                             {isEditing ? (
                                 <FormField
-                                    control={form.control}
+                                    control={shiftForm.control}
                                     name="shiftTiming"
                                     render={({ field }) => (
                                         <FormItem><FormLabel>Update Your Shift</FormLabel>
@@ -265,14 +336,14 @@ export default function TrainerProfilePage() {
                                     )}
                                 />
                             ) : (
-                                <DetailItem label="Current Shift" value={form.getValues('shiftTiming')} />
+                                <DetailItem label="Current Shift" value={shiftForm.getValues('shiftTiming')} />
                             )}
                         </CardContent>
                         {isEditing && (
                             <CardFooter className="justify-end gap-2">
                                 <Button type="button" variant="ghost" onClick={() => setIsEditing(false)}>Cancel</Button>
-                                <Button type="submit" disabled={form.formState.isSubmitting}>
-                                    {form.formState.isSubmitting ? <Loader2 className="animate-spin" /> : 'Save Shift'}
+                                <Button type="submit" disabled={shiftForm.formState.isSubmitting}>
+                                    {shiftForm.formState.isSubmitting ? <Loader2 className="animate-spin" /> : 'Save Shift'}
                                 </Button>
                             </CardFooter>
                         )}
@@ -280,6 +351,7 @@ export default function TrainerProfilePage() {
                 </Form>
             </Card>
 
+            <Dialog open={isNotesDialogOpen} onOpenChange={setIsNotesDialogOpen}>
             <Card>
                 <CardHeader>
                     <CardTitle className="flex items-center gap-2"><Users /> My Students</CardTitle>
@@ -291,7 +363,8 @@ export default function TrainerProfilePage() {
                             <TableRow>
                                 <TableHead>Name</TableHead>
                                 <TableHead>Goal</TableHead>
-                                <TableHead>Height/Weight</TableHead>
+                                <TableHead>H/W</TableHead>
+                                <TableHead>Actions</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -301,11 +374,18 @@ export default function TrainerProfilePage() {
                                 <TableCell className="font-medium">{member.fullName}</TableCell>
                                 <TableCell>{member.fitnessGoal || 'N/A'}</TableCell>
                                 <TableCell>{member.height || 'N/A'}cm / {member.weight || 'N/A'}kg</TableCell>
+                                <TableCell>
+                                    <DialogTrigger asChild>
+                                        <Button variant="outline" size="sm" onClick={() => handleOpenNotesDialog(member)}>
+                                            <Notebook className="mr-2 h-4 w-4"/> Notes
+                                        </Button>
+                                    </DialogTrigger>
+                                </TableCell>
                             </TableRow>
                             ))
                         ) : (
                             <TableRow>
-                            <TableCell colSpan={3} className="h-24 text-center">
+                            <TableCell colSpan={4} className="h-24 text-center">
                                 No members have assigned you as their trainer yet.
                             </TableCell>
                             </TableRow>
@@ -314,6 +394,50 @@ export default function TrainerProfilePage() {
                     </Table>
                 </CardContent>
             </Card>
+            <DialogContent className="max-w-2xl">
+                 <DialogHeader>
+                    <DialogTitle>Private Notes for {selectedMemberForNotes?.fullName}</DialogTitle>
+                    <DialogDescription>These notes are only visible to you.</DialogDescription>
+                </DialogHeader>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 py-4">
+                    <div className="space-y-4">
+                        <h4 className="font-semibold">Add a New Note</h4>
+                        <Form {...notesForm}>
+                            <form onSubmit={notesForm.handleSubmit(onNoteSubmit)} className="space-y-4">
+                                <FormField
+                                    control={notesForm.control}
+                                    name="note"
+                                    render={({ field }) => (
+                                        <FormItem>
+                                        <FormControl>
+                                            <Textarea placeholder="e.g., 'Focused on form correction for squats today...'" {...field} className="min-h-[150px]"/>
+                                        </FormControl>
+                                        <FormMessage />
+                                        </FormItem>
+                                    )}
+                                />
+                                <Button type="submit" disabled={notesForm.formState.isSubmitting}>
+                                     {notesForm.formState.isSubmitting ? <Loader2 className="animate-spin" /> : 'Save Note'}
+                                </Button>
+                            </form>
+                        </Form>
+                    </div>
+                    <div className="space-y-4">
+                        <h4 className="font-semibold">Past Notes</h4>
+                        <div className="max-h-64 overflow-y-auto space-y-3 pr-2 border-l pl-4">
+                           {isFetchingNotes ? <Loader2 className="animate-spin"/> : (
+                             memberNotes.length > 0 ? memberNotes.map(note => (
+                                <div key={note.id} className="text-sm bg-muted/50 p-3 rounded-md">
+                                    <p className="text-xs text-muted-foreground mb-1">{note.createdAt.toLocaleString()}</p>
+                                    <p>{note.note}</p>
+                                </div>
+                             )) : <p className="text-sm text-muted-foreground">No notes for this member yet.</p>
+                           )}
+                        </div>
+                    </div>
+                </div>
+            </DialogContent>
+            </Dialog>
         </div>
       </div>
     </div>
