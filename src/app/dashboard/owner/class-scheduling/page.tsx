@@ -17,7 +17,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Loader2, PlusCircle, ArrowLeft, MoreHorizontal, Edit, Trash, Eye, User } from 'lucide-react';
+import { Loader2, PlusCircle, ArrowLeft, MoreHorizontal, Edit, Trash, Eye, User, Phone, Mail } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -52,6 +52,19 @@ interface Trainer {
   name: string;
 }
 
+interface LimitDialogInfo {
+    members?: number;
+    trainers?: number;
+    payments?: number;
+    equipment?: number;
+    classes?: number;
+    expenses?: number;
+    inventory?: number;
+    maintenance?: number;
+    offers?: number;
+    usageLogs?: number;
+}
+
 const ViewBookingsDialog = ({ members }: { members: BookedMember[] }) => (
   <DialogContent>
     <DialogHeader>
@@ -75,6 +88,41 @@ const ViewBookingsDialog = ({ members }: { members: BookedMember[] }) => (
   </DialogContent>
 );
 
+function LimitReachedDialog({ isOpen, onOpenChange, limits }: { isOpen: boolean; onOpenChange: (open: boolean) => void, limits: LimitDialogInfo }) {
+  return (
+    <AlertDialog open={isOpen} onOpenChange={onOpenChange}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>You've reached the limit of your trial account</AlertDialogTitle>
+          <AlertDialogDescription className="space-y-2 pt-2">
+            {limits.members !== undefined && <p>Members ({limits.members}/3)</p>}
+            {limits.trainers !== undefined && <p>Trainers ({limits.trainers}/2)</p>}
+            {limits.payments !== undefined && <p>Payments ({limits.payments}/5 per member)</p>}
+            {limits.equipment !== undefined && <p>Equipment ({limits.equipment}/1)</p>}
+            {limits.classes !== undefined && <p>Classes ({limits.classes}/1)</p>}
+            {limits.expenses !== undefined && <p>Expenses ({limits.expenses}/2)</p>}
+            {limits.inventory !== undefined && <p>Inventory ({limits.inventory}/1)</p>}
+            {limits.maintenance !== undefined && <p>Maintenance ({limits.maintenance}/1)</p>}
+            {limits.offers !== undefined && <p>Offers ({limits.offers}/1)</p>}
+            {limits.usageLogs !== undefined && <p>Usage Logs ({limits.usageLogs}/1)</p>}
+            <p className="font-semibold pt-2">Upgrade to a full Account to continue managing without restrictions.</p>
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <div className="flex flex-col space-y-2">
+            <p className="font-bold text-center">Contact Strenxfit Support</p>
+            <a href="https://wa.me/917988487892" target="_blank" rel="noopener noreferrer" className="flex items-center justify-center gap-3 p-3 rounded-md hover:bg-accent transition-colors">
+                <Phone className="h-5 w-5 text-muted-foreground" />
+                <span>+91 79884 87892</span>
+            </a>
+        </div>
+        <AlertDialogFooter>
+          <AlertDialogAction onClick={() => onOpenChange(false)}>OK</AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  );
+}
+
 
 export default function ClassSchedulingPage() {
   const [classes, setClasses] = useState<Class[]>([]);
@@ -82,6 +130,9 @@ export default function ClassSchedulingPage() {
   const [loading, setLoading] = useState(true);
   const [isFormDialogOpen, setIsFormDialogOpen] = useState(false);
   const [editingClass, setEditingClass] = useState<Class | null>(null);
+  const [isTrial, setIsTrial] = useState(false);
+  const [limitDialogOpen, setLimitDialogOpen] = useState(false);
+  const [limitInfo, setLimitInfo] = useState<LimitDialogInfo>({});
   const router = useRouter();
   const { toast } = useToast();
 
@@ -100,6 +151,13 @@ export default function ClassSchedulingPage() {
       setLoading(false);
       return;
     }
+
+    const gymRef = doc(db, 'gyms', userDocId);
+    const gymSnap = await getDoc(gymRef);
+    if (gymSnap.exists() && gymSnap.data().isTrial) {
+        setIsTrial(true);
+    }
+    
     try {
         const trainersCollection = collection(db, 'gyms', userDocId, 'branches', activeBranchId, 'trainers');
         const trainersSnapshot = await getDocs(trainersCollection);
@@ -187,6 +245,14 @@ export default function ClassSchedulingPage() {
     const activeBranchId = localStorage.getItem('activeBranch');
     if (!userDocId || !activeBranchId) return;
 
+    if (isTrial) {
+        if (classes.length >= 1) {
+            setLimitInfo({ classes: classes.length });
+            setLimitDialogOpen(true);
+            return;
+        }
+    }
+
     try {
       const dateTime = new Date(`${values.date}T${values.time}`);
       const classesCollection = collection(db, 'gyms', userDocId, 'branches', activeBranchId, 'classes');
@@ -260,6 +326,7 @@ export default function ClassSchedulingPage() {
 
   return (
     <div className="container mx-auto py-10">
+      <LimitReachedDialog isOpen={limitDialogOpen} onOpenChange={setLimitDialogOpen} limits={limitInfo} />
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-3xl font-bold">Class Schedule</h1>
@@ -391,3 +458,5 @@ export default function ClassSchedulingPage() {
     </div>
   );
 }
+
+    
