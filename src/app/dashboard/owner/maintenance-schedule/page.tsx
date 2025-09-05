@@ -28,7 +28,7 @@ const maintenanceSchema = z.object({
   taskDescription: z.string().min(1, 'Task description is required.'),
   dueDate: z.string().min(1, 'Due date is required.'),
   assignedTo: z.string().min(1, 'Please assign to a staff member.'),
-  status: z.enum(['Pending', 'Completed']),
+  status: z.enum(['Pending', 'Resolved', 'Completed']),
   notes: z.string().optional(),
 });
 
@@ -48,8 +48,13 @@ interface MaintenanceTask extends z.infer<typeof maintenanceSchema> {
   assignedToName?: string;
 }
 
-const getStatusVariant = (status: 'Pending' | 'Completed') => {
-    return status === 'Completed' ? 'default' : 'secondary';
+const getStatusVariant = (status: 'Pending' | 'Resolved' | 'Completed') => {
+    switch(status) {
+        case 'Pending': return 'secondary';
+        case 'Resolved': return 'default';
+        case 'Completed': return 'destructive';
+        default: return 'outline';
+    }
 }
 
 
@@ -201,7 +206,7 @@ export default function MaintenanceSchedulePage() {
     }
   };
 
-  const onCompleteTask = async (task: MaintenanceTask) => {
+  const onApproveTask = async (task: MaintenanceTask) => {
     if (!task) return;
     const userDocId = localStorage.getItem('userDocId');
     const activeBranchId = localStorage.getItem('activeBranch');
@@ -210,7 +215,7 @@ export default function MaintenanceSchedulePage() {
     try {
         const taskRef = doc(db, 'gyms', userDocId, 'branches', activeBranchId, 'maintenance', task.id);
         await updateDoc(taskRef, { status: 'Completed' });
-        toast({ title: "Task Completed!", description: "The task has been marked as complete."});
+        toast({ title: "Task Approved!", description: "The task has been marked as complete."});
         await fetchAllData();
     } catch (error) {
         console.error("Error completing task:", error);
@@ -319,8 +324,8 @@ export default function MaintenanceSchedulePage() {
                               </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
-                                {task.status === 'Pending' && <DropdownMenuItem onSelect={() => onCompleteTask(task)}><CheckCircle className="mr-2 h-4 w-4"/>Mark as Complete</DropdownMenuItem>}
-                                <DropdownMenuItem onSelect={() => setEditingTask(task)}><Edit className="mr-2 h-4 w-4"/>Edit</DropdownMenuItem>
+                                {task.status === 'Resolved' && <DropdownMenuItem onSelect={() => onApproveTask(task)}><CheckCircle className="mr-2 h-4 w-4"/>Approve & Complete</DropdownMenuItem>}
+                                {task.status !== 'Completed' && <DropdownMenuItem onSelect={() => setEditingTask(task)}><Edit className="mr-2 h-4 w-4"/>Edit</DropdownMenuItem>}
                                 <AlertDialogTrigger asChild>
                                     <DropdownMenuItem className="text-destructive focus:text-destructive focus:bg-destructive/10"><Trash className="mr-2 h-4 w-4"/>Delete</DropdownMenuItem>
                                 </AlertDialogTrigger>
