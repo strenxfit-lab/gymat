@@ -9,11 +9,12 @@ import { db } from '@/lib/firebase';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Bell, Building, Calendar, DollarSign, PlusCircle, Send, Users, UserPlus, TrendingUp, AlertCircle, Sparkles, LifeBuoy, BarChart3, IndianRupee, Mail, Phone, Loader2 } from 'lucide-react';
+import { Bell, Building, Calendar, DollarSign, PlusCircle, Send, Users, UserPlus, TrendingUp, AlertCircle, Sparkles, LifeBuoy, BarChart3, IndianRupee, Mail, Phone, Loader2, Star } from 'lucide-react';
 import { ResponsiveContainer, BarChart, XAxis, YAxis, Tooltip, Bar, Legend } from 'recharts';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { cn } from '@/lib/utils';
 
 interface Member {
   id: string;
@@ -28,6 +29,7 @@ interface Trainer {
   id: string;
   name: string;
   assignedMembers: number;
+  averageRating?: number;
 }
 
 interface GymData {
@@ -210,7 +212,8 @@ export default function OwnerDashboardPage() {
             return {
                 id: doc.id,
                 name: data.fullName,
-                assignedMembers: allMembersForTrainers.filter(m => m.assignedTrainer === doc.id).length 
+                assignedMembers: allMembersForTrainers.filter(m => m.assignedTrainer === doc.id).length,
+                averageRating: data.ratings?.averageRating,
             };
         });
 
@@ -502,7 +505,15 @@ export default function OwnerDashboardPage() {
                     {gymData.trainers.map(trainer => (
                         <div key={trainer.id} className="flex justify-between items-center text-sm mb-2">
                             <span>{trainer.name}</span>
-                            <span className="text-muted-foreground">Assigned: {trainer.assignedMembers}</span>
+                            <div className="flex items-center gap-2 text-muted-foreground">
+                                {trainer.averageRating ? (
+                                    <div className="flex items-center gap-1">
+                                        <Star className="h-4 w-4 text-yellow-400 fill-yellow-400"/>
+                                        <span>{trainer.averageRating.toFixed(1)}</span>
+                                    </div>
+                                ) : null}
+                                <span>Assigned: {trainer.assignedMembers}</span>
+                            </div>
                         </div>
                     ))}
                     {gymData.trainers.length === 0 && <p className="text-muted-foreground text-sm">No trainers added.</p>}

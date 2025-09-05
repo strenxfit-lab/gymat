@@ -13,7 +13,7 @@ import Link from 'next/link';
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Loader2, ArrowLeft, User, Briefcase, Wallet, Calendar, Mail, Phone, Clock, Edit } from 'lucide-react';
+import { Loader2, ArrowLeft, User, Briefcase, Wallet, Calendar, Mail, Phone, Clock, Edit, Star } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
@@ -40,6 +40,8 @@ interface TrainerDetails {
   certifications?: string;
   salaryType: string;
   salaryRate: string;
+  averageRating?: number;
+  ratingCount?: number;
 }
 
 const DetailItem = ({ label, value }: { label: string; value: string | undefined }) => (
@@ -100,6 +102,8 @@ export default function TrainerProfilePage() {
             certifications: data.certifications,
             salaryType: data.salaryType,
             salaryRate: data.salaryRate,
+            averageRating: data.ratings?.averageRating,
+            ratingCount: data.ratings?.ratingCount,
         });
         form.setValue('shiftTiming', data.shiftTiming);
       } catch (error) {
@@ -179,6 +183,20 @@ export default function TrainerProfilePage() {
                     <DetailItem label="Specialization" value={trainer.specialization} />
                     <DetailItem label="Experience" value={trainer.experience} />
                     <DetailItem label="Joining Date" value={trainer.joiningDate} />
+                     <div className="col-span-2">
+                        <p className="text-sm font-medium text-muted-foreground">Rating</p>
+                        <div className="flex items-center gap-2 font-semibold">
+                            {trainer.averageRating ? (
+                                <>
+                                    <Star className="h-5 w-5 text-yellow-400 fill-yellow-400"/>
+                                    <span>{trainer.averageRating.toFixed(1)} / 5</span>
+                                    <span className="text-xs text-muted-foreground">({trainer.ratingCount} ratings)</span>
+                                </>
+                            ) : (
+                                <span>No ratings yet</span>
+                            )}
+                        </div>
+                    </div>
                     <div className="col-span-2"><DetailItem label="Certifications" value={trainer.certifications} /></div>
                 </CardContent>
             </Card>
@@ -236,3 +254,5 @@ export default function TrainerProfilePage() {
     </div>
   );
 }
+
+    
