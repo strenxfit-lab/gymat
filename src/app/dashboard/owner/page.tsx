@@ -4,17 +4,18 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { doc, getDoc, collection, getDocs, Timestamp, query, orderBy, limit } from 'firebase/firestore';
+import { doc, getDoc, collection, getDocs, Timestamp, query, orderBy, limit, where } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Bell, Building, Calendar, DollarSign, PlusCircle, Send, Users, UserPlus, TrendingUp, AlertCircle, Sparkles, LifeBuoy, BarChart3, IndianRupee, Mail, Phone, Loader2, Star } from 'lucide-react';
+import { Bell, Building, Calendar, DollarSign, PlusCircle, Send, Users, UserPlus, TrendingUp, AlertCircle, Sparkles, LifeBuoy, BarChart3, IndianRupee, Mail, Phone, Loader2, Star, ClockIcon } from 'lucide-react';
 import { ResponsiveContainer, BarChart, XAxis, YAxis, Tooltip, Bar, Legend } from 'recharts';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { cn } from '@/lib/utils';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 interface Member {
   id: string;
@@ -51,12 +52,16 @@ interface GymData {
   runningOffers: string[];
   multiBranch?: boolean;
   activeBranchName?: string | null;
+  isTrial?: boolean;
+  trialKey?: string;
 }
 
 export default function OwnerDashboardPage() {
   const [gymData, setGymData] = useState<GymData | null>(null);
   const [loading, setLoading] = useState(true);
   const [isSupportDialogOpen, setIsSupportDialogOpen] = useState(false);
+  const [trialExpiresAt, setTrialExpiresAt] = useState<Date | null>(null);
+  const [timeLeft, setTimeLeft] = useState('');
   const router = useRouter();
   const { toast } = useToast();
 
@@ -83,6 +88,20 @@ export default function OwnerDashboardPage() {
         }
 
         const gym = gymSnap.data();
+
+        if (gym.isTrial && gym.trialKey) {
+            const trialKeysRef = collection(db, 'trialKeys');
+            const q = query(trialKeysRef, where("key", "==", gym.trialKey));
+            const trialKeySnap = await getDocs(q);
+            if (!trialKeySnap.empty) {
+                const trialData = trialKeySnap.docs[0].data();
+                if (trialData.expiresAt) {
+                    setTrialExpiresAt((trialData.expiresAt as Timestamp).toDate());
+                }
+            }
+        }
+
+
         let activeBranchId = localStorage.getItem('activeBranch');
         
         // Wait for layout effect to set a branch if none is active
@@ -267,6 +286,29 @@ export default function OwnerDashboardPage() {
     return () => clearTimeout(timeoutId);
 
   }, [router, toast]);
+  
+  useEffect(() => {
+    if (trialExpiresAt) {
+      const intervalId = setInterval(() => {
+        const now = new Date();
+        const diff = trialExpiresAt.getTime() - now.getTime();
+        
+        if (diff <= 0) {
+          setTimeLeft("Expired");
+          clearInterval(intervalId);
+          return;
+        }
+
+        const hours = Math.floor(diff / (1000 * 60 * 60));
+        const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+        const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+
+        setTimeLeft(`${hours}h ${minutes}m ${seconds}s`);
+      }, 1000);
+
+      return () => clearInterval(intervalId);
+    }
+  }, [trialExpiresAt]);
 
 
   if (loading) {
@@ -286,7 +328,7 @@ export default function OwnerDashboardPage() {
     );
   }
   
-  if (!gymData.activeBranchName) {
+  if (!gymData.activeBranchName && !trialExpiresAt) {
     return (
         <div className="flex flex-col min-h-screen items-center justify-center bg-background p-8 text-center">
             <Building className="h-16 w-16 text-primary mb-4"/>
@@ -309,8 +351,17 @@ export default function OwnerDashboardPage() {
   return (
     <ScrollArea className="h-screen bg-background">
       <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
+        {timeLeft && (
+            <Alert variant="destructive" className="mb-4">
+                <ClockIcon className="h-4 w-4" />
+                <AlertTitle>Trial Period Active</AlertTitle>
+                <AlertDescription>
+                    Your trial expires in: <span className="font-bold">{timeLeft}</span>
+                </AlertDescription>
+            </Alert>
+        )}
         <div className="flex items-center justify-between space-y-2">
-          <h2 className="text-3xl font-bold tracking-tight">{gymData.activeBranchName} Dashboard</h2>
+          <h2 className="text-3xl font-bold tracking-tight">{gymData.activeBranchName || 'Trial Dashboard'}</h2>
           <div className="flex items-center space-x-2">
             <Button>
               <Calendar className="mr-2 h-4 w-4" />
@@ -385,7 +436,7 @@ export default function OwnerDashboardPage() {
              <CardHeader>
                 <CardTitle className="flex items-center">
                     <Building className="mr-2"/>
-                    {gymData.name} ({gymData.activeBranchName})
+                    {gymData.name} ({gymData.activeBranchName || 'Trial'})
                 </CardTitle>
                 <CardDescription>{gymData.location}</CardDescription>
             </CardHeader>
@@ -586,5 +637,3 @@ export default function OwnerDashboardPage() {
     </ScrollArea>
   );
 }
-
-    
