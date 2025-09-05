@@ -3,13 +3,12 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { collection, getDocs, Timestamp, doc, addDoc, setDoc, getDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, getDocs, Timestamp, doc, addDoc, setDoc, getDoc, serverTimestamp, deleteDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Loader2, ArrowLeft, Calendar, Clock, Users, User, CheckCircle, XCircle, ListPlus, History } from 'lucide-react';
-import { Badge } from '@/components/ui/badge';
 import Link from 'next/link';
 
 interface ClassInfo {
@@ -23,11 +22,6 @@ interface ClassInfo {
   isBookedByMe: boolean;
   isOnWaitlist: boolean;
   isFull: boolean;
-}
-
-interface Trainer {
-  id: string;
-  name: string;
 }
 
 export default function BookClassPage() {
@@ -121,7 +115,7 @@ export default function BookClassPage() {
         const bookingRef = doc(db, 'gyms', userDocId, 'branches', activeBranchId, 'classes', classId, 'bookings', memberId);
         
         if (isBooked) { // Cancel booking
-            await doc(bookingRef).delete();
+            await deleteDoc(bookingRef);
             toast({ title: 'Cancellation Successful', description: 'Your spot has been cancelled.'});
         } else { // Create booking
             await setDoc(bookingRef, { bookedAt: Timestamp.now() });
