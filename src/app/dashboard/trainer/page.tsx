@@ -8,10 +8,11 @@ import { db } from '@/lib/firebase';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Loader2, User, LogOut, Building } from 'lucide-react';
+import { Loader2, User, LogOut, Building, Cake } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 interface AssignedClass {
   id: string;
@@ -31,6 +32,7 @@ export default function TrainerDashboardPage() {
   const [assignedClasses, setAssignedClasses] = useState<AssignedClass[]>([]);
   const [trainerInfo, setTrainerInfo] = useState<TrainerInfo | null>(null);
   const [loading, setLoading] = useState(true);
+  const [birthdayMessage, setBirthdayMessage] = useState<string | null>(null);
   const router = useRouter();
   const { toast } = useToast();
 
@@ -50,14 +52,30 @@ export default function TrainerDashboardPage() {
         // Fetch trainer and branch name
         const trainerRef = doc(db, 'gyms', userDocId, 'branches', activeBranchId, 'trainers', trainerId);
         const trainerSnap = await getDoc(trainerRef);
+        
+        const gymRef = doc(db, 'gyms', userDocId);
+        const gymSnap = await getDoc(gymRef);
+
         const branchRef = doc(db, 'gyms', userDocId, 'branches', activeBranchId);
         const branchSnap = await getDoc(branchRef);
 
-        if (trainerSnap.exists() && branchSnap.exists()) {
+        if (trainerSnap.exists() && branchSnap.exists() && gymSnap.exists()) {
+            const trainerData = trainerSnap.data();
             setTrainerInfo({
-                name: trainerSnap.data().fullName,
+                name: trainerData.fullName,
                 branchName: branchSnap.data().name
             });
+            
+            // Check for birthday
+            const dob = (trainerData.dob as Timestamp)?.toDate();
+            if (dob) {
+                const today = new Date();
+                if (dob.getDate() === today.getDate() && dob.getMonth() === today.getMonth()) {
+                    const gymName = gymSnap.data().name || "the gym";
+                    setBirthdayMessage(`Happy Birthday, Coach! 🏋️‍♂️🎂 Thank you for inspiring us every day. Here’s to another year of strength, motivation, and achievements! From ${gymName}`);
+                }
+            }
+
         } else {
              toast({ title: "Error", description: "Could not find trainer details.", variant: "destructive" });
              router.push('/');
@@ -109,6 +127,15 @@ export default function TrainerDashboardPage() {
 
   return (
     <div className="container mx-auto py-10">
+        {birthdayMessage && (
+            <Alert className="mb-6 border-amber-500 text-amber-700 bg-amber-50">
+                <Cake className="h-4 w-4 !text-amber-700" />
+                <AlertTitle className="text-amber-800 font-bold">Happy Birthday!</AlertTitle>
+                <AlertDescription className="text-amber-700">
+                   {birthdayMessage}
+                </AlertDescription>
+            </Alert>
+        )}
       <div className="flex justify-between items-center mb-6">
         <div>
             <h1 className="text-3xl font-bold">Trainer Dashboard</h1>

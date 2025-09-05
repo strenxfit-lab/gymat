@@ -5,13 +5,14 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { CalendarCheck, Tags, IndianRupee, Percent, ShieldCheck, User, LogOut, Bell, Building } from "lucide-react";
+import { CalendarCheck, Tags, IndianRupee, Percent, ShieldCheck, User, LogOut, Bell, Building, Cake } from "lucide-react";
 import Link from 'next/link';
 import { collection, getDocs, query, where, Timestamp, doc, getDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { Badge } from '@/components/ui/badge';
 import { format, parseISO, isBefore, isWithinInterval, addDays } from 'date-fns';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 
 interface Offer {
@@ -53,6 +54,7 @@ export default function MemberDashboard() {
     const [loadingOffers, setLoadingOffers] = useState(true);
     const [loadingEquipment, setLoadingEquipment] = useState(true);
     const [hasNotification, setHasNotification] = useState(false);
+    const [birthdayMessage, setBirthdayMessage] = useState<string | null>(null);
     const router = useRouter();
 
     useEffect(() => {
@@ -93,7 +95,7 @@ export default function MemberDashboard() {
                 setLoadingEquipment(false);
             }
 
-            // Check for payment notifications
+            // Check for notifications and birthday
             if (memberId) {
                 try {
                     const memberRef = doc(db, 'gyms', userDocId, 'branches', activeBranchId, 'members', memberId);
@@ -106,6 +108,18 @@ export default function MemberDashboard() {
                             const sevenDaysFromNow = addDays(now, 7);
                             if (isWithinInterval(endDate, { start: now, end: sevenDaysFromNow })) {
                                 setHasNotification(true);
+                            }
+                        }
+
+                        // Check for birthday
+                        const dob = (memberData.dob as Timestamp)?.toDate();
+                        if (dob) {
+                            const today = new Date();
+                            if (dob.getDate() === today.getDate() && dob.getMonth() === today.getMonth()) {
+                                const gymRef = doc(db, 'gyms', userDocId);
+                                const gymSnap = await getDoc(gymRef);
+                                const gymName = gymSnap.exists() ? gymSnap.data().name : "the gym";
+                                setBirthdayMessage(`Happy Birthday! ${memberData.fullName} 🎂💪 Wishing you another year of strength, health, and success—both inside and outside the gym! From ${gymName}`);
                             }
                         }
                     }
@@ -126,6 +140,16 @@ export default function MemberDashboard() {
   return (
     <div className="flex min-h-screen items-start justify-center bg-background p-4 sm:p-8">
       <div className="w-full max-w-6xl space-y-8">
+        {birthdayMessage && (
+            <Alert className="border-amber-500 text-amber-700 bg-amber-50">
+                <Cake className="h-4 w-4 !text-amber-700" />
+                <AlertTitle className="text-amber-800 font-bold">Happy Birthday!</AlertTitle>
+                <AlertDescription className="text-amber-700">
+                   {birthdayMessage}
+                </AlertDescription>
+            </Alert>
+        )}
+
         <div className="flex justify-between items-center text-center">
           <div>
             <h1 className="text-3xl font-bold">Member Dashboard</h1>
