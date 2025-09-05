@@ -38,13 +38,16 @@ export default function ActivateTrialPage() {
     // Simulate API call and update local storage
     setTimeout(() => {
       try {
-        localStorage.setItem('trialKey', values.trialKey);
-        localStorage.setItem('userPrivileges', 'trial');
+        // In a real app, you would validate the key against a backend service
+        // and fetch the associated userDocId and role.
+        localStorage.setItem('userDocId', 'trial-user-id'); // Placeholder ID
+        localStorage.setItem('userRole', 'owner');
+        
         toast({
           title: 'Trial Activated!',
-          description: 'Your trial key has been successfully activated. Please log in.',
+          description: 'Welcome! Your trial has been successfully activated.',
         });
-        router.push('/');
+        router.push('/dashboard/owner');
       } catch (error) {
         toast({
             title: 'Activation Failed',
@@ -89,7 +92,7 @@ export default function ActivateTrialPage() {
                 </CardContent>
                 <CardFooter className="flex-col gap-4">
                     <Button type="submit" disabled={isLoading} className="w-full">
-                        {isLoading ? <Loader2 className="animate-spin" /> : 'Activate Key'}
+                        {isLoading ? <Loader2 className="animate-spin" /> : 'Activate Key & Go to Dashboard'}
                     </Button>
                     <Link href="/" passHref>
                         <Button variant="link" className="text-muted-foreground">
