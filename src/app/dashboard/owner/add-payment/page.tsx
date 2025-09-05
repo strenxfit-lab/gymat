@@ -262,7 +262,8 @@ export default function AddPaymentPage() {
       await updateDoc(memberRef, {
           endDate: data.nextDueDate ? Timestamp.fromDate(data.nextDueDate) : null,
           membershipType: data.membershipPlan,
-          totalFee: data.totalFee
+          totalFee: data.totalFee,
+          lastPaymentDate: Timestamp.fromDate(data.paymentDate), // Flag for notifications
       });
 
 
@@ -444,6 +445,3 @@ export default function AddPaymentPage() {
     </div>
   );
 }
-
-    
-    

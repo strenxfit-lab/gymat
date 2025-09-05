@@ -5,12 +5,12 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { CalendarCheck, Tags, IndianRupee, Percent, ShieldCheck, User, LogOut } from "lucide-react";
+import { CalendarCheck, Tags, IndianRupee, Percent, ShieldCheck, User, LogOut, Bell } from "lucide-react";
 import Link from 'next/link';
-import { collection, getDocs, query, where, Timestamp } from 'firebase/firestore';
+import { collection, getDocs, query, where, Timestamp, doc, getDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { Badge } from '@/components/ui/badge';
-import { format, parseISO } from 'date-fns';
+import { format, parseISO, isBefore, isWithinInterval, addDays } from 'date-fns';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 
 
@@ -52,11 +52,13 @@ export default function MemberDashboard() {
     const [equipment, setEquipment] = useState<Equipment[]>([]);
     const [loadingOffers, setLoadingOffers] = useState(true);
     const [loadingEquipment, setLoadingEquipment] = useState(true);
+    const [hasNotification, setHasNotification] = useState(false);
     const router = useRouter();
 
     useEffect(() => {
         const userDocId = localStorage.getItem('userDocId');
         const activeBranchId = localStorage.getItem('activeBranch');
+        const memberId = localStorage.getItem('memberId');
 
         if (!userDocId || !activeBranchId) {
             setLoadingOffers(false);
@@ -64,13 +66,13 @@ export default function MemberDashboard() {
             return;
         }
 
-        const fetchOffers = async () => {
+        const fetchAllData = async () => {
+            // Fetch Offers
             try {
                 const now = new Date();
                 const offersRef = collection(db, 'gyms', userDocId, 'branches', activeBranchId, 'offers');
                 const q = query(offersRef, where("endDate", ">=", Timestamp.fromDate(now)));
                 const offersSnap = await getDocs(q);
-
                 const offersList = offersSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Offer));
                 setOffers(offersList);
             } catch (error) {
@@ -78,9 +80,8 @@ export default function MemberDashboard() {
             } finally {
                 setLoadingOffers(false);
             }
-        };
         
-        const fetchEquipment = async () => {
+            // Fetch Equipment
              try {
                 const equipmentRef = collection(db, 'gyms', userDocId, 'branches', activeBranchId, 'equipment');
                 const equipmentSnap = await getDocs(equipmentRef);
@@ -91,10 +92,30 @@ export default function MemberDashboard() {
             } finally {
                 setLoadingEquipment(false);
             }
-        }
 
-        fetchOffers();
-        fetchEquipment();
+            // Check for payment notifications
+            if (memberId) {
+                try {
+                    const memberRef = doc(db, 'gyms', userDocId, 'branches', activeBranchId, 'members', memberId);
+                    const memberSnap = await getDoc(memberRef);
+                    if (memberSnap.exists()) {
+                        const memberData = memberSnap.data();
+                        const endDate = (memberData.endDate as Timestamp)?.toDate();
+                        if (endDate) {
+                            const now = new Date();
+                            const sevenDaysFromNow = addDays(now, 7);
+                            if (isWithinInterval(endDate, { start: now, end: sevenDaysFromNow })) {
+                                setHasNotification(true);
+                            }
+                        }
+                    }
+                } catch (error) {
+                    console.error("Error checking notifications:", error);
+                }
+            }
+        };
+
+        fetchAllData();
     }, []);
 
     const handleLogout = () => {
@@ -110,6 +131,14 @@ export default function MemberDashboard() {
             <h1 className="text-3xl font-bold">Member Dashboard</h1>
             <p className="text-muted-foreground">Welcome back! Here's your fitness overview.</p>
           </div>
+          <div className="flex items-center gap-2">
+             <Link href="/dashboard/member/payment-history" passHref>
+                <Button variant="outline" size="icon" className="relative">
+                    <Bell className="h-5 w-5" />
+                    {hasNotification && <span className="absolute top-0 right-0 h-2.5 w-2.5 rounded-full bg-destructive" />}
+                    <span className="sr-only">Notifications</span>
+                </Button>
+            </Link>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="outline" size="icon">
@@ -129,6 +158,7 @@ export default function MemberDashboard() {
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
+          </div>
         </div>
         
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -214,7 +244,9 @@ export default function MemberDashboard() {
                         <Link href="/dashboard/member/book-class" passHref>
                             <Button className="w-full justify-start"><CalendarCheck className="mr-2"/> Book a Class</Button>
                         </Link>
-                         <Button className="w-full justify-start" variant="outline" disabled>Payment History</Button>
+                         <Link href="/dashboard/member/payment-history" passHref>
+                            <Button className="w-full justify-start" variant="outline">Payment History</Button>
+                         </Link>
                     </CardContent>
                 </Card>
             </div>
