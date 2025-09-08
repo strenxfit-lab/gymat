@@ -224,13 +224,14 @@ export default function TrainerProfilePage() {
 
     try {
         const notesCollection = collection(db, 'gyms', userDocId, 'branches', activeBranchId, 'trainers', trainerId, 'privateNotes');
-        const q = query(notesCollection, where('memberId', '==', member.id), orderBy('createdAt', 'desc'));
+        const q = query(notesCollection, where('memberId', '==', member.id));
         const notesSnap = await getDocs(q);
         const notesList = notesSnap.docs.map(d => ({
             id: d.id,
             note: d.data().note,
             createdAt: (d.data().createdAt as Timestamp).toDate(),
         }));
+        notesList.sort((a,b) => b.createdAt.getTime() - a.createdAt.getTime());
         setMemberNotes(notesList);
     } catch(e) {
         console.error("Error fetching notes: ", e);
