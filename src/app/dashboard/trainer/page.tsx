@@ -3,16 +3,23 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { collection, query, where, getDocs, Timestamp, doc, getDoc } from 'firebase/firestore';
+import { collection, query, where, getDocs, Timestamp, doc, getDoc, addDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Loader2, User, LogOut, Building, Cake, MessageSquare, Wrench } from 'lucide-react';
+import { Loader2, User, LogOut, Building, Cake, MessageSquare, Wrench, Utensils } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { differenceInYears } from 'date-fns';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import * as z from 'zod';
+import { Textarea } from '@/components/ui/textarea';
 
 interface AssignedClass {
   id: string;
@@ -23,18 +30,42 @@ interface AssignedClass {
   booked: number;
 }
 
+interface AssignedMember {
+    id: string;
+    fullName: string;
+    age: number;
+    fitnessGoal?: string;
+}
+
 interface TrainerInfo {
     name: string;
     branchName: string;
 }
 
+const dietFormSchema = z.object({
+    breakfast: z.string().min(1, 'Breakfast details are required.'),
+    lunch: z.string().min(1, 'Lunch details are required.'),
+    dinner: z.string().min(1, 'Dinner details are required.'),
+    snacks: z.string().optional(),
+});
+type DietFormData = z.infer<typeof dietFormSchema>;
+
 export default function TrainerDashboardPage() {
   const [assignedClasses, setAssignedClasses] = useState<AssignedClass[]>([]);
+  const [assignedMembers, setAssignedMembers] = useState<AssignedMember[]>([]);
   const [trainerInfo, setTrainerInfo] = useState<TrainerInfo | null>(null);
   const [loading, setLoading] = useState(true);
   const [birthdayMessage, setBirthdayMessage] = useState<string | null>(null);
+  const [isDietDialogOpen, setIsDietDialogOpen] = useState(false);
+  const [selectedMemberForDiet, setSelectedMemberForDiet] = useState<AssignedMember | null>(null);
   const router = useRouter();
   const { toast } = useToast();
+
+  const dietForm = useForm<DietFormData>({
+    resolver: zodResolver(dietFormSchema),
+    defaultValues: { breakfast: '', lunch: '', dinner: '', snacks: '' },
+  });
+
 
   useEffect(() => {
     const fetchTrainerData = async () => {
@@ -49,7 +80,6 @@ export default function TrainerDashboardPage() {
       }
 
       try {
-        // Fetch trainer and branch name
         const trainerRef = doc(db, 'gyms', userDocId, 'branches', activeBranchId, 'trainers', trainerId);
         const trainerSnap = await getDoc(trainerRef);
         
@@ -66,7 +96,6 @@ export default function TrainerDashboardPage() {
                 branchName: branchSnap.data().name
             });
             
-            // Check for birthday
             const dob = (trainerData.dob as Timestamp)?.toDate();
             if (dob) {
                 const today = new Date();
@@ -82,19 +111,14 @@ export default function TrainerDashboardPage() {
              return;
         }
 
-        // Fetch assigned classes
         const classesCollection = collection(db, 'gyms', userDocId, 'branches', activeBranchId, 'classes');
-        const q = query(classesCollection, where("trainerId", "==", trainerId));
-        const classesSnapshot = await getDocs(q);
+        const qClasses = query(classesCollection, where("trainerId", "==", trainerId), where("dateTime", ">=", new Date()));
+        const classesSnapshot = await getDocs(qClasses);
         
-        const now = new Date();
-        const upcomingClassesPromises = classesSnapshot.docs
-          .filter(doc => (doc.data().dateTime as Timestamp).toDate() >= now)
-          .map(async (docSnap) => {
+        const upcomingClassesPromises = classesSnapshot.docs.map(async (docSnap) => {
               const data = docSnap.data();
               const bookingsCollection = collection(docSnap.ref, 'bookings');
               const bookingsSnapshot = await getDocs(bookingsCollection);
-
               return {
                 id: docSnap.id,
                 className: data.className,
@@ -104,10 +128,26 @@ export default function TrainerDashboardPage() {
                 booked: bookingsSnapshot.size,
               };
         });
-
         const classesList = await Promise.all(upcomingClassesPromises);
-        classesList.sort((a,b) => a.dateTime.getTime() - b.dateTime.getTime()); // Sort by date
+        classesList.sort((a,b) => a.dateTime.getTime() - b.dateTime.getTime());
         setAssignedClasses(classesList);
+        
+        const membersCollection = collection(db, 'gyms', userDocId, 'branches', activeBranchId, 'members');
+        const qMembers = query(membersCollection, where('assignedTrainer', '==', trainerId));
+        const membersSnap = await getDocs(qMembers);
+        const membersList = membersSnap.docs.map(doc => {
+            const memberData = doc.data();
+            const dob = (memberData.dob as Timestamp)?.toDate();
+            const age = dob ? differenceInYears(new Date(), dob) : 0;
+            return {
+                id: doc.id,
+                fullName: memberData.fullName,
+                age: age,
+                fitnessGoal: memberData.fitnessGoal
+            }
+        });
+        setAssignedMembers(membersList);
+
       } catch (error) {
         console.error("Error fetching trainer data:", error);
         toast({ title: "Error", description: "Failed to fetch dashboard data.", variant: "destructive" });
@@ -123,12 +163,36 @@ export default function TrainerDashboardPage() {
     router.push('/');
   };
 
+  const onDietSubmit = async (data: DietFormData) => {
+    if (!selectedMemberForDiet) return;
+    const userDocId = localStorage.getItem('userDocId');
+    const activeBranchId = localStorage.getItem('activeBranch');
+    const trainerId = localStorage.getItem('trainerId');
+    if (!userDocId || !activeBranchId || !trainerId) return;
+
+    try {
+        const dietCollection = collection(db, 'gyms', userDocId, 'branches', activeBranchId, 'members', selectedMemberForDiet.id, 'dietPlans');
+        await addDoc(dietCollection, {
+            ...data,
+            sentByTrainerId: trainerId,
+            sentAt: Timestamp.now(),
+        });
+        toast({ title: "Diet Plan Sent!", description: `A new diet plan has been sent to ${selectedMemberForDiet.fullName}.`});
+        dietForm.reset();
+        setIsDietDialogOpen(false);
+    } catch (e) {
+        console.error("Error sending diet plan: ", e);
+        toast({ title: "Error", description: "Could not send the diet plan.", variant: "destructive"});
+    }
+  };
+
 
   if (loading) {
     return <div className="flex min-h-screen items-center justify-center bg-background"><Loader2 className="h-8 w-8 animate-spin" /></div>;
   }
 
   return (
+    <Dialog open={isDietDialogOpen} onOpenChange={setIsDietDialogOpen}>
     <div className="container mx-auto py-10">
         {birthdayMessage && (
             <Alert className="mb-6 border-amber-500 text-amber-700 bg-amber-50">
@@ -166,7 +230,7 @@ export default function TrainerDashboardPage() {
       </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="md:col-span-2">
+            <div className="md:col-span-2 space-y-6">
                 <Card>
                     <CardHeader>
                     <CardTitle>My Schedule</CardTitle>
@@ -203,6 +267,45 @@ export default function TrainerDashboardPage() {
                     </Table>
                     </CardContent>
                 </Card>
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Assigned Students</CardTitle>
+                        <CardDescription>Members you are currently training.</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead>Name</TableHead>
+                                    <TableHead>Age</TableHead>
+                                    <TableHead>Goal</TableHead>
+                                    <TableHead>Actions</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {assignedMembers.length > 0 ? assignedMembers.map(member => (
+                                    <TableRow key={member.id}>
+                                        <TableCell className="font-medium">{member.fullName}</TableCell>
+                                        <TableCell>{member.age} yrs</TableCell>
+                                        <TableCell>{member.fitnessGoal || "N/A"}</TableCell>
+                                        <TableCell>
+                                            <DialogTrigger asChild>
+                                                <Button variant="outline" size="sm" onClick={() => setSelectedMemberForDiet(member)}>
+                                                    <Utensils className="h-4 w-4 mr-2"/>
+                                                    Send Diet
+                                                </Button>
+                                            </DialogTrigger>
+                                        </TableCell>
+                                    </TableRow>
+                                )) : (
+                                    <TableRow>
+                                        <TableCell colSpan={4} className="h-24 text-center">No students assigned.</TableCell>
+                                    </TableRow>
+                                )}
+                            </TableBody>
+                        </Table>
+                    </CardContent>
+                </Card>
             </div>
             <div className="md:col-span-1 space-y-4">
                 <Card>
@@ -224,5 +327,27 @@ export default function TrainerDashboardPage() {
             </div>
         </div>
     </div>
+    
+    <DialogContent className="max-w-lg">
+        <DialogHeader>
+            <DialogTitle>Send Diet Plan to {selectedMemberForDiet?.fullName}</DialogTitle>
+            <DialogDescription>Create a diet plan for your student. They will be notified.</DialogDescription>
+        </DialogHeader>
+        <Form {...dietForm}>
+            <form onSubmit={dietForm.handleSubmit(onDietSubmit)} className="space-y-4 py-4 max-h-[70vh] overflow-y-auto pr-4">
+                <FormField control={dietForm.control} name="breakfast" render={({ field }) => (<FormItem><FormLabel>Breakfast</FormLabel><FormControl><Textarea placeholder="e.g., Oats with fruits and nuts" {...field} /></FormControl><FormMessage /></FormItem>)} />
+                <FormField control={dietForm.control} name="lunch" render={({ field }) => (<FormItem><FormLabel>Lunch</FormLabel><FormControl><Textarea placeholder="e.g., Grilled chicken with brown rice and salad" {...field} /></FormControl><FormMessage /></FormItem>)} />
+                <FormField control={dietForm.control} name="dinner" render={({ field }) => (<FormItem><FormLabel>Dinner</FormLabel><FormControl><Textarea placeholder="e.g., Paneer stir-fry with vegetables" {...field} /></FormControl><FormMessage /></FormItem>)} />
+                <FormField control={dietForm.control} name="snacks" render={({ field }) => (<FormItem><FormLabel>Snacks (Optional)</FormLabel><FormControl><Textarea placeholder="e.g., Greek yogurt, a handful of almonds" {...field} /></FormControl><FormMessage /></FormItem>)} />
+                <DialogFooter>
+                    <Button type="button" variant="outline" onClick={() => setIsDietDialogOpen(false)}>Cancel</Button>
+                    <Button type="submit" disabled={dietForm.formState.isSubmitting}>
+                        {dietForm.formState.isSubmitting ? <Loader2 className="animate-spin" /> : 'Send Diet Plan'}
+                    </Button>
+                </DialogFooter>
+            </form>
+        </Form>
+    </DialogContent>
+    </Dialog>
   );
 }
