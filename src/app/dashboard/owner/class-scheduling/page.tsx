@@ -194,7 +194,7 @@ export default function ClassSchedulingPage() {
                 time: classDateTime.toTimeString().substring(0,5),
                 capacity: data.capacity,
                 location: data.location,
-                booked: bookingsSnapshot.size,
+                booked: bookedMembers.length,
                 bookedMembers,
             };
         });
@@ -458,5 +458,3 @@ export default function ClassSchedulingPage() {
     </div>
   );
 }
-
-    
