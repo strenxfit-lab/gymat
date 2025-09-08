@@ -5,7 +5,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { CalendarCheck, Tags, IndianRupee, Percent, ShieldCheck, User, LogOut, Bell, Building, Cake, Clock, Loader2, MessageSquare, Utensils } from "lucide-react";
+import { CalendarCheck, Tags, IndianRupee, Percent, ShieldCheck, User, LogOut, Bell, Building, Cake, Clock, Loader2, MessageSquare, Utensils, Users as UsersIcon } from "lucide-react";
 import Link from 'next/link';
 import { collection, getDocs, query, where, Timestamp, doc, getDoc, collectionGroup } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
@@ -312,6 +312,9 @@ export default function MemberDashboard() {
                         <Link href="/dashboard/member/book-class" passHref>
                             <Button className="w-full justify-start"><CalendarCheck className="mr-2"/> Book a Class</Button>
                         </Link>
+                         <Link href="/dashboard/member/trainers" passHref>
+                            <Button className="w-full justify-start" variant="outline"><UsersIcon className="mr-2"/> View Trainers</Button>
+                        </Link>
                          <Link href="/dashboard/member/diet-plan" passHref>
                             <Button className="w-full justify-start" variant="outline"><Utensils className="mr-2"/> View Diet Plan</Button>
                         </Link>
@@ -332,3 +335,5 @@ export default function MemberDashboard() {
     </div>
   );
 }
+
+    
