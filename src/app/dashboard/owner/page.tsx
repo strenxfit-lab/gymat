@@ -9,7 +9,7 @@ import { db } from '@/lib/firebase';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Bell, Building, Calendar, DollarSign, PlusCircle, Send, Users, UserPlus, TrendingUp, AlertCircle, Sparkles, LifeBuoy, BarChart3, IndianRupee, Mail, Phone, Loader2, Star, ClockIcon } from 'lucide-react';
+import { Bell, Building, Calendar, DollarSign, PlusCircle, Send, Users, UserPlus, TrendingUp, AlertCircle, Sparkles, LifeBuoy, BarChart3, IndianRupee, Mail, Phone, Loader2, Star, ClockIcon, QrCode } from 'lucide-react';
 import { ResponsiveContainer, BarChart, XAxis, YAxis, Tooltip, Bar, Legend } from 'recharts';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
@@ -363,10 +363,9 @@ export default function OwnerDashboardPage() {
         <div className="flex items-center justify-between space-y-2">
           <h2 className="text-3xl font-bold tracking-tight">{gymData.activeBranchName || 'Trial Dashboard'}</h2>
           <div className="flex items-center space-x-2">
-            <Button>
-              <Calendar className="mr-2 h-4 w-4" />
-              View Calendar
-            </Button>
+            <Link href="/dashboard/owner/qr-code">
+              <Button variant="outline"><QrCode className="mr-2 h-4 w-4" /> View QR Code</Button>
+            </Link>
             <Button variant="outline">
                 <Bell className="h-4 w-4" />
             </Button>
