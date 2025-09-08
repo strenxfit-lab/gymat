@@ -62,12 +62,15 @@ export default function MemberDashboard() {
     const [loading, setLoading] = useState(true);
     const [hasNotification, setHasNotification] = useState(false);
     const [birthdayMessage, setBirthdayMessage] = useState<string | null>(null);
+    const [memberName, setMemberName] = useState<string | null>(null);
     const router = useRouter();
 
     useEffect(() => {
         const userDocId = localStorage.getItem('userDocId');
         const activeBranchId = localStorage.getItem('activeBranch');
         const memberId = localStorage.getItem('memberId');
+        const name = localStorage.getItem('userName');
+        setMemberName(name);
 
         if (!userDocId || !activeBranchId || !memberId) {
             setLoading(false);
@@ -176,7 +179,7 @@ export default function MemberDashboard() {
         <div className="flex justify-between items-center text-center">
           <div>
             <h1 className="text-3xl font-bold">Member Dashboard</h1>
-            <p className="text-muted-foreground">Welcome back! Here's your fitness overview.</p>
+            <p className="text-muted-foreground">Welcome {memberName}! Here's your fitness overview.</p>
           </div>
           <div className="flex items-center gap-2">
              <Link href="/dashboard/member/payment-history" passHref>
@@ -335,5 +338,3 @@ export default function MemberDashboard() {
     </div>
   );
 }
-
-    
