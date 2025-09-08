@@ -173,7 +173,7 @@ export default function OwnerDashboardLayout({
                                 Multi-branch support
                             </SidebarMenuSubButton>
                              <Link href="/dashboard/owner/members">
-                                <SidebarMenuSubButton className={subMenuButtonClass}>Member profile with history</SidebarMenuSubButton>
+                                <SidebarMenuSubButton className={subMenuButtonClass}>Member list</SidebarMenuSubButton>
                               </Link>
                             <Link href="/dashboard/owner/member-status">
                                 <SidebarMenuSubButton className={subMenuButtonClass}>Membership pause/freeze</SidebarMenuSubButton>
