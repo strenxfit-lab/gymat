@@ -176,10 +176,10 @@ export default function MemberDashboard() {
             </Alert>
         )}
 
-        <div className="flex justify-between items-center text-center">
+        <div className="flex justify-between items-center">
           <div>
-            <h1 className="text-3xl font-bold">Member Dashboard</h1>
-            <p className="text-muted-foreground">Welcome {memberName}! Here's your fitness overview.</p>
+            <h1 className="text-3xl font-bold">Welcome {memberName}!</h1>
+            <p className="text-muted-foreground">Here's your fitness overview.</p>
           </div>
           <div className="flex items-center gap-2">
              <Link href="/dashboard/member/payment-history" passHref>
@@ -338,3 +338,5 @@ export default function MemberDashboard() {
     </div>
   );
 }
+
+    
