@@ -3,7 +3,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { QrReader } from '@leecheuk/react-qr-reader';
+import { BarcodeScanner } from 'react-zxing';
 import { useToast } from '@/hooks/use-toast';
 import { db } from '@/lib/firebase';
 import { collection, addDoc, serverTimestamp, query, where, getDocs, limit, orderBy } from 'firebase/firestore';
@@ -30,10 +30,10 @@ export default function AttendancePage() {
       });
   }, []);
 
-  const handleScanResult = async (result: any, error: any) => {
-    if (!!result && !loading) {
+  const handleScanResult = async (result: any) => {
+    if (result && !loading) {
       setLoading(true);
-      const qrData = result?.text;
+      const qrData = result.getText();
 
       try {
         const { gymId, branchId } = JSON.parse(qrData);
@@ -100,10 +100,6 @@ export default function AttendancePage() {
         setLoading(false);
       }
     }
-
-    if (!!error) {
-      // console.info(error);
-    }
   };
 
   const getBackLink = () => {
@@ -134,11 +130,9 @@ export default function AttendancePage() {
             )}
             {hasCameraPermission === true && (
               <div className="relative w-full h-full">
-                <QrReader
+                <BarcodeScanner
                   onResult={handleScanResult}
-                  constraints={{ facingMode: 'environment' }}
-                  videoStyle={{objectFit: 'cover'}}
-                  containerStyle={{width: '100%', height: '100%'}}
+                  videoStyle={{objectFit: 'cover', width: '100%', height: '100%'}}
                 />
                 {loading && (
                     <div className="absolute inset-0 bg-black/50 flex flex-col items-center justify-center text-white">
