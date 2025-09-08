@@ -271,9 +271,8 @@ export default function MembersListPage() {
                                     </DropdownMenuTrigger>
                                     <DropdownMenuContent align="end">
                                     <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                                    <DropdownMenuItem>View Profile</DropdownMenuItem>
-                                    <DropdownMenuItem>Edit Details</DropdownMenuItem>
-                                    <DropdownMenuItem>Mark Attendance</DropdownMenuItem>
+                                    <DropdownMenuItem onSelect={() => router.push(`/dashboard/owner/trainers/${trainer.id}`)}>View Profile</DropdownMenuItem>
+                                    <DropdownMenuItem onSelect={() => router.push(`/dashboard/owner/trainers/${trainer.id}/edit`)}>Edit Profile</DropdownMenuItem>
                                     </DropdownMenuContent>
                                 </DropdownMenu>
                                 </TableCell>
