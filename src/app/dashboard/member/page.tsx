@@ -5,7 +5,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { CalendarCheck, Tags, IndianRupee, Percent, ShieldCheck, User, LogOut, Bell, Building, Cake, Clock, Loader2, MessageSquare, Utensils, QrCode } from "lucide-react";
+import { CalendarCheck, Tags, IndianRupee, Percent, ShieldCheck, User, LogOut, Bell, Building, Cake, Clock, Loader2, MessageSquare, Utensils } from "lucide-react";
 import Link from 'next/link';
 import { collection, getDocs, query, where, Timestamp, doc, getDoc, collectionGroup } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
@@ -314,11 +314,8 @@ export default function MemberDashboard() {
                     <CardTitle>Quick Actions</CardTitle>
                     </CardHeader>
                     <CardContent className="flex flex-col space-y-4">
-                        <Link href="/dashboard/attendance" passHref>
-                            <Button className="w-full justify-start"><QrCode className="mr-2"/> Mark Attendance</Button>
-                        </Link>
                         <Link href="/dashboard/member/book-class" passHref>
-                            <Button className="w-full justify-start" variant="outline"><CalendarCheck className="mr-2"/> Book a Class</Button>
+                            <Button className="w-full justify-start"><CalendarCheck className="mr-2"/> Book a Class</Button>
                         </Link>
                          <Link href="/dashboard/member/diet-plan" passHref>
                             <Button className="w-full justify-start" variant="outline"><Utensils className="mr-2"/> View Diet Plan</Button>
