@@ -585,10 +585,12 @@ export default function OwnerDashboardPage() {
                             {gymData.runningOffers.length === 0 && <p className="text-muted-foreground text-sm">No running offers.</p>}
                         </ul>
                     </div>
-                    <Button variant="outline">
-                        <PlusCircle className="mr-2 h-4 w-4" />
-                        Create an offer
-                    </Button>
+                    <Link href="/dashboard/owner/make-offers" passHref>
+                        <Button variant="outline">
+                            <PlusCircle className="mr-2 h-4 w-4" />
+                            Create an offer
+                        </Button>
+                    </Link>
                 </CardContent>
             </Card>
         </div>
