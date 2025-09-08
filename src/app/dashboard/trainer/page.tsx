@@ -112,10 +112,12 @@ export default function TrainerDashboardPage() {
         }
 
         const classesCollection = collection(db, 'gyms', userDocId, 'branches', activeBranchId, 'classes');
-        const qClasses = query(classesCollection, where("trainerId", "==", trainerId), where("dateTime", ">=", new Date()));
+        const qClasses = query(classesCollection, where("trainerId", "==", trainerId));
         const classesSnapshot = await getDocs(qClasses);
         
-        const upcomingClassesPromises = classesSnapshot.docs.map(async (docSnap) => {
+        const upcomingClassesPromises = classesSnapshot.docs
+            .filter(docSnap => (docSnap.data().dateTime as Timestamp).toDate() >= new Date())
+            .map(async (docSnap) => {
               const data = docSnap.data();
               const bookingsCollection = collection(docSnap.ref, 'bookings');
               const bookingsSnapshot = await getDocs(bookingsCollection);
