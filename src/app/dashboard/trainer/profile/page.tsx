@@ -76,6 +76,16 @@ interface PrivateNote {
     createdAt: Date;
 }
 
+interface DietPlan {
+    id: string;
+    sentAt: Date;
+    breakfast: string;
+    lunch: string;
+    dinner: string;
+    snacks?: string;
+}
+
+
 const DetailItem = ({ label, value }: { label: string; value: string | undefined }) => (
     <div>
         <p className="text-sm font-medium text-muted-foreground">{label}</p>
@@ -93,7 +103,9 @@ export default function TrainerProfilePage() {
   const [selectedMemberForNotes, setSelectedMemberForNotes] = useState<AssignedMember | null>(null);
   const [selectedMemberForDiet, setSelectedMemberForDiet] = useState<AssignedMember | null>(null);
   const [memberNotes, setMemberNotes] = useState<PrivateNote[]>([]);
+  const [dietHistory, setDietHistory] = useState<DietPlan[]>([]);
   const [isFetchingNotes, setIsFetchingNotes] = useState(false);
+  const [isFetchingDiet, setIsFetchingDiet] = useState(false);
   const router = useRouter();
   const { toast } = useToast();
 
@@ -227,6 +239,37 @@ export default function TrainerProfilePage() {
         setIsFetchingNotes(false);
     }
   }
+
+  const handleOpenDietDialog = async (member: AssignedMember) => {
+    setSelectedMemberForDiet(member);
+    setIsDietDialogOpen(true);
+    setIsFetchingDiet(true);
+    const userDocId = localStorage.getItem('userDocId');
+    const activeBranchId = localStorage.getItem('activeBranch');
+    if (!userDocId || !activeBranchId) return;
+
+    try {
+        const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+        const dietPlansCollection = collection(db, 'gyms', userDocId, 'branches', activeBranchId, 'members', member.id, 'dietPlans');
+        const q = query(dietPlansCollection, where('sentAt', '>=', Timestamp.fromDate(sevenDaysAgo)), orderBy('sentAt', 'desc'));
+        const dietPlansSnap = await getDocs(q);
+        const plansList = dietPlansSnap.docs.map(d => ({
+            id: d.id,
+            sentAt: (d.data().sentAt as Timestamp).toDate(),
+            breakfast: d.data().breakfast,
+            lunch: d.data().lunch,
+            dinner: d.data().dinner,
+            snacks: d.data().snacks,
+        }));
+        setDietHistory(plansList);
+    } catch (e) {
+        console.error("Error fetching diet history: ", e);
+        toast({ title: "Error", description: "Could not fetch diet history.", variant: "destructive" });
+    } finally {
+        setIsFetchingDiet(false);
+    }
+  }
+
 
   const onNoteSubmit = async (data: NotesFormData) => {
     if (!selectedMemberForNotes) return;
@@ -421,7 +464,7 @@ export default function TrainerProfilePage() {
                                         </Button>
                                     </DialogTrigger>
                                     <DialogTrigger asChild>
-                                        <Button variant="outline" size="sm" onClick={() => setSelectedMemberForDiet(member)}>
+                                        <Button variant="outline" size="sm" onClick={() => handleOpenDietDialog(member)}>
                                             <Utensils className="mr-2 h-4 w-4" /> Diet
                                         </Button>
                                     </DialogTrigger>
@@ -487,25 +530,48 @@ export default function TrainerProfilePage() {
             </Dialog>
 
             {/* Diet Dialog */}
-            <DialogContent className="max-w-lg">
+            <DialogContent className="max-w-2xl">
                 <DialogHeader>
                     <DialogTitle>Send Diet Plan to {selectedMemberForDiet?.fullName}</DialogTitle>
                     <DialogDescription>Create a diet plan for your student. They will be notified.</DialogDescription>
                 </DialogHeader>
-                <Form {...dietForm}>
-                    <form onSubmit={dietForm.handleSubmit(onDietSubmit)} className="space-y-4 py-4 max-h-[70vh] overflow-y-auto pr-4">
-                        <FormField control={dietForm.control} name="breakfast" render={({ field }) => (<FormItem><FormLabel>Breakfast</FormLabel><FormControl><Textarea placeholder="e.g., Oats with fruits and nuts" {...field} /></FormControl><FormMessage /></FormItem>)} />
-                        <FormField control={dietForm.control} name="lunch" render={({ field }) => (<FormItem><FormLabel>Lunch</FormLabel><FormControl><Textarea placeholder="e.g., Grilled chicken with brown rice and salad" {...field} /></FormControl><FormMessage /></FormItem>)} />
-                        <FormField control={dietForm.control} name="dinner" render={({ field }) => (<FormItem><FormLabel>Dinner</FormLabel><FormControl><Textarea placeholder="e.g., Paneer stir-fry with vegetables" {...field} /></FormControl><FormMessage /></FormItem>)} />
-                        <FormField control={dietForm.control} name="snacks" render={({ field }) => (<FormItem><FormLabel>Snacks (Optional)</FormLabel><FormControl><Textarea placeholder="e.g., Greek yogurt, a handful of almonds" {...field} /></FormControl><FormMessage /></FormItem>)} />
-                        <DialogFooter>
-                            <Button type="button" variant="outline" onClick={() => setIsDietDialogOpen(false)}>Cancel</Button>
-                            <Button type="submit" disabled={dietForm.formState.isSubmitting}>
-                                {dietForm.formState.isSubmitting ? <Loader2 className="animate-spin" /> : 'Send Diet Plan'}
-                            </Button>
-                        </DialogFooter>
-                    </form>
-                </Form>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 py-4">
+                    <div className="space-y-4">
+                         <h4 className="font-semibold">New Diet Plan</h4>
+                        <Form {...dietForm}>
+                            <form onSubmit={dietForm.handleSubmit(onDietSubmit)} className="space-y-4">
+                                <FormField control={dietForm.control} name="breakfast" render={({ field }) => (<FormItem><FormLabel>Breakfast</FormLabel><FormControl><Textarea placeholder="e.g., Oats with fruits and nuts" {...field} /></FormControl><FormMessage /></FormItem>)} />
+                                <FormField control={dietForm.control} name="lunch" render={({ field }) => (<FormItem><FormLabel>Lunch</FormLabel><FormControl><Textarea placeholder="e.g., Grilled chicken with brown rice and salad" {...field} /></FormControl><FormMessage /></FormItem>)} />
+                                <FormField control={dietForm.control} name="dinner" render={({ field }) => (<FormItem><FormLabel>Dinner</FormLabel><FormControl><Textarea placeholder="e.g., Paneer stir-fry with vegetables" {...field} /></FormControl><FormMessage /></FormItem>)} />
+                                <FormField control={dietForm.control} name="snacks" render={({ field }) => (<FormItem><FormLabel>Snacks (Optional)</FormLabel><FormControl><Textarea placeholder="e.g., Greek yogurt, a handful of almonds" {...field} /></FormControl><FormMessage /></FormItem>)} />
+                                <DialogFooter>
+                                    <Button type="button" variant="outline" onClick={() => setIsDietDialogOpen(false)}>Cancel</Button>
+                                    <Button type="submit" disabled={dietForm.formState.isSubmitting}>
+                                        {dietForm.formState.isSubmitting ? <Loader2 className="animate-spin" /> : 'Send Diet Plan'}
+                                    </Button>
+                                </DialogFooter>
+                            </form>
+                        </Form>
+                    </div>
+                    <div className="space-y-4">
+                         <h4 className="font-semibold">Recent History (Last 7 Days)</h4>
+                         <div className="max-h-96 overflow-y-auto space-y-3 pr-2 border-l pl-4">
+                            {isFetchingDiet ? <Loader2 className="animate-spin" /> : (
+                                dietHistory.length > 0 ? dietHistory.map(plan => (
+                                    <div key={plan.id} className="text-sm bg-muted/50 p-3 rounded-md">
+                                        <p className="font-semibold mb-2">Sent on: {plan.sentAt.toLocaleDateString()}</p>
+                                        <div className="space-y-2">
+                                            <p><strong className="font-medium">B:</strong> {plan.breakfast}</p>
+                                            <p><strong className="font-medium">L:</strong> {plan.lunch}</p>
+                                            <p><strong className="font-medium">D:</strong> {plan.dinner}</p>
+                                            {plan.snacks && <p><strong className="font-medium">S:</strong> {plan.snacks}</p>}
+                                        </div>
+                                    </div>
+                                )) : <p className="text-sm text-muted-foreground">No diet plans sent in the last 7 days.</p>
+                            )}
+                         </div>
+                    </div>
+                </div>
             </DialogContent>
             </Dialog>
         </div>
