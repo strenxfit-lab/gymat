@@ -7,7 +7,7 @@ import Link from 'next/link';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { format, addDays, parseISO } from 'date-fns';
+import { format, addDays, parseISO, isSameDay } from 'date-fns';
 import { Loader2, Calendar as CalendarIcon, Search, Check, Building, AlertTriangle, Tags, Phone, Mail } from 'lucide-react';
 import { collection, addDoc, getDocs, Timestamp, doc, updateDoc, getDoc, query, where, collectionGroup } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
@@ -233,7 +233,7 @@ export default function AddPaymentPage() {
 
     useEffect(() => {
         const subscription = form.watch((values, { name }) => {
-            let { totalFee, discount, amountPaid, membershipPlan, paymentDate, appliedOfferId } = values;
+            let { totalFee, discount, amountPaid, membershipPlan, paymentDate, appliedOfferId, nextDueDate } = values;
 
             if (name === 'memberId' && values.memberId) {
                 const member = members.find(m => m.id === values.memberId);
@@ -246,24 +246,23 @@ export default function AddPaymentPage() {
                     setSelectedMember(member);
                     form.setValue('membershipPlan', member.membershipType);
                     form.setValue('totalFee', member.totalFee);
-                    totalFee = member.totalFee; // use updated value for downstream calcs
+                    totalFee = member.totalFee;
                 }
             }
             
-            if (name === 'membershipPlan') {
-                const planDetails = membershipPlans.find(p => p.name.toLowerCase().replace(/ /g, '-') === membershipPlan);
+            if (name === 'membershipPlan' && membershipPlan) {
+                const planDetails = membershipPlans.find(p => p.name === membershipPlan);
                 if (planDetails && planDetails.price) {
                     const newFee = parseFloat(planDetails.price);
                     form.setValue('totalFee', newFee);
-                    totalFee = newFee; // use updated value for downstream calcs
-                } else if(selectedMember) {
-                    // Revert to member's default fee if plan not found or no price
+                    totalFee = newFee;
+                } else if (selectedMember) {
                     form.setValue('totalFee', selectedMember.totalFee);
                     totalFee = selectedMember.totalFee;
                 }
             }
             
-            if (membershipPlan && paymentDate) {
+            if ((name === 'membershipPlan' || name === 'paymentDate') && membershipPlan && paymentDate) {
                 let newEndDate = new Date(paymentDate);
                  switch (membershipPlan) {
                     case 'trial': newEndDate = addDays(newEndDate, 7); break;
@@ -272,7 +271,9 @@ export default function AddPaymentPage() {
                     case 'half-yearly': newEndDate = addDays(newEndDate, 180); break;
                     case 'yearly': newEndDate = addDays(newEndDate, 365); break;
                 }
-                form.setValue('nextDueDate', newEndDate);
+                if (!nextDueDate || !isSameDay(newEndDate, nextDueDate)) {
+                    form.setValue('nextDueDate', newEndDate);
+                }
             }
             
             let originalFee = totalFee || 0;
@@ -452,6 +453,9 @@ export default function AddPaymentPage() {
                                 <Select onValueChange={field.onChange} value={field.value}>
                                     <FormControl><SelectTrigger><SelectValue placeholder="Select type" /></SelectTrigger></FormControl>
                                     <SelectContent>
+                                        {membershipPlans.map(plan => (
+                                          <SelectItem key={plan.name} value={plan.name}>{plan.name}</SelectItem>
+                                        ))}
                                         <SelectItem value="trial">Trial</SelectItem>
                                         <SelectItem value="monthly">Monthly</SelectItem>
                                         <SelectItem value="quarterly">Quarterly</SelectItem>
