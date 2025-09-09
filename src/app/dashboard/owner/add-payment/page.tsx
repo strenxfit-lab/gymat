@@ -71,6 +71,7 @@ interface LimitDialogInfo {
   payments?: number;
 }
 
+const defaultPlans = ["monthly", "quarterly", "half-yearly", "yearly", "trial"];
 
 function NoBranchDialog() {
     const router = useRouter();
@@ -272,7 +273,7 @@ export default function AddPaymentPage() {
                     case 'yearly': newEndDate = addDays(newEndDate, 365); break;
                 }
                 if (!nextDueDate || !isSameDay(newEndDate, nextDueDate)) {
-                    form.setValue('nextDueDate', newEndDate);
+                    form.setValue('nextDueDate', newEndDate, { shouldValidate: true });
                 }
             }
             
@@ -375,6 +376,8 @@ export default function AddPaymentPage() {
   };
   
   const applicableOffers = selectedMember ? offers.filter(o => o.applicablePlans.includes(selectedMember.membershipType)) : [];
+  
+  const combinedPlans = [...new Set([...membershipPlans.map(p => p.name.toLowerCase()), ...defaultPlans])];
 
   if (!activeBranchId) {
       return <NoBranchDialog />;
@@ -453,14 +456,9 @@ export default function AddPaymentPage() {
                                 <Select onValueChange={field.onChange} value={field.value}>
                                     <FormControl><SelectTrigger><SelectValue placeholder="Select type" /></SelectTrigger></FormControl>
                                     <SelectContent>
-                                        {membershipPlans.map(plan => (
-                                          <SelectItem key={plan.name} value={plan.name}>{plan.name}</SelectItem>
-                                        ))}
-                                        <SelectItem value="trial">Trial</SelectItem>
-                                        <SelectItem value="monthly">Monthly</SelectItem>
-                                        <SelectItem value="quarterly">Quarterly</SelectItem>
-                                        <SelectItem value="half-yearly">Half-Yearly</SelectItem>
-                                        <SelectItem value="yearly">Yearly</SelectItem>
+                                       {combinedPlans.map(plan => (
+                                           <SelectItem key={plan} value={plan} className="capitalize">{plan}</SelectItem>
+                                       ))}
                                     </SelectContent>
                                 </Select><FormMessage />
                                 </FormItem>
@@ -539,4 +537,3 @@ export default function AddPaymentPage() {
     </div>
   );
 }
-
