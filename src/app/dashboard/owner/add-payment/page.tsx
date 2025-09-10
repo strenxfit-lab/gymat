@@ -9,7 +9,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { format, addDays, parseISO, isSameDay } from 'date-fns';
 import { Loader2, Calendar as CalendarIcon, Search, Check, Building, AlertTriangle, Tags, Phone, Mail } from 'lucide-react';
-import { collection, addDoc, getDocs, Timestamp, doc, updateDoc, getDoc, query, where, collectionGroup } from 'firebase/firestore';
+import { collection, addDoc, getDocs, Timestamp, doc, updateDoc, getDoc, query, where, collectionGroup, serverTimestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useToast } from '@/hooks/use-toast';
 
@@ -374,7 +374,7 @@ export default function AddPaymentPage() {
         discount: data.discount ? parseFloat(data.discount as string) : 0,
         paymentDate: Timestamp.fromDate(data.paymentDate),
         nextDueDate: data.nextDueDate ? Timestamp.fromDate(data.nextDueDate) : null,
-        createdAt: Timestamp.now(),
+        createdAt: serverTimestamp(),
       });
       
       const memberRef = doc(db, 'gyms', userDocId, 'branches', activeBranchId, 'members', data.memberId);
@@ -568,5 +568,3 @@ export default function AddPaymentPage() {
     </div>
   );
 }
-
-    

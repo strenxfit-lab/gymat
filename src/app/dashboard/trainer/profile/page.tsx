@@ -3,7 +3,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { doc, getDoc, updateDoc, Timestamp, collection, query, where, getDocs, addDoc, orderBy } from 'firebase/firestore';
+import { doc, getDoc, updateDoc, Timestamp, collection, query, where, getDocs, addDoc, orderBy, serverTimestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useToast } from '@/hooks/use-toast';
 import { useForm, Controller } from 'react-hook-form';
@@ -284,7 +284,7 @@ export default function TrainerProfilePage() {
         await addDoc(notesCollection, {
             memberId: selectedMemberForNotes.id,
             note: data.note,
-            createdAt: Timestamp.now(),
+            createdAt: serverTimestamp(),
         });
         toast({ title: "Note Saved!", description: "Your private note has been saved."});
         notesForm.reset();
@@ -307,7 +307,7 @@ export default function TrainerProfilePage() {
         await addDoc(dietCollection, {
             ...data,
             sentByTrainerId: trainerId,
-            sentAt: Timestamp.now(),
+            sentAt: serverTimestamp(),
         });
         toast({ title: "Diet Plan Sent!", description: `A new diet plan has been sent to ${selectedMemberForDiet.fullName}.`});
         dietForm.reset();
@@ -580,5 +580,3 @@ export default function TrainerProfilePage() {
     </div>
   );
 }
-
-    

@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { collection, addDoc, getDocs, Timestamp, deleteDoc, doc, updateDoc } from 'firebase/firestore';
+import { collection, addDoc, getDocs, Timestamp, deleteDoc, doc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
@@ -134,7 +134,7 @@ export default function TrainerOffersPage() {
         ...values,
         startDate: Timestamp.fromDate(new Date(values.startDate)),
         endDate: Timestamp.fromDate(new Date(values.endDate)),
-        createdAt: Timestamp.now(),
+        createdAt: serverTimestamp(),
       });
 
       toast({ title: 'Success!', description: 'New trainer offer has been created.' });

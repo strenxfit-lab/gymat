@@ -117,7 +117,7 @@ export default function BookClassPage() {
             await deleteDoc(bookingRef);
             toast({ title: 'Cancellation Successful', description: 'Your spot has been cancelled.'});
         } else { // Create booking
-            await setDoc(bookingRef, { bookedAt: Timestamp.now() });
+            await setDoc(bookingRef, { bookedAt: serverTimestamp() });
             toast({ title: 'Booking Confirmed!', description: 'Your spot is reserved.'});
         }
         await fetchClasses(); // Refresh list

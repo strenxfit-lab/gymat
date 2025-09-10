@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { collection, addDoc, getDocs, Timestamp, doc, updateDoc, runTransaction, getDoc } from 'firebase/firestore';
+import { collection, addDoc, getDocs, Timestamp, doc, updateDoc, runTransaction, getDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -200,7 +200,7 @@ export default function UsageLogsPage() {
             remainingStock: newQuantity,
             dateOfIssue: Timestamp.fromDate(new Date(values.dateOfIssue)),
             notes: values.notes || '',
-            createdAt: Timestamp.now(),
+            createdAt: serverTimestamp(),
         });
       });
 
@@ -314,5 +314,3 @@ export default function UsageLogsPage() {
     </div>
   );
 }
-
-    
