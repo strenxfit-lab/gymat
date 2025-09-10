@@ -142,18 +142,16 @@ export default function MemberOffersPage() {
     try {
         const offersCollection = collection(db, 'gyms', userDocId, 'branches', activeBranchId, 'offers');
         const offersSnapshot = await getDocs(offersCollection);
-
-        // This is a collection group query. It will require an index.
-        const paymentsQuery = query(collectionGroup(db, 'payments'), where('appliedOfferId', '!=', ''));
-        const paymentsSnap = await getDocs(paymentsQuery);
         
-        // We must filter by gym/branch on the client side for collection group queries.
-        const allPaymentsForGym = [];
-        for (const paymentDoc of paymentsSnap.docs) {
-            const path = paymentDoc.ref.path.split('/');
-            // path is like: gyms/{gymId}/branches/{branchId}/members/{memberId}/payments/{paymentId}
-            if (path[1] === userDocId && path[3] === activeBranchId) {
-                 allPaymentsForGym.push(paymentDoc.data());
+        const membersCollection = collection(db, 'gyms', userDocId, 'branches', activeBranchId, 'members');
+        const membersSnapshot = await getDocs(membersCollection);
+        
+        const allPayments = [];
+        for (const memberDoc of membersSnapshot.docs) {
+            const paymentsCollection = collection(memberDoc.ref, 'payments');
+            const paymentsSnapshot = await getDocs(paymentsCollection);
+            for (const paymentDoc of paymentsSnapshot.docs) {
+                allPayments.push(paymentDoc.data());
             }
         }
         
@@ -161,7 +159,7 @@ export default function MemberOffersPage() {
             const data = docSnap.data();
             const offerId = docSnap.id;
 
-            const analytics = allPaymentsForGym
+            const analytics = allPayments
                 .filter(p => p.appliedOfferId === offerId)
                 .reduce((acc, p) => {
                     acc.availed += 1;
@@ -184,7 +182,7 @@ export default function MemberOffersPage() {
 
     } catch (error) {
         console.error("Error fetching offers:", error);
-        toast({ title: "Error", description: "Failed to fetch offers data. You may need to create a Firestore index. See console for details.", variant: "destructive" });
+        toast({ title: "Error", description: "Failed to fetch offers data.", variant: "destructive" });
     } finally {
         setLoading(false);
     }
