@@ -141,6 +141,7 @@ export default function AddPaymentPage() {
   const [isTrial, setIsTrial] = useState(false);
   const [limitDialogOpen, setLimitDialogOpen] = useState(false);
   const [limitInfo, setLimitInfo] = useState<LimitDialogInfo>({ members: 0, trainers: 0 });
+  const [isMemberDropdownOpen, setIsMemberDropdownOpen] = useState(false);
   
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
@@ -231,6 +232,13 @@ export default function AddPaymentPage() {
     }
     initialize();
   }, [searchParams, form, activeBranchId]);
+
+    useEffect(() => {
+        if (isMemberDropdownOpen && activeBranchId) {
+            fetchMembersAndOffers(activeBranchId);
+        }
+    }, [isMemberDropdownOpen, activeBranchId]);
+
 
     useEffect(() => {
         const subscription = form.watch((values, { name }) => {
@@ -414,7 +422,7 @@ export default function AddPaymentPage() {
                         render={({ field }) => (
                             <FormItem className="flex flex-col">
                             <FormLabel>Select Member</FormLabel>
-                            <Popover>
+                            <Popover open={isMemberDropdownOpen} onOpenChange={setIsMemberDropdownOpen}>
                                 <PopoverTrigger asChild>
                                 <FormControl>
                                     <Button variant="outline" role="combobox" className={cn("w-full justify-between", !field.value && "text-muted-foreground")}>
@@ -433,7 +441,10 @@ export default function AddPaymentPage() {
                                                     <CommandItem
                                                         value={`${member.fullName} ${member.phone}`}
                                                         key={member.id}
-                                                        onSelect={() => form.setValue('memberId', member.id)}
+                                                        onSelect={() => {
+                                                            form.setValue('memberId', member.id);
+                                                            setIsMemberDropdownOpen(false);
+                                                        }}
                                                     >
                                                     <Check className={cn("mr-2 h-4 w-4", member.id === field.value ? "opacity-100" : "opacity-0")} />
                                                         {member.fullName} ({member.phone})
