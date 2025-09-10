@@ -49,29 +49,29 @@ function LimitReachedDialog({ isOpen, onOpenChange, limits, isMultiBranchError =
         <AlertDialogHeader>
           <AlertDialogTitle>{isMultiBranchError ? "Multi-Branch Feature Not Enabled" : "You've reached the limit of your trial account"}</AlertDialogTitle>
           <AlertDialogDescription>
-            <div className="space-y-2 pt-2">
-                {isMultiBranchError ? (
-                    <span>Your current plan only supports one branch. To add more locations, please upgrade your plan.</span>
-                ) : (
-                    <>
-                        {limits.members !== undefined && <span>Members ({limits.members}/3)</span>}
-                        {limits.trainers !== undefined && <span>Trainers ({limits.trainers}/2)</span>}
-                        {limits.payments !== undefined && <span>Payments ({limits.payments}/5 per member)</span>}
-                        {limits.equipment !== undefined && <span>Equipment ({limits.equipment}/1)</span>}
-                        {limits.classes !== undefined && <span>Classes ({limits.classes}/1)</span>}
-                        {limits.expenses !== undefined && <span>Expenses ({limits.expenses}/2)</span>}
-                        {limits.inventory !== undefined && <span>Inventory ({limits.inventory}/1)</span>}
-                        {limits.maintenance !== undefined && <span>Maintenance ({limits.maintenance}/1)</span>}
-                        {limits.offers !== undefined && <span>Offers ({limits.offers}/1)</span>}
-                        {limits.usageLogs !== undefined && <span>Usage Logs ({limits.usageLogs}/1)</span>}
-                        {limits.branches !== undefined && <span>Branches ({limits.branches}/1)</span>}
-                    </>
-                )}
-                <span className="block font-semibold pt-2">Upgrade to a full Account to continue managing without restrictions.</span>
-            </div>
+            {isMultiBranchError
+              ? "Your current plan only supports one branch. To add more locations, please upgrade your plan."
+              : "Upgrade to a full Account to continue managing without restrictions."}
           </AlertDialogDescription>
         </AlertDialogHeader>
-        <div className="flex flex-col space-y-2">
+        
+        {!isMultiBranchError && (
+            <div className="text-sm text-muted-foreground space-y-2">
+                {limits.branches !== undefined && <p>Branches ({limits.branches}/1)</p>}
+                {limits.members !== undefined && <p>Members ({limits.members}/3)</p>}
+                {limits.trainers !== undefined && <p>Trainers ({limits.trainers}/2)</p>}
+                {limits.payments !== undefined && <p>Payments ({limits.payments}/5 per member)</p>}
+                {limits.equipment !== undefined && <p>Equipment ({limits.equipment}/1)</p>}
+                {limits.classes !== undefined && <p>Classes ({limits.classes}/1)</p>}
+                {limits.expenses !== undefined && <p>Expenses ({limits.expenses}/2)</p>}
+                {limits.inventory !== undefined && <p>Inventory ({limits.inventory}/1)</p>}
+                {limits.maintenance !== undefined && <p>Maintenance ({limits.maintenance}/1)</p>}
+                {limits.offers !== undefined && <p>Offers ({limits.offers}/1)</p>}
+                {limits.usageLogs !== undefined && <p>Usage Logs ({limits.usageLogs}/1)</p>}
+            </div>
+        )}
+
+        <div className="flex flex-col space-y-2 pt-2">
             <p className="font-bold text-center">Contact Strenxfit Support</p>
             <a href="https://wa.me/917988487892" target="_blank" rel="noopener noreferrer" className="flex items-center justify-center gap-3 p-3 rounded-md hover:bg-accent transition-colors">
                 <Phone className="h-5 w-5 text-muted-foreground" />
