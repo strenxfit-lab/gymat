@@ -3,105 +3,96 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { BarcodeScanner } from 'react-zxing';
 import { useToast } from '@/hooks/use-toast';
 import { db } from '@/lib/firebase';
-import { collection, addDoc, serverTimestamp, query, where, getDocs, limit, orderBy } from 'firebase/firestore';
+import { collection, addDoc, serverTimestamp, query, where, getDocs, deleteDoc, writeBatch } from 'firebase/firestore';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Loader2, ArrowLeft, QrCode, VideoOff } from 'lucide-react';
+import { Loader2, ArrowLeft, KeyRound, Timer } from 'lucide-react';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 
-export default function AttendancePage() {
+const CODE_EXPIRY_MINUTES = 5;
+
+export default function GenerateAttendanceCodePage() {
   const [loading, setLoading] = useState(false);
-  const [hasCameraPermission, setHasCameraPermission] = useState<boolean | null>(null);
+  const [generatedCode, setGeneratedCode] = useState<string | null>(null);
+  const [expiryTime, setExpiryTime] = useState<Date | null>(null);
+  const [timeLeft, setTimeLeft] = useState('');
   const router = useRouter();
   const { toast } = useToast();
 
   useEffect(() => {
-    navigator.mediaDevices.getUserMedia({ video: true })
-      .then(stream => {
-        setHasCameraPermission(true);
-        stream.getTracks().forEach(track => track.stop()); // Stop using the camera immediately
-      })
-      .catch(err => {
-        console.error("Camera permission error:", err);
-        setHasCameraPermission(false);
-      });
-  }, []);
+    if (!expiryTime || !generatedCode) return;
 
-  const handleScanResult = async (result: any) => {
-    if (result && !loading) {
-      setLoading(true);
-      const qrData = result.getText();
+    const interval = setInterval(() => {
+        const now = new Date();
+        const diff = expiryTime.getTime() - now.getTime();
+        if (diff <= 0) {
+            setTimeLeft('Expired');
+            clearInterval(interval);
+            setGeneratedCode(null);
+            toast({ title: "Code Expired", description: "Your attendance code has expired. Please generate a new one.", variant: "destructive"});
+        } else {
+            const minutes = Math.floor(diff / 60000);
+            const seconds = ((diff % 60000) / 1000).toFixed(0).padStart(2, '0');
+            setTimeLeft(`${minutes}:${seconds}`);
+        }
+    }, 1000);
 
-      try {
-        const { gymId, branchId } = JSON.parse(qrData);
-        const storedGymId = localStorage.getItem('userDocId');
+    return () => clearInterval(interval);
 
-        if (!gymId || !branchId || gymId !== storedGymId) {
-          toast({ title: "Invalid QR Code", description: "This QR code is not valid for this gym.", variant: "destructive" });
-          setLoading(false);
-          return;
+  }, [expiryTime, generatedCode, toast]);
+
+  const generateCode = async () => {
+    setLoading(true);
+    const userRole = localStorage.getItem('userRole');
+    const userId = localStorage.getItem(userRole === 'member' ? 'memberId' : 'trainerId');
+    const userName = localStorage.getItem('userName');
+    const userPhone = localStorage.getItem('userPhone');
+    const gymId = localStorage.getItem('userDocId');
+    const branchId = localStorage.getItem('activeBranch');
+
+    if (!userRole || !userId || !gymId || !branchId) {
+      toast({ title: "Error", description: "Your session is invalid. Please log in again.", variant: "destructive" });
+      setLoading(false);
+      return;
+    }
+
+    try {
+        const codesCollection = collection(db, 'attendanceCodes');
+        const q = query(codesCollection, where("userId", "==", userId));
+        const existingCodes = await getDocs(q);
+        if (!existingCodes.empty) {
+            const batch = writeBatch(db);
+            existingCodes.forEach(doc => batch.delete(doc.ref));
+            await batch.commit();
         }
 
-        const userRole = localStorage.getItem('userRole');
-        const userId = localStorage.getItem(userRole === 'member' ? 'memberId' : 'trainerId');
-        const userName = localStorage.getItem('userName');
-        const userPhone = localStorage.getItem('userPhone');
+        const code = Math.floor(1000 + Math.random() * 9000).toString();
+        const expiresAt = new Date(Date.now() + CODE_EXPIRY_MINUTES * 60 * 1000);
 
-        if (!userRole || !userId) {
-          throw new Error("User session not found.");
-        }
-        
-        // Duplicate check
-        const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000);
-        const attendanceRef = collection(db, "attendance");
-        const q = query(
-            attendanceRef,
-            where("gymId", "==", gymId),
-            where("branchId", "==", branchId),
-            where("userId", "==", userId),
-            where("scanTime", ">=", tenMinutesAgo),
-            orderBy("scanTime", "desc"),
-            limit(1)
-        );
-
-        const querySnapshot = await getDocs(q);
-
-        if (!querySnapshot.empty) {
-            toast({ title: "Already Checked In", description: "You have already marked your attendance recently.", variant: "default" });
-            router.back();
-            return;
-        }
-
-        // Add new attendance record
-        await addDoc(attendanceRef, {
+        await addDoc(codesCollection, {
+            code,
+            userId,
+            userName,
+            userPhone,
+            userRole,
             gymId,
             branchId,
-            userId,
-            userRole,
-            userName: userName || 'N/A',
-            userPhone: userPhone || 'N/A',
-            scanTime: serverTimestamp(),
-            method: "QR",
+            expiresAt: serverTimestamp(), // Will be converted on server
         });
 
-        toast({
-          title: "✅ Attendance marked successfully",
-          description: `Welcome, ${userName || 'User'}!`,
-        });
-        
-        router.back();
-
-      } catch (e) {
-        console.error("Scan processing error:", e);
-        toast({ title: "Scan Error", description: "Could not process the QR code. Please try again.", variant: "destructive" });
+        setGeneratedCode(code);
+        setExpiryTime(expiresAt);
         setLoading(false);
-      }
+
+    } catch (error) {
+        console.error("Error generating code:", error);
+        toast({ title: "Error", description: "Could not generate a code. Please try again.", variant: "destructive" });
+        setLoading(false);
     }
   };
-
+  
   const getBackLink = () => {
     const role = localStorage.getItem('userRole');
     if (role === 'member') return '/dashboard/member';
@@ -109,46 +100,39 @@ export default function AttendancePage() {
     return '/';
   }
 
+
   return (
     <div className="container mx-auto py-10 flex justify-center">
-      <Card className="w-full max-w-lg">
+      <Card className="w-full max-w-md">
         <CardHeader>
-          <CardTitle>QR Attendance</CardTitle>
-          <CardDescription>Scan the QR code at the reception to mark your attendance.</CardDescription>
+          <CardTitle>Manual Attendance</CardTitle>
+          <CardDescription>Generate a one-time code and show it at the reception to mark your attendance.</CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="aspect-square w-full bg-muted rounded-lg overflow-hidden flex items-center justify-center">
-            {hasCameraPermission === null && <Loader2 className="h-8 w-8 animate-spin" />}
-            {hasCameraPermission === false && (
-              <Alert variant="destructive">
-                <VideoOff className="h-4 w-4" />
-                <AlertTitle>Camera Access Denied</AlertTitle>
-                <AlertDescription>
-                  Please enable camera permissions in your browser settings to use this feature.
-                </AlertDescription>
-              </Alert>
-            )}
-            {hasCameraPermission === true && (
-              <div className="relative w-full h-full">
-                <BarcodeScanner
-                  onResult={handleScanResult}
-                  videoStyle={{objectFit: 'cover', width: '100%', height: '100%'}}
-                />
-                {loading && (
-                    <div className="absolute inset-0 bg-black/50 flex flex-col items-center justify-center text-white">
-                        <Loader2 className="h-10 w-10 animate-spin mb-4" />
-                        <p>Processing...</p>
+        <CardContent className="space-y-6">
+            {generatedCode ? (
+                <div className="text-center space-y-4">
+                    <p className="text-muted-foreground">Your code is:</p>
+                    <div className="p-4 bg-muted rounded-lg">
+                        <p className="text-6xl font-bold tracking-widest">{generatedCode}</p>
                     </div>
-                )}
-                 <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                    <div className="w-60 h-60 border-4 border-primary/50 rounded-lg" style={{boxShadow: '0 0 0 4000px rgba(0,0,0,0.5)'}}></div>
+                    <Alert>
+                        <Timer className="h-4 w-4"/>
+                        <AlertTitle>Expires In: {timeLeft}</AlertTitle>
+                        <AlertDescription>This code is valid for {CODE_EXPIRY_MINUTES} minutes.</AlertDescription>
+                    </Alert>
+                    <Button onClick={() => setGeneratedCode(null)}>Done</Button>
                 </div>
-              </div>
+            ) : (
+                <div className="flex flex-col items-center gap-4">
+                    <KeyRound className="h-20 w-20 text-primary p-4 bg-primary/10 rounded-full"/>
+                    <Button onClick={generateCode} disabled={loading} size="lg">
+                        {loading ? <Loader2 className="animate-spin" /> : 'Generate My Code'}
+                    </Button>
+                </div>
             )}
-          </div>
-          <Button variant="outline" className="w-full" onClick={() => router.push(getBackLink())}>
-            <ArrowLeft className="mr-2 h-4 w-4" /> Go Back
-          </Button>
+             <Button variant="outline" className="w-full" onClick={() => router.push(getBackLink())}>
+                <ArrowLeft className="mr-2 h-4 w-4" /> Go Back
+            </Button>
         </CardContent>
       </Card>
     </div>
