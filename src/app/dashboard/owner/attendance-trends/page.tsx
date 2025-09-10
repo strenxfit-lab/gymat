@@ -77,12 +77,12 @@ export default function AttendanceTrendsPage() {
         const now = new Date();
         const sixtyDaysAgo = subMonths(now, 2);
 
-        const attendanceQuery = query(collection(db, 'attendance'), where('branchId', '==', activeBranchId), where('scanTime', '>=', Timestamp.fromDate(sixtyDaysAgo)));
+        const attendanceQuery = query(collection(db, 'attendance'), where('branchId', '==', activeBranchId));
         const attendanceSnapshot = await getDocs(attendanceQuery);
         const attendanceRecords: AttendanceRecord[] = attendanceSnapshot.docs.map(doc => ({
             userId: doc.data().userId,
             scanTime: (doc.data().scanTime as Timestamp).toDate(),
-        }));
+        })).filter(record => record.scanTime >= sixtyDaysAgo);
         
         const membersCollection = collection(db, 'gyms', userDocId, 'branches', activeBranchId, 'members');
         const membersSnapshot = await getDocs(membersCollection);
