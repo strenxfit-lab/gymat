@@ -242,9 +242,8 @@ export default function AddPaymentPage() {
 
     useEffect(() => {
         const subscription = form.watch((values, { name }) => {
-            const { memberId, membershipPlan, paymentDate, appliedOfferId, totalFee, discount, amountPaid } = values;
+            const { memberId, membershipPlan, paymentDate } = values;
 
-            // Handle Member Selection
             if (name === 'memberId' && memberId) {
                 const member = members.find(m => m.id === memberId);
                 if (member) {
@@ -258,28 +257,31 @@ export default function AddPaymentPage() {
                         ...form.getValues(),
                         membershipPlan: member.membershipType,
                         totalFee: member.totalFee || 0,
+                        amountPaid: member.totalFee || 0,
+                        balanceDue: 0,
                         appliedOfferId: 'none',
                         discount: '',
                     });
                 }
             }
             
-            // Handle Membership Plan Change
             if (name === 'membershipPlan' && membershipPlan) {
                 const planDetails = membershipPlans.find(p => p.name.toLowerCase() === membershipPlan.toLowerCase());
                 let newFee = selectedMember?.totalFee || 0;
                 if (planDetails && planDetails.price) {
                     newFee = parseFloat(planDetails.price);
                 }
+                // When plan changes, reset fee, offer, discount, and recalculate amount paid
                 form.reset({
                     ...form.getValues(),
                     totalFee: newFee,
                     appliedOfferId: 'none',
                     discount: '',
+                    amountPaid: newFee,
+                    balanceDue: 0,
                 });
             }
 
-            // Calculate dates
             if ((name === 'membershipPlan' || name === 'paymentDate') && membershipPlan && paymentDate) {
                 let newEndDate = new Date(paymentDate);
                 switch (membershipPlan) {
@@ -294,42 +296,37 @@ export default function AddPaymentPage() {
                 }
             }
 
-            // Recalculate fees and balance
-            if (['totalFee', 'discount', 'appliedOfferId', 'amountPaid', 'membershipPlan', 'memberId'].includes(name!)) {
-                let newDiscount = 0;
-                const offer = offers.find(o => o.id === appliedOfferId);
+            if (['totalFee', 'discount', 'appliedOfferId', 'amountPaid'].includes(name!)) {
+                let currentDiscount = typeof values.discount === 'string' ? parseFloat(values.discount) || 0 : (values.discount || 0);
                 
-                if (offer) {
-                    if (offer.discountType === 'percentage') {
-                        newDiscount = (totalFee * offer.discountValue) / 100;
-                    } else { // flat
-                        newDiscount = offer.discountValue;
+                if (name === 'appliedOfferId') {
+                    const offer = offers.find(o => o.id === values.appliedOfferId);
+                    if (offer) {
+                        currentDiscount = offer.discountType === 'percentage'
+                            ? (values.totalFee * offer.discountValue) / 100
+                            : offer.discountValue;
+                        if (form.getValues('discount') !== currentDiscount) {
+                            form.setValue('discount', currentDiscount);
+                        }
+                    } else { // 'none' or invalid
+                        currentDiscount = 0;
+                        if (form.getValues('discount') !== '') {
+                            form.setValue('discount', '');
+                        }
                     }
-                    if (form.getValues('discount') !== newDiscount) {
-                        form.setValue('discount', newDiscount);
-                    }
-                    if (form.getValues('appliedOfferTitle') !== offer.title) {
-                        form.setValue('appliedOfferTitle', offer.title);
-                    }
-                } else {
-                     if (name === 'appliedOfferId' && appliedOfferId === 'none') {
-                        if (form.getValues('discount') !== '') form.setValue('discount', '');
-                        if (form.getValues('appliedOfferTitle') !== '') form.setValue('appliedOfferTitle', '');
-                     }
-                     newDiscount = typeof discount === 'string' ? parseFloat(discount) || 0 : (discount || 0);
                 }
 
-                const finalPayable = totalFee - newDiscount;
+                const finalPayable = values.totalFee - currentDiscount;
                 
                 if (name !== 'amountPaid') {
                     const newAmountPaid = finalPayable > 0 ? finalPayable : 0;
-                    if (amountPaid !== newAmountPaid) {
+                    if (values.amountPaid !== newAmountPaid) {
                          form.setValue('amountPaid', newAmountPaid, { shouldValidate: true });
                     }
                 }
                 
-                const newBalanceDue = (finalPayable > 0 ? finalPayable : 0) - (amountPaid || 0);
-                 if (form.getValues('balanceDue') !== newBalanceDue) {
+                const newBalanceDue = (finalPayable > 0 ? finalPayable : 0) - (values.amountPaid || 0);
+                if (form.getValues('balanceDue') !== newBalanceDue) {
                     form.setValue('balanceDue', newBalanceDue > 0 ? newBalanceDue : 0);
                 }
             }
@@ -564,3 +561,5 @@ export default function AddPaymentPage() {
     </div>
   );
 }
+
+    
