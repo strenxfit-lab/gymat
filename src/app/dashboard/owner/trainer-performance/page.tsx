@@ -91,7 +91,7 @@ export default function TrainerPerformancePage() {
         setLoading(false);
       }
     };
-    fetchAllData();
+    fetchPerformanceData();
   }, [toast]);
 
   if (loading) {
@@ -171,5 +171,4 @@ export default function TrainerPerformancePage() {
     </div>
   );
 }
-
     
