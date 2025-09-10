@@ -4,7 +4,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { collection, getDocs, Timestamp, query, where, orderBy, onSnapshot, writeBatch, addDoc, limit } from 'firebase/firestore';
+import { collection, getDocs, Timestamp, query, where, orderBy, onSnapshot, writeBatch, addDoc, limit, deleteDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
@@ -79,7 +79,7 @@ export default function VerifyAttendancePage() {
           where("gymId", "==", userDocId),
           where("branchId", "==", activeBranchId),
           where("userId", "==", codeData.userId),
-          where("scanTime", ">=", tenMinutesAgo)
+          where("scanTime", ">=", Timestamp.fromDate(tenMinutesAgo))
       );
 
       const attendanceSnapshot = await getDocs(qAttendance);
