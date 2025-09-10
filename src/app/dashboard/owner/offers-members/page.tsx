@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { collection, addDoc, getDocs, Timestamp, deleteDoc, doc, updateDoc, query, where, getDoc } from 'firebase/firestore';
+import { collection, addDoc, getDocs, Timestamp, deleteDoc, doc, updateDoc, query, where, getDoc, collectionGroup } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
@@ -143,16 +143,25 @@ export default function MemberOffersPage() {
         const offersCollection = collection(db, 'gyms', userDocId, 'branches', activeBranchId, 'offers');
         const offersSnapshot = await getDocs(offersCollection);
 
-        const paymentsRef = collection(db, 'gyms', userDocId, 'branches', activeBranchId, 'payments');
-        const paymentsSnap = await getDocs(query(paymentsRef, where('appliedOfferId', '!=', null)));
-        const paymentsWithOffers = paymentsSnap.docs.map(doc => doc.data());
-
-
+        // This is a collection group query. It will require an index.
+        const paymentsQuery = query(collectionGroup(db, 'payments'), where('appliedOfferId', '!=', ''));
+        const paymentsSnap = await getDocs(paymentsQuery);
+        
+        // We must filter by gym/branch on the client side for collection group queries.
+        const allPaymentsForGym = [];
+        for (const paymentDoc of paymentsSnap.docs) {
+            const path = paymentDoc.ref.path.split('/');
+            // path is like: gyms/{gymId}/branches/{branchId}/members/{memberId}/payments/{paymentId}
+            if (path[1] === userDocId && path[3] === activeBranchId) {
+                 allPaymentsForGym.push(paymentDoc.data());
+            }
+        }
+        
         const offersList = offersSnapshot.docs.map(docSnap => {
             const data = docSnap.data();
             const offerId = docSnap.id;
 
-            const analytics = paymentsWithOffers
+            const analytics = allPaymentsForGym
                 .filter(p => p.appliedOfferId === offerId)
                 .reduce((acc, p) => {
                     acc.availed += 1;
@@ -175,7 +184,7 @@ export default function MemberOffersPage() {
 
     } catch (error) {
         console.error("Error fetching offers:", error);
-        toast({ title: "Error", description: "Failed to fetch offers data.", variant: "destructive" });
+        toast({ title: "Error", description: "Failed to fetch offers data. You may need to create a Firestore index. See console for details.", variant: "destructive" });
     } finally {
         setLoading(false);
     }
@@ -445,5 +454,3 @@ export default function MemberOffersPage() {
     </div>
   );
 }
-
-    
