@@ -46,17 +46,19 @@ export default function MarkAttendancePage() {
     try {
       const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000);
 
-      // Fetch all recent check-ins for the branch in one query
+      // Fetch all recent check-ins for the gym across all branches
       const recentAttendanceQuery = query(
         collection(db, 'attendance'),
-        where('branchId', '==', branchId),
         where('scanTime', '>=', Timestamp.fromDate(tenMinutesAgo))
       );
       const recentAttendanceSnap = await getDocs(recentAttendanceQuery);
       const recentCheckIns = new Map<string, Date>();
       recentAttendanceSnap.forEach(doc => {
           const data = doc.data();
-          recentCheckIns.set(data.userId, (data.scanTime as Timestamp).toDate());
+          // Filter for the active branch on the client
+          if(data.branchId === branchId) {
+            recentCheckIns.set(data.userId, (data.scanTime as Timestamp).toDate());
+          }
       });
 
       // Fetch Members
