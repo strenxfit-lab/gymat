@@ -46,50 +46,45 @@ export default function MarkAttendancePage() {
     try {
       const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000);
 
+      // Fetch all recent check-ins for the branch in one query
+      const recentAttendanceQuery = query(
+        collection(db, 'attendance'),
+        where('branchId', '==', branchId),
+        where('scanTime', '>=', Timestamp.fromDate(tenMinutesAgo))
+      );
+      const recentAttendanceSnap = await getDocs(recentAttendanceQuery);
+      const recentCheckIns = new Map<string, Date>();
+      recentAttendanceSnap.forEach(doc => {
+          const data = doc.data();
+          recentCheckIns.set(data.userId, (data.scanTime as Timestamp).toDate());
+      });
+
       // Fetch Members
       const membersCollection = collection(db, 'gyms', userDocId, 'branches', branchId, 'members');
       const membersSnapshot = await getDocs(membersCollection);
-      const membersList = await Promise.all(membersSnapshot.docs.map(async (doc) => {
+      const membersList = membersSnapshot.docs.map(doc => {
         const data = doc.data();
-        const attendanceQuery = query(
-            collection(db, 'attendance'), 
-            where('userId', '==', doc.id),
-            orderBy('scanTime', 'desc'), 
-            limit(1)
-        );
-        const attendanceSnap = await getDocs(attendanceQuery);
-        let lastCheckIn = null;
-        if (!attendanceSnap.empty) {
-            const lastScanTime = (attendanceSnap.docs[0].data().scanTime as Timestamp).toDate();
-            if (lastScanTime > tenMinutesAgo) {
-                lastCheckIn = lastScanTime;
-            }
-        }
-        return { id: doc.id, fullName: data.fullName, phone: data.phone, lastCheckIn };
-      }));
+        return { 
+            id: doc.id, 
+            fullName: data.fullName, 
+            phone: data.phone, 
+            lastCheckIn: recentCheckIns.get(doc.id) || null 
+        };
+      });
       setMembers(membersList);
 
       // Fetch Trainers
       const trainersCollection = collection(db, 'gyms', userDocId, 'branches', branchId, 'trainers');
       const trainersSnapshot = await getDocs(trainersCollection);
-      const trainersList = await Promise.all(trainersSnapshot.docs.map(async (doc) => {
+      const trainersList = trainersSnapshot.docs.map(doc => {
          const data = doc.data();
-         const attendanceQuery = query(
-            collection(db, 'attendance'), 
-            where('userId', '==', doc.id),
-            orderBy('scanTime', 'desc'),
-            limit(1)
-        );
-         const attendanceSnap = await getDocs(attendanceQuery);
-         let lastCheckIn = null;
-         if (!attendanceSnap.empty) {
-            const lastScanTime = (attendanceSnap.docs[0].data().scanTime as Timestamp).toDate();
-             if (lastScanTime > tenMinutesAgo) {
-                lastCheckIn = lastScanTime;
-            }
-         }
-        return { id: doc.id, fullName: data.fullName, phone: data.phone, lastCheckIn };
-      }));
+        return { 
+            id: doc.id, 
+            fullName: data.fullName, 
+            phone: data.phone, 
+            lastCheckIn: recentCheckIns.get(doc.id) || null
+        };
+      });
       setTrainers(trainersList);
 
     } catch (error) {
