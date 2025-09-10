@@ -54,22 +54,25 @@ export default function VerifyAttendancePage() {
       const q = query(
         codesRef,
         where('code', '==', values.code),
-        where('gymId', '==', userDocId),
-        where('branchId', '==', activeBranchId),
-        where('expiresAt', '>=', Timestamp.fromDate(fiveMinutesAgo))
+        where('branchId', '==', activeBranchId)
       );
-
+      
       const querySnapshot = await getDocs(q);
 
-      if (querySnapshot.empty) {
+      const validDoc = querySnapshot.docs.find(doc => {
+          const data = doc.data();
+          return data.gymId === userDocId && (data.expiresAt as Timestamp).toDate() >= fiveMinutesAgo;
+      });
+
+
+      if (!validDoc) {
         toast({ title: "Invalid Code", description: "The code is incorrect or has expired.", variant: "destructive" });
         setLoading(false);
         form.reset();
         return;
       }
       
-      const codeDoc = querySnapshot.docs[0];
-      const codeData = codeDoc.data();
+      const codeData = validDoc.data();
       
       // Duplicate check
       const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000);
@@ -85,7 +88,7 @@ export default function VerifyAttendancePage() {
       const attendanceSnapshot = await getDocs(qAttendance);
       if(!attendanceSnapshot.empty) {
           toast({ title: "Already Checked In", description: `${codeData.userName} has already marked attendance recently.`, variant: "default" });
-          await deleteDoc(codeDoc.ref);
+          await deleteDoc(validDoc.ref);
           setLoading(false);
           form.reset();
           return;
@@ -105,7 +108,7 @@ export default function VerifyAttendancePage() {
       });
       
       // Delete the used code
-      await deleteDoc(codeDoc.ref);
+      await deleteDoc(validDoc.ref);
       
       const verificationTime = new Date();
       setLastVerified({ userName: codeData.userName, scanTime: verificationTime.toLocaleTimeString() });
