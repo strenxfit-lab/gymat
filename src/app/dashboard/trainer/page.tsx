@@ -8,18 +8,19 @@ import { db } from '@/lib/firebase';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Loader2, User, LogOut, Building, Cake, MessageSquare, Wrench, Utensils, Megaphone, Clock } from 'lucide-react';
+import { Loader2, User, LogOut, Building, Cake, MessageSquare, Wrench, Utensils, Megaphone, Clock, Tags, IndianRupee, Percent } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { differenceInYears } from 'date-fns';
+import { differenceInYears, parseISO } from 'date-fns';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { Textarea } from '@/components/ui/textarea';
+import { Badge } from '@/components/ui/badge';
 
 interface AssignedClass {
   id: string;
@@ -49,6 +50,15 @@ interface Announcement {
     createdAt: Date;
 }
 
+interface TrainerOffer {
+  id: string;
+  title: string;
+  description?: string;
+  offerType: string;
+  bonusType: 'percentage' | 'flat';
+  bonusValue: number;
+}
+
 const dietFormSchema = z.object({
     breakfast: z.string().min(1, 'Breakfast details are required.'),
     lunch: z.string().min(1, 'Lunch details are required.'),
@@ -62,6 +72,7 @@ export default function TrainerDashboardPage() {
   const [assignedMembers, setAssignedMembers] = useState<AssignedMember[]>([]);
   const [trainerInfo, setTrainerInfo] = useState<TrainerInfo | null>(null);
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
+  const [offers, setOffers] = useState<TrainerOffer[]>([]);
   const [loading, setLoading] = useState(true);
   const [birthdayMessage, setBirthdayMessage] = useState<string | null>(null);
   const [isDietDialogOpen, setIsDietDialogOpen] = useState(false);
@@ -167,6 +178,16 @@ export default function TrainerDashboardPage() {
             .map(doc => ({ id: doc.id, ...doc.data() } as Announcement))
             .filter(a => a.audience === 'all' || a.audience === 'trainers');
         setAnnouncements(announcementsList);
+        
+        // Fetch Trainer Offers
+        const offersRef = collection(db, 'gyms', userDocId, 'branches', activeBranchId, 'trainerOffers');
+        const qOffers = query(offersRef, where("endDate", ">=", Timestamp.fromDate(now)));
+        const offersSnap = await getDocs(qOffers);
+        const offersList = offersSnap.docs
+            .map(doc => ({ id: doc.id, ...doc.data() } as TrainerOffer))
+            .filter(offer => parseISO((offer.startDate as unknown) as string) <= now);
+        setOffers(offersList);
+
 
       } catch (error) {
         console.error("Error fetching trainer data:", error);
@@ -335,6 +356,29 @@ export default function TrainerDashboardPage() {
                         </Table>
                     </CardContent>
                 </Card>
+                 {offers.length > 0 && (
+                    <Card>
+                        <CardHeader>
+                            <CardTitle className="flex items-center gap-2"><Tags/> Active Incentives</CardTitle>
+                            <CardDescription>Check out the latest incentive programs available for you.</CardDescription>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                           {offers.map(offer => (
+                                <div key={offer.id} className="p-4 border rounded-lg bg-background">
+                                    <h3 className="font-semibold">{offer.title}</h3>
+                                    <p className="text-sm text-muted-foreground my-2">{offer.description}</p>
+                                    <div className="flex justify-between items-center text-sm">
+                                        <Badge variant="secondary">{offer.offerType}</Badge>
+                                        <div className="flex items-center font-bold text-primary">
+                                            {offer.bonusType === 'percentage' ? <Percent className="mr-2 h-4 w-4"/> : <IndianRupee className="mr-2 h-4 w-4"/>}
+                                            <span>{offer.bonusValue}{offer.bonusType === 'percentage' ? '%' : ' Flat'} Bonus</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            ))}
+                        </CardContent>
+                    </Card>
+                )}
             </div>
             <div className="md:col-span-1 space-y-4">
                 <Card>
