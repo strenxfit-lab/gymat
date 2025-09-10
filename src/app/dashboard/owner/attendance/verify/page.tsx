@@ -49,7 +49,7 @@ export default function VerifyAttendancePage() {
     }
 
     try {
-      const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
+      const now = new Date();
       const codesRef = collection(db, 'attendanceCodes');
       const q = query(
         codesRef,
@@ -61,7 +61,8 @@ export default function VerifyAttendancePage() {
 
       const validDoc = querySnapshot.docs.find(doc => {
           const data = doc.data();
-          return data.gymId === userDocId && (data.expiresAt as Timestamp).toDate() >= fiveMinutesAgo;
+          const expiresAt = (data.expiresAt as Timestamp)?.toDate();
+          return data.gymId === userDocId && expiresAt && expiresAt >= now;
       });
 
 

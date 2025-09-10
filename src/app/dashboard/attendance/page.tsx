@@ -5,7 +5,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
 import { db } from '@/lib/firebase';
-import { collection, addDoc, serverTimestamp, query, where, getDocs, deleteDoc, writeBatch } from 'firebase/firestore';
+import { collection, addDoc, Timestamp, query, where, getDocs, deleteDoc, writeBatch } from 'firebase/firestore';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Loader2, ArrowLeft, KeyRound, Timer } from 'lucide-react';
@@ -79,7 +79,7 @@ export default function GenerateAttendanceCodePage() {
             userRole,
             gymId,
             branchId,
-            expiresAt: serverTimestamp(), // Will be converted on server
+            expiresAt: Timestamp.fromDate(expiresAt),
         });
 
         setGeneratedCode(code);
