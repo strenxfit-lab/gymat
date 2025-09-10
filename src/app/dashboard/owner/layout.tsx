@@ -222,7 +222,9 @@ export default function OwnerDashboardLayout({
                             <Link href="/dashboard/owner/session-tracking">
                                 <SidebarMenuSubButton className={subMenuButtonClass}>Session tracking</SidebarMenuSubButton>
                             </Link>
-                            <SidebarMenuSubButton className={subMenuButtonClass}>Trainer performance</SidebarMenuSubButton>
+                            <Link href="/dashboard/owner/trainer-performance">
+                              <SidebarMenuSubButton className={subMenuButtonClass}>Trainer performance</SidebarMenuSubButton>
+                            </Link>
                         </SidebarMenuSub>
                     )}
                 </SidebarMenuItem>
@@ -292,3 +294,5 @@ export default function OwnerDashboardLayout({
     </SidebarProvider>
   );
 }
+
+    
