@@ -51,7 +51,12 @@ export default function MarkAttendancePage() {
       const membersSnapshot = await getDocs(membersCollection);
       const membersList = await Promise.all(membersSnapshot.docs.map(async (doc) => {
         const data = doc.data();
-        const attendanceQuery = query(collection(db, 'attendance'), where('userId', '==', doc.id), orderBy('scanTime', 'desc'), limit(1));
+        const attendanceQuery = query(
+            collection(db, 'attendance'), 
+            where('userId', '==', doc.id),
+            orderBy('scanTime', 'desc'), 
+            limit(1)
+        );
         const attendanceSnap = await getDocs(attendanceQuery);
         let lastCheckIn = null;
         if (!attendanceSnap.empty) {
@@ -69,7 +74,12 @@ export default function MarkAttendancePage() {
       const trainersSnapshot = await getDocs(trainersCollection);
       const trainersList = await Promise.all(trainersSnapshot.docs.map(async (doc) => {
          const data = doc.data();
-         const attendanceQuery = query(collection(db, 'attendance'), where('userId', '==', doc.id), orderBy('scanTime', 'desc'), limit(1));
+         const attendanceQuery = query(
+            collection(db, 'attendance'), 
+            where('userId', '==', doc.id),
+            orderBy('scanTime', 'desc'),
+            limit(1)
+        );
          const attendanceSnap = await getDocs(attendanceQuery);
          let lastCheckIn = null;
          if (!attendanceSnap.empty) {
