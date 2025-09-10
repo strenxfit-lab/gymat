@@ -44,7 +44,6 @@ export default function AttendanceLogPage() {
         const attendanceCollection = collection(db, 'attendance');
         const q = query(
             attendanceCollection,
-            where('gymId', '==', userDocId),
             where('branchId', '==', activeBranchId),
             where('scanTime', '>=', Timestamp.fromDate(startOfThisMonth)),
             orderBy('scanTime', 'desc')
@@ -52,7 +51,9 @@ export default function AttendanceLogPage() {
 
         try {
             const querySnapshot = await getDocs(q);
-            const records = querySnapshot.docs.map(doc => ({
+            const records = querySnapshot.docs
+            .filter(doc => doc.data().gymId === userDocId) // Filter by gymId client-side
+            .map(doc => ({
                 id: doc.id,
                 userName: doc.data().userName,
                 userRole: doc.data().userRole,
