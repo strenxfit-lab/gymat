@@ -110,7 +110,7 @@ export default function OwnerDashboardLayout({
                     <Mail className="h-5 w-5 text-muted-foreground" />
                     <span>strenxfit@gmail.com</span>
                 </a>
-                <a href="https://wa.me/917988487892" target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 p-3 rounded-md hover:bg-accent transition-colors">
+                <a href="https://wa.me/917988487892" target="_blank" rel="noopener noreferrer" className="flex items-center justify-center gap-3 p-3 rounded-md hover:bg-accent transition-colors">
                     <Phone className="h-5 w-5 text-muted-foreground" />
                     <span>+91 79884 87892</span>
                 </a>
@@ -239,7 +239,9 @@ export default function OwnerDashboardLayout({
                              <Link href="/dashboard/owner/expenses">
                                 <SidebarMenuSubButton className={subMenuButtonClass}>Expenses</SidebarMenuSubButton>
                             </Link>
-                            <SidebarMenuSubButton className={subMenuButtonClass}>Attendance trends</SidebarMenuSubButton>
+                            <Link href="/dashboard/owner/attendance-trends">
+                                <SidebarMenuSubButton className={subMenuButtonClass}>Attendance trends</SidebarMenuSubButton>
+                            </Link>
                         </SidebarMenuSub>
                     )}
                 </SidebarMenuItem>
