@@ -20,11 +20,12 @@ import {
   SidebarGroup,
   SidebarGroupLabel,
 } from '@/components/ui/sidebar';
-import { Dumbbell, Users, CreditCard, ClipboardList, BarChart3, Megaphone, Boxes, ChevronDown, Info, Mail, Phone, Building, UserCheck, LogOut, MessageSquare, CalendarCheck, CheckSquare } from 'lucide-react';
-import { doc, getDoc, collection, getDocs } from 'firebase/firestore';
+import { Dumbbell, Users, CreditCard, ClipboardList, BarChart3, Megaphone, Boxes, ChevronDown, Info, Mail, Phone, Building, UserCheck, LogOut, MessageSquare, CalendarCheck, CheckSquare, Clock } from 'lucide-react';
+import { doc, getDoc, collection, getDocs, Timestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
+import { addMonths, addYears } from 'date-fns';
 
 export default function OwnerDashboardLayout({
   children,
@@ -35,6 +36,8 @@ export default function OwnerDashboardLayout({
   const [hasMultiBranch, setHasMultiBranch] = useState(false);
   const [isSupportDialogOpen, setIsSupportDialogOpen] = useState(false);
   const [activeBranchName, setActiveBranchName] = useState<string | null>(null);
+  const [tierInfo, setTierInfo] = useState<{ expiresAt: Date | null, tier: string | null }>({ expiresAt: null, tier: null });
+  const [timeLeft, setTimeLeft] = useState('');
   const router = useRouter();
   const pathname = usePathname();
 
@@ -51,6 +54,21 @@ export default function OwnerDashboardLayout({
             if (gymData.multiBranch) {
                 setHasMultiBranch(true);
             }
+            
+            // Tier and expiration calculation
+            if (gymData.tier && gymData.createdAt) {
+                const createdAt = (gymData.createdAt as Timestamp).toDate();
+                let expiresAt;
+                if (gymData.tier.toLowerCase() === 'monthly') {
+                    expiresAt = addMonths(createdAt, 1);
+                } else if (gymData.tier.toLowerCase() === 'yearly') {
+                    expiresAt = addYears(createdAt, 1);
+                }
+                if (expiresAt) {
+                    setTierInfo({ expiresAt, tier: gymData.tier });
+                }
+            }
+
 
             const branchesCollection = collection(db, 'gyms', userDocId, 'branches');
             const branchesSnap = await getDocs(branchesCollection);
@@ -66,7 +84,6 @@ export default function OwnerDashboardLayout({
               const activeBranchDoc = branches.find(b => b.id === currentBranchId);
               setActiveBranchName(activeBranchDoc?.name);
               
-              // If we are on the main dashboard page and just set a branch, reload to fetch data
               if (pathname === '/dashboard/owner') {
                   router.refresh();
               }
@@ -79,6 +96,30 @@ export default function OwnerDashboardLayout({
     };
     fetchGymData();
   }, [pathname, router]);
+
+  useEffect(() => {
+    if (tierInfo.expiresAt) {
+      const intervalId = setInterval(() => {
+        const now = new Date();
+        const diff = tierInfo.expiresAt!.getTime() - now.getTime();
+        
+        if (diff <= 0) {
+          setTimeLeft("Expired");
+          clearInterval(intervalId);
+          return;
+        }
+        
+        const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+        const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+        const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+        const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+
+        setTimeLeft(`${days}d ${hours}h ${minutes}m ${seconds}s`);
+      }, 1000);
+
+      return () => clearInterval(intervalId);
+    }
+  }, [tierInfo.expiresAt]);
 
   const toggleSubMenu = (name: string) => {
     setOpenSubMenu(prev => (prev === name ? null : name));
@@ -121,7 +162,7 @@ export default function OwnerDashboardLayout({
         <SidebarHeader>
           <div className="flex items-center gap-2">
             <Dumbbell className="w-6 h-6 text-primary" />
-            <h1 className="text-lg font-semibold">GymLogin Pro</h1>
+            <h1 className="text-lg font-semibold">Strenx GymLogin</h1>
           </div>
            {activeBranchName && (
             <div className="mt-2 text-xs text-center p-1 rounded-md bg-primary/10 text-primary-foreground flex items-center justify-center gap-2">
@@ -274,6 +315,12 @@ export default function OwnerDashboardLayout({
           </SidebarMenu>
         </SidebarContent>
         <SidebarFooter>
+          {timeLeft && tierInfo.tier && (
+            <div className="p-4 text-center text-xs text-muted-foreground border-t border-sidebar-border">
+              <p className="font-semibold capitalize">{tierInfo.tier} Plan</p>
+              <p>Time Left: <span className="font-mono">{timeLeft}</span></p>
+            </div>
+          )}
           <SidebarMenu>
             <SidebarMenuItem>
                 <SidebarMenuButton onClick={handleLogout} className="text-red-500 hover:bg-red-500/10 hover:text-red-500">
@@ -294,5 +341,3 @@ export default function OwnerDashboardLayout({
     </SidebarProvider>
   );
 }
-
-    
