@@ -242,10 +242,11 @@ export default function AddPaymentPage() {
 
     useEffect(() => {
         const subscription = form.watch((values, { name }) => {
-            let { totalFee, discount, amountPaid, membershipPlan, paymentDate, appliedOfferId, nextDueDate } = values;
+            const { memberId, membershipPlan, paymentDate, appliedOfferId } = values;
 
-            if (name === 'memberId' && values.memberId) {
-                const member = members.find(m => m.id === values.memberId);
+            // Step 1: Handle Member Selection
+            if (name === 'memberId' && memberId) {
+                const member = members.find(m => m.id === memberId);
                 if (member) {
                     if (member.status === 'Frozen' || member.status === 'Stopped') {
                         setStatusDialogMessage(`This member's account is currently ${member.status}. To collect payment, please reactivate their account from the Member Status page.`);
@@ -254,23 +255,23 @@ export default function AddPaymentPage() {
                     }
                     setSelectedMember(member);
                     form.setValue('membershipPlan', member.membershipType);
-                    form.setValue('totalFee', member.totalFee);
-                    totalFee = member.totalFee;
+                    form.setValue('totalFee', member.totalFee || 0);
+                    form.setValue('appliedOfferId', 'none'); // Reset offer
                 }
             }
             
+            // Step 2: Handle Membership Plan Change
             if (name === 'membershipPlan' && membershipPlan) {
                 const planDetails = membershipPlans.find(p => p.name === membershipPlan);
+                let newFee = selectedMember?.totalFee || 0;
                 if (planDetails && planDetails.price) {
-                    const newFee = parseFloat(planDetails.price);
-                    form.setValue('totalFee', newFee);
-                    totalFee = newFee;
-                } else if (selectedMember) {
-                    form.setValue('totalFee', selectedMember.totalFee);
-                    totalFee = selectedMember.totalFee;
+                    newFee = parseFloat(planDetails.price);
                 }
+                form.setValue('totalFee', newFee);
+                form.setValue('appliedOfferId', 'none'); // Reset offer if plan changes
             }
-            
+
+            // Step 3: Handle Date Change
             if ((name === 'membershipPlan' || name === 'paymentDate') && membershipPlan && paymentDate) {
                 let newEndDate = new Date(paymentDate);
                  switch (membershipPlan) {
@@ -280,41 +281,40 @@ export default function AddPaymentPage() {
                     case 'half-yearly': newEndDate = addDays(newEndDate, 180); break;
                     case 'yearly': newEndDate = addDays(newEndDate, 365); break;
                 }
-                if (!nextDueDate || !isSameDay(newEndDate, nextDueDate)) {
-                    form.setValue('nextDueDate', newEndDate, { shouldValidate: true });
-                }
+                form.setValue('nextDueDate', newEndDate, { shouldValidate: true });
             }
             
-            let originalFee = totalFee || 0;
-            let finalDiscount = typeof discount === 'string' ? parseFloat(discount) || 0 : (discount || 0);
-
-            if (name === 'appliedOfferId') {
+            // Step 4: Recalculate everything when primary fee/discount drivers change
+            if (['totalFee', 'discount', 'appliedOfferId', 'amountPaid', 'membershipPlan', 'memberId'].includes(name!)) {
+                let currentFee = form.getValues('totalFee') || 0;
+                let currentDiscount = 0;
                 const offer = offers.find(o => o.id === appliedOfferId);
+
                 if (offer) {
-                    let offerDiscount = 0;
                     if (offer.discountType === 'percentage') {
-                        offerDiscount = (originalFee * offer.discountValue) / 100;
+                        currentDiscount = (currentFee * offer.discountValue) / 100;
                     } else { // flat
-                        offerDiscount = offer.discountValue;
+                        currentDiscount = offer.discountValue;
                     }
-                    form.setValue('discount', offerDiscount);
+                    form.setValue('discount', currentDiscount);
                     form.setValue('appliedOfferTitle', offer.title);
-                } else if (appliedOfferId === 'none') {
-                     form.setValue('discount', '');
-                     form.setValue('appliedOfferTitle', '');
+                } else {
+                     if (name === 'appliedOfferId' && appliedOfferId === 'none') {
+                        form.setValue('discount', '');
+                        form.setValue('appliedOfferTitle', '');
+                     }
+                     currentDiscount = typeof values.discount === 'string' ? parseFloat(values.discount) || 0 : (values.discount || 0);
                 }
-            }
-            
-            const finalPayable = originalFee - finalDiscount;
 
-            if (name === 'totalFee' || name === 'discount' || name === 'appliedOfferId' || name === 'membershipPlan') {
-                const newAmountPaid = finalPayable > 0 ? finalPayable : 0;
-                form.setValue('amountPaid', newAmountPaid, { shouldValidate: true });
-                amountPaid = newAmountPaid;
-            }
-
-            const newBalanceDue = (finalPayable > 0 ? finalPayable : 0) - (amountPaid || 0);
-             if ((newBalanceDue > 0 ? newBalanceDue : 0) !== values.balanceDue) {
+                const finalPayable = currentFee - currentDiscount;
+                
+                if (name === 'totalFee' || name === 'discount' || name === 'appliedOfferId' || name === 'membershipPlan') {
+                    const newAmountPaid = finalPayable > 0 ? finalPayable : 0;
+                     form.setValue('amountPaid', newAmountPaid, { shouldValidate: true });
+                }
+                
+                const currentAmountPaid = form.getValues('amountPaid') || 0;
+                const newBalanceDue = (finalPayable > 0 ? finalPayable : 0) - currentAmountPaid;
                 form.setValue('balanceDue', newBalanceDue > 0 ? newBalanceDue : 0);
             }
         });
@@ -383,7 +383,7 @@ export default function AddPaymentPage() {
     }
   };
   
-  const applicableOffers = selectedMember ? offers.filter(o => o.applicablePlans.includes(selectedMember.membershipType)) : [];
+  const applicableOffers = selectedMember ? offers.filter(o => o.applicablePlans.includes(form.watch('membershipPlan') ?? '')) : [];
   
   const combinedPlans = [...new Set([...membershipPlans.map(p => p.name.toLowerCase()), ...defaultPlans])];
 
