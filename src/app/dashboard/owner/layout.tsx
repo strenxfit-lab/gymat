@@ -21,9 +21,9 @@ import {
   SidebarGroupLabel,
 } from '@/components/ui/sidebar';
 import { Dumbbell, Users, CreditCard, ClipboardList, BarChart3, Megaphone, Boxes, ChevronDown, Info, Mail, Phone, Building, UserCheck, LogOut, MessageSquare, CalendarCheck, CheckSquare, Clock } from 'lucide-react';
-import { doc, getDoc, collection, getDocs, Timestamp } from 'firebase/firestore';
+import { doc, getDoc, collection, getDocs, Timestamp, query, where } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, SheetHeader, SheetTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { addMonths, addYears } from 'date-fns';
 
@@ -55,20 +55,33 @@ export default function OwnerDashboardLayout({
                 setHasMultiBranch(true);
             }
             
-            // Tier and expiration calculation
-            if (gymData.tier && gymData.createdAt) {
+            let expirationDate: Date | null = null;
+            let planTier: string | null = null;
+
+            if (gymData.isTrial && gymData.trialKey) {
+                const trialKeysRef = collection(db, 'trialKeys');
+                const q = query(trialKeysRef, where("key", "==", gymData.trialKey));
+                const trialKeySnap = await getDocs(q);
+                if (!trialKeySnap.empty) {
+                    const trialData = trialKeySnap.docs[0].data();
+                    if (trialData.expiresAt) {
+                        expirationDate = (trialData.expiresAt as Timestamp).toDate();
+                        planTier = 'Trial';
+                    }
+                }
+            } else if (gymData.tier && gymData.createdAt) {
                 const createdAt = (gymData.createdAt as Timestamp).toDate();
-                let expiresAt;
                 if (gymData.tier.toLowerCase() === 'monthly') {
-                    expiresAt = addMonths(createdAt, 1);
+                    expirationDate = addMonths(createdAt, 1);
                 } else if (gymData.tier.toLowerCase() === 'yearly') {
-                    expiresAt = addYears(createdAt, 1);
+                    expirationDate = addYears(createdAt, 1);
                 }
-                if (expiresAt) {
-                    setTierInfo({ expiresAt, tier: gymData.tier });
-                }
+                planTier = gymData.tier;
             }
 
+            if (expirationDate) {
+                setTierInfo({ expiresAt: expirationDate, tier: planTier });
+            }
 
             const branchesCollection = collection(db, 'gyms', userDocId, 'branches');
             const branchesSnap = await getDocs(branchesCollection);
@@ -112,9 +125,8 @@ export default function OwnerDashboardLayout({
         const days = Math.floor(diff / (1000 * 60 * 60 * 24));
         const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
         const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-        const seconds = Math.floor((diff % (1000 * 60)) / 1000);
-
-        setTimeLeft(`${days}d ${hours}h ${minutes}m ${seconds}s`);
+        
+        setTimeLeft(`${days}d ${hours}h ${minutes}m`);
       }, 1000);
 
       return () => clearInterval(intervalId);
@@ -341,3 +353,5 @@ export default function OwnerDashboardLayout({
     </SidebarProvider>
   );
 }
+
+    
