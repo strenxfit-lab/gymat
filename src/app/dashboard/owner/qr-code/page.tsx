@@ -3,7 +3,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { QRCode } from 'qrcode.react';
+import QRCode from 'qrcode.react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Loader2, ArrowLeft, QrCode, Download } from 'lucide-react';
@@ -106,3 +106,5 @@ export default function QrCodePage() {
     </div>
   );
 }
+
+    

@@ -22,7 +22,7 @@ import * as z from 'zod';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Textarea } from '@/components/ui/textarea';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { QRCode } from 'qrcode.react';
+import QRCode from 'qrcode.react';
 
 
 interface Member {
@@ -297,7 +297,7 @@ export default function OwnerDashboardPage() {
         const announcementsRef = collection(db, 'gyms', userDocId, 'branches', activeBranchId, 'announcements');
         await addDoc(announcementsRef, {
             ...data,
-            createdAt: Timestamp.now(),
+            createdAt: serverTimestamp(),
             gymId: userDocId,
             branchId: activeBranchId,
             status: 'active'
@@ -738,3 +738,5 @@ export default function OwnerDashboardPage() {
     </ScrollArea>
   );
 }
+
+    
