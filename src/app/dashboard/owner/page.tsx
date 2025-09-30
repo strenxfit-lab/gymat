@@ -9,7 +9,7 @@ import { db } from '@/lib/firebase';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Bell, Building, Calendar, DollarSign, PlusCircle, Send, Users, UserPlus, TrendingUp, AlertCircle, Sparkles, LifeBuoy, BarChart3, IndianRupee, Mail, Phone, Loader2, Star, ClockIcon, BellRing } from 'lucide-react';
+import { Bell, Building, Calendar, DollarSign, PlusCircle, Send, Users, UserPlus, TrendingUp, AlertCircle, Sparkles, LifeBuoy, BarChart3, IndianRupee, Mail, Phone, Loader2, Star, ClockIcon, BellRing, QrCode, Download } from 'lucide-react';
 import { ResponsiveContainer, BarChart, XAxis, YAxis, Tooltip, Bar, Legend } from 'recharts';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
@@ -22,6 +22,7 @@ import * as z from 'zod';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Textarea } from '@/components/ui/textarea';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { QRCode } from 'qrcode.react';
 
 
 interface Member {
@@ -74,6 +75,8 @@ export default function OwnerDashboardPage() {
   const [loading, setLoading] = useState(true);
   const [isSupportDialogOpen, setIsSupportDialogOpen] = useState(false);
   const [isAnnouncementDialogOpen, setIsAnnouncementDialogOpen] = useState(false);
+  const [isQrDialogOpen, setIsQrDialogOpen] = useState(false);
+  const [qrValue, setQrValue] = useState('');
   const router = useRouter();
   const { toast } = useToast();
 
@@ -96,9 +99,7 @@ export default function OwnerDashboardPage() {
         const gymSnap = await getDoc(gymRef);
 
         if (!gymSnap.exists()) {
-          localStorage.removeItem('userDocId');
-          localStorage.removeItem('userRole');
-          localStorage.removeItem('activeBranch');
+          localStorage.clear();
           router.push('/');
           return;
         }
@@ -107,7 +108,6 @@ export default function OwnerDashboardPage() {
 
         let activeBranchId = localStorage.getItem('activeBranch');
         
-        // Wait for layout effect to set a branch if none is active
         if (!activeBranchId) {
           const branchesCollection = collection(db, 'gyms', userDocId, 'branches');
           const branchesSnap = await getDocs(branchesCollection);
@@ -116,6 +116,8 @@ export default function OwnerDashboardPage() {
             localStorage.setItem('activeBranch', activeBranchId);
           }
         }
+        
+        setQrValue(JSON.stringify({ gymId: userDocId, branchId: activeBranchId }));
 
         if (!activeBranchId) {
             setGymData({
@@ -209,12 +211,10 @@ export default function OwnerDashboardPage() {
             const paymentsQuery = query(collection(memberDoc.ref, 'payments'), orderBy('paymentDate', 'desc'));
             const paymentsSnap = await getDocs(paymentsQuery);
 
-            let hasOutstandingBalance = false;
             if (!paymentsSnap.empty) {
                 const latestPayment = paymentsSnap.docs[0].data();
                 if (latestPayment.balanceDue > 0) {
                     totalPendingDues += latestPayment.balanceDue;
-                    hasOutstandingBalance = true;
                 }
             }
 
@@ -255,7 +255,7 @@ export default function OwnerDashboardPage() {
           trainers: trainersData,
           upcomingExpiries: upcomingExpiries,
           upcomingExpiriesTotal: upcomingExpiriesTotal,
-          todaysCheckIns: 0, // Needs attendance data
+          todaysCheckIns: 0,
           newTrialMembers: newTrialMembers,
           runningOffers: gym.runningOffers || [],
           multiBranch: gym.multiBranch || false,
@@ -275,19 +275,10 @@ export default function OwnerDashboardPage() {
     
     fetchData();
 
-    // Set up a timeout to refetch data at midnight
     const now = new Date();
-    const night = new Date(
-      now.getFullYear(),
-      now.getMonth(),
-      now.getDate() + 1, // the next day
-      0, 0, 0 // at 00:00:00
-    );
+    const night = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 0, 0, 0);
     const msToMidnight = night.getTime() - now.getTime();
-
-    const timeoutId = setTimeout(() => {
-        fetchData();
-    }, msToMidnight);
+    const timeoutId = setTimeout(fetchData, msToMidnight);
 
     return () => clearTimeout(timeoutId);
 
@@ -319,6 +310,19 @@ export default function OwnerDashboardPage() {
         toast({ title: "Error", description: "Could not send announcement.", variant: "destructive"});
     }
   }
+  
+  const handleDownloadQr = () => {
+    const canvas = document.getElementById('qr-code-canvas') as HTMLCanvasElement;
+    if (canvas) {
+      const pngUrl = canvas.toDataURL("image/png").replace("image/png", "image/octet-stream");
+      let downloadLink = document.createElement("a");
+      downloadLink.href = pngUrl;
+      downloadLink.download = `${gymData?.activeBranchName || 'gym'}-qr-code.png`;
+      document.body.appendChild(downloadLink);
+      downloadLink.click();
+      document.body.removeChild(downloadLink);
+    }
+  };
 
 
   if (loading) {
@@ -360,6 +364,7 @@ export default function OwnerDashboardPage() {
 
   return (
     <ScrollArea className="h-screen bg-background">
+    <Dialog open={isQrDialogOpen} onOpenChange={setIsQrDialogOpen}>
       <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
         {gymData.isTrial && (
             <Alert variant="destructive" className="mb-4">
@@ -373,9 +378,12 @@ export default function OwnerDashboardPage() {
         <div className="flex items-center justify-between space-y-2">
           <h2 className="text-3xl font-bold tracking-tight">{gymData.activeBranchName || 'Trial Dashboard'}</h2>
           <div className="flex items-center space-x-2">
-            <Button variant="outline">
-                <Bell className="h-4 w-4" />
-            </Button>
+            <DialogTrigger asChild>
+                <Button>
+                    <QrCode className="mr-2 h-4 w-4"/>
+                    Show QR Code
+                </Button>
+            </DialogTrigger>
           </div>
         </div>
         
@@ -697,8 +705,36 @@ export default function OwnerDashboardPage() {
             </Dialog>
         </div>
       </div>
+      <DialogContent>
+        <DialogHeader>
+            <DialogTitle>Branch Attendance QR Code</DialogTitle>
+            <DialogDescription>
+                Members can scan this code with their app to mark their attendance.
+            </DialogDescription>
+        </DialogHeader>
+        <div className="flex flex-col items-center justify-center gap-6 py-4">
+            <div className="bg-white p-4 rounded-2xl shadow-md">
+                {qrValue ? (
+                    <QRCode
+                    id="qr-code-canvas"
+                    value={qrValue}
+                    size={200}
+                    level={"H"}
+                    includeMargin={true}
+                    />
+                ) : (
+                    <div className="h-[200px] w-[200px] bg-muted rounded-md flex items-center justify-center">
+                    <p className="text-muted-foreground">Could not generate QR code.</p>
+                    </div>
+                )}
+            </div>
+            <Button onClick={handleDownloadQr} disabled={!qrValue} className="bg-indigo-500 hover:bg-indigo-600 text-white rounded-xl px-4 py-2">
+                <Download className="mr-2 h-4 w-4" />
+                Download QR
+            </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
     </ScrollArea>
   );
 }
-
-    

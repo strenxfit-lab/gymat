@@ -5,12 +5,12 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { CalendarCheck, Tags, IndianRupee, Percent, ShieldCheck, User, LogOut, Bell, Building, Cake, Clock, Loader2, MessageSquare, Utensils, Users as UsersIcon, Megaphone } from "lucide-react";
+import { CalendarCheck, Tags, IndianRupee, Percent, ShieldCheck, User, LogOut, Bell, Building, Cake, Clock, Loader2, MessageSquare, Utensils, Users as UsersIcon, Megaphone, QrCode } from "lucide-react";
 import Link from 'next/link';
 import { collection, getDocs, query, where, Timestamp, doc, getDoc, collectionGroup, orderBy } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { Badge } from '@/components/ui/badge';
-import { format, parseISO, isBefore, isWithinInterval, addDays } from 'date-fns';
+import { format, parseISO, isBefore, isWithinInterval, addDays, isToday } from 'date-fns';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
@@ -71,6 +71,7 @@ export default function MemberDashboard() {
     const [hasNotification, setHasNotification] = useState(false);
     const [birthdayMessage, setBirthdayMessage] = useState<string | null>(null);
     const [memberName, setMemberName] = useState<string | null>(null);
+    const [isCheckedIn, setIsCheckedIn] = useState(false);
     const router = useRouter();
 
     useEffect(() => {
@@ -79,6 +80,11 @@ export default function MemberDashboard() {
         const memberId = localStorage.getItem('memberId');
         const name = localStorage.getItem('userName');
         setMemberName(name);
+
+        const lastCheckIn = localStorage.getItem('lastCheckIn');
+        if (lastCheckIn && isToday(new Date(lastCheckIn))) {
+            setIsCheckedIn(true);
+        }
 
         if (!userDocId || !activeBranchId || !memberId) {
             setLoading(false);
@@ -240,6 +246,20 @@ export default function MemberDashboard() {
         
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <div className="lg:col-span-2 space-y-6">
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Scan to Check In</CardTitle>
+                        <CardDescription>Mark your attendance by scanning the gym's QR code.</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                         <Link href="/dashboard/attendance" passHref>
+                            <Button size="lg" className="w-full" disabled={isCheckedIn}>
+                                {isCheckedIn ? 'Checked In for Today' : 'Check In Now'}
+                                {!isCheckedIn && <QrCode className="w-4 h-4 ml-2" />}
+                            </Button>
+                        </Link>
+                    </CardContent>
+                </Card>
                 <Card>
                     <CardHeader>
                         <CardTitle>My Schedule</CardTitle>
