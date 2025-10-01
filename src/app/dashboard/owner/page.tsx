@@ -9,7 +9,7 @@ import { db } from '@/lib/firebase';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Bell, Building, Calendar, DollarSign, PlusCircle, Send, Users, UserPlus, TrendingUp, AlertCircle, Sparkles, LifeBuoy, BarChart3, IndianRupee, Mail, Phone, Loader2, Star, ClockIcon, BellRing, QrCode, Download } from 'lucide-react';
+import { Bell, Building, Calendar, DollarSign, PlusCircle, Send, Users, UserPlus, TrendingUp, AlertCircle, Sparkles, LifeBuoy, BarChart3, IndianRupee, Mail, Phone, Loader2, Star, ClockIcon, BellRing, QrCode, Download, Shield } from 'lucide-react';
 import { ResponsiveContainer, BarChart, XAxis, YAxis, Tooltip, Bar, Legend } from 'recharts';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
@@ -63,6 +63,9 @@ interface GymData {
   activeBranchName?: string | null;
   isTrial?: boolean;
   trialKey?: string;
+  membershipType?: string;
+  price?: number;
+  expiry_at?: Date;
 }
 
 const announcementSchema = z.object({
@@ -142,6 +145,9 @@ export default function OwnerDashboardPage() {
               activeBranchName: null,
               isTrial: gym.isTrial,
               trialKey: gym.trialKey,
+              membershipType: gym.membershipType,
+              price: gym.price,
+              expiry_at: (gym.expiry_at as Timestamp)?.toDate(),
             });
             setLoading(false);
             return;
@@ -262,6 +268,9 @@ export default function OwnerDashboardPage() {
           multiBranch: gym.multiBranch || false,
           activeBranchName: branchName,
           isTrial: gym.isTrial,
+          membershipType: gym.membershipType,
+          price: gym.price,
+          expiry_at: (gym.expiry_at as Timestamp)?.toDate(),
         };
 
         setGymData(data);
@@ -503,7 +512,7 @@ export default function OwnerDashboardPage() {
         </div>
 
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
-          <Card className="col-span-4">
+          <Card className="col-span-full lg:col-span-4">
              <CardHeader>
                 <CardTitle className="flex items-center">
                     <Building className="mr-2"/>
@@ -554,7 +563,7 @@ export default function OwnerDashboardPage() {
         </div>
 
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
-            <Card className="col-span-4">
+            <Card className="col-span-full lg:col-span-4">
                 <CardHeader>
                     <CardTitle className="flex items-center">
                         <BarChart3 className="mr-2"/>
@@ -615,7 +624,31 @@ export default function OwnerDashboardPage() {
             </Card>
         </div>
         
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-2">
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            <Card>
+                <CardHeader>
+                    <CardTitle className="flex items-center">
+                        <Shield className="mr-2"/>
+                        Plan Details
+                    </CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <div className="space-y-3">
+                        <div>
+                            <p className="text-sm font-medium text-muted-foreground">Membership Type</p>
+                            <p className="text-lg font-bold capitalize">{gymData.membershipType || 'N/A'}</p>
+                        </div>
+                         <div>
+                            <p className="text-sm font-medium text-muted-foreground">Price</p>
+                            <p className="text-lg font-bold">₹{gymData.price?.toLocaleString() || 'N/A'}</p>
+                        </div>
+                        <div>
+                            <p className="text-sm font-medium text-muted-foreground">Expires On</p>
+                            <p className="text-lg font-bold">{gymData.expiry_at ? gymData.expiry_at.toLocaleDateString() : 'N/A'}</p>
+                        </div>
+                    </div>
+                </CardContent>
+            </Card>
             <Card>
                 <CardHeader>
                     <CardTitle className="flex items-center">
@@ -641,7 +674,7 @@ export default function OwnerDashboardPage() {
                     {gymData.trainers.length === 0 && <p className="text-muted-foreground text-sm">No trainers added.</p>}
                 </CardContent>
             </Card>
-            <Card>
+             <Card>
                 <CardHeader>
                     <CardTitle className="flex items-center">
                         <Sparkles className="mr-2"/>
