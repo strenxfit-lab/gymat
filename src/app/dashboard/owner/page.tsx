@@ -24,6 +24,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import QRCode from 'qrcode.react';
 import { ThemeToggle } from '@/components/theme-toggle';
+import { differenceInDays } from 'date-fns';
 
 
 interface Member {
@@ -81,6 +82,7 @@ export default function OwnerDashboardPage() {
   const [isAnnouncementDialogOpen, setIsAnnouncementDialogOpen] = useState(false);
   const [isQrDialogOpen, setIsQrDialogOpen] = useState(false);
   const [qrValue, setQrValue] = useState('');
+  const [showRenewalAlert, setShowRenewalAlert] = useState(false);
   const router = useRouter();
   const { toast } = useToast();
 
@@ -123,6 +125,15 @@ export default function OwnerDashboardPage() {
         
         setQrValue(JSON.stringify({ gymId: userDocId, branchId: activeBranchId }));
 
+        const now = new Date();
+        const expiryAt = (gym.expiry_at as Timestamp)?.toDate();
+        if (expiryAt) {
+            const daysUntilExpiry = differenceInDays(expiryAt, now);
+            if (daysUntilExpiry <= 7 && daysUntilExpiry >= 0) {
+                setShowRenewalAlert(true);
+            }
+        }
+
         if (!activeBranchId) {
             setGymData({
               name: gym.name || 'Your Gym',
@@ -147,7 +158,7 @@ export default function OwnerDashboardPage() {
               trialKey: gym.trialKey,
               membershipType: gym.membershipType,
               price: gym.price,
-              expiry_at: (gym.expiry_at as Timestamp)?.toDate(),
+              expiry_at: expiryAt,
             });
             setLoading(false);
             return;
@@ -163,7 +174,6 @@ export default function OwnerDashboardPage() {
         const trainersRef = collection(db, 'gyms', userDocId, 'branches', activeBranchId, 'trainers');
         const trainersSnap = await getDocs(trainersRef);
 
-        const now = new Date();
         const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
         const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
         const sevenDaysFromNow = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
@@ -270,7 +280,7 @@ export default function OwnerDashboardPage() {
           isTrial: gym.isTrial,
           membershipType: gym.membershipType,
           price: gym.price,
-          expiry_at: (gym.expiry_at as Timestamp)?.toDate(),
+          expiry_at: expiryAt,
         };
 
         setGymData(data);
@@ -376,7 +386,17 @@ export default function OwnerDashboardPage() {
     <ScrollArea className="h-screen bg-background">
     <Dialog open={isQrDialogOpen} onOpenChange={setIsQrDialogOpen}>
       <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
-        {gymData.isTrial && (
+        {showRenewalAlert && (
+            <Alert variant="destructive" className="mb-4">
+                <ClockIcon className="h-4 w-4" />
+                <AlertTitle>Your Plan is Expiring Soon!</AlertTitle>
+                <AlertDescription className="flex justify-between items-center">
+                    <span>Please renew your plan to continue using all features without interruption.</span>
+                    <Button variant="outline" size="sm" onClick={() => setIsSupportDialogOpen(true)}>Renew Now</Button>
+                </AlertDescription>
+            </Alert>
+        )}
+        {gymData.isTrial && !showRenewalAlert && (
             <Alert variant="destructive" className="mb-4">
                 <ClockIcon className="h-4 w-4" />
                 <AlertTitle>Trial Period Active</AlertTitle>
@@ -773,3 +793,5 @@ export default function OwnerDashboardPage() {
     </ScrollArea>
   );
 }
+
+    
