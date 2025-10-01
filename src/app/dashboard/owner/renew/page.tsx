@@ -8,7 +8,7 @@ import { db } from '@/lib/firebase';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Loader2, ArrowLeft, Shield, Calendar, IndianRupee, Phone, Mail } from 'lucide-react';
+import { Loader2, ArrowLeft, Shield, Check, IndianRupee, Phone, Mail } from 'lucide-react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 
 interface SubscriptionPlan {
@@ -16,6 +16,7 @@ interface SubscriptionPlan {
   name: string;
   duration: string;
   price: number;
+  Benefits: string[];
 }
 
 export default function RenewPage() {
@@ -73,11 +74,19 @@ export default function RenewPage() {
                     </div>
                 </div>
               </CardHeader>
-              <CardContent className="flex-grow">
+              <CardContent className="flex-grow space-y-4">
                 <p className="text-4xl font-bold flex items-center">
                   <IndianRupee className="h-7 w-7 mr-1"/>
                   {plan.price.toLocaleString()}
                 </p>
+                <ul className="space-y-2 text-sm text-muted-foreground">
+                    {plan.Benefits?.map((benefit, index) => (
+                        <li key={index} className="flex items-center gap-2">
+                            <Check className="h-4 w-4 text-primary"/>
+                            <span>{benefit}</span>
+                        </li>
+                    ))}
+                </ul>
               </CardContent>
               <CardContent>
                  <DialogTrigger asChild>
@@ -115,4 +124,3 @@ export default function RenewPage() {
     </Dialog>
   );
 }
-
