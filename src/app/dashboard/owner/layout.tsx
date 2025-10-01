@@ -20,7 +20,7 @@ import {
   SidebarGroup,
   SidebarGroupLabel,
 } from '@/components/ui/sidebar';
-import { Dumbbell, Users, CreditCard, ClipboardList, BarChart3, Megaphone, Boxes, ChevronDown, Info, Mail, Phone, Building, UserCheck, LogOut, MessageSquare, CalendarCheck, CheckSquare, Clock } from 'lucide-react';
+import { Dumbbell, Users, CreditCard, ClipboardList, BarChart3, Megaphone, Boxes, ChevronDown, Info, Mail, Phone, Building, UserCheck, LogOut, MessageSquare, CalendarCheck, CheckSquare, Clock, KeyRound } from 'lucide-react';
 import { doc, getDoc, collection, getDocs, Timestamp, query, where } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -226,6 +226,13 @@ export default function OwnerDashboardLayout({
                     )}
                 </SidebarMenuItem>
                 <SidebarMenuItem>
+                    <Link href="/dashboard/owner/change-password" passHref>
+                        <SidebarMenuButton>
+                            <div className="flex items-center gap-2"><KeyRound /> Change Password</div>
+                        </SidebarMenuButton>
+                    </Link>
+                </SidebarMenuItem>
+                <SidebarMenuItem>
                     <SidebarMenuButton onClick={() => toggleSubMenu('member')} className="justify-between">
                         <div className="flex items-center gap-2"><Users /> Member Management</div>
                         <ChevronDown className={`transition-transform duration-200 ${openSubMenu === 'member' ? 'rotate-180' : ''}`} />
@@ -363,3 +370,5 @@ export default function OwnerDashboardLayout({
     </SidebarProvider>
   );
 }
+
+    
