@@ -27,7 +27,11 @@ interface FoundUser {
     userData: DocumentData;
 }
 
-export default function LoginForm() {
+interface LoginFormProps {
+    onExpired?: (gymId: string) => void;
+}
+
+export default function LoginForm({ onExpired }: LoginFormProps) {
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
   const router = useRouter();
@@ -54,6 +58,13 @@ export default function LoginForm() {
         const userData = userDoc.data();
 
         if (userData.password === values.password) {
+            const expiry = (userData.expiry_at as Timestamp)?.toDate();
+            if (expiry && expiry < new Date()) {
+                if (onExpired) onExpired(userDoc.id);
+                setIsLoading(false);
+                return;
+            }
+
             localStorage.setItem('userDocId', userDoc.id);
             localStorage.setItem('userRole', userData.role);
             toast({ title: 'Welcome!', description: "You have been successfully logged in." });
@@ -136,7 +147,7 @@ export default function LoginForm() {
                       router.push('/dashboard/owner');
                       return;
                   } else {
-                      toast({ title: 'Trial Expired', description: 'Your trial period has ended.', variant: 'destructive' });
+                      if (onExpired) onExpired(trialData.gymId);
                       setIsLoading(false);
                       return;
                   }

@@ -121,9 +121,6 @@ export default function OwnerDashboardLayout({
 
         if (gymSnap.exists()) {
             const gymData = gymSnap.data();
-            if (gymData.multiBranch) {
-                setHasMultiBranch(true);
-            }
             
             let expirationDate: Date | null = null;
             let planTier: string | null = null;
@@ -152,9 +149,16 @@ export default function OwnerDashboardLayout({
                 planTier = gymData.tier;
             }
 
-
             if (expirationDate) {
+                 if (expirationDate < new Date()) {
+                    handleLogout();
+                    return;
+                }
                 setTierInfo({ expiresAt: expirationDate, tier: planTier });
+            }
+
+            if (gymData.multiBranch) {
+                setHasMultiBranch(true);
             }
 
             const branchesCollection = collection(db, 'gyms', userDocId, 'branches');
@@ -178,7 +182,11 @@ export default function OwnerDashboardLayout({
               localStorage.removeItem('activeBranch');
               setActiveBranchName(null);
             }
+        } else {
+             handleLogout(); // Gym doc doesn't exist, log out
         }
+      } else {
+          handleLogout(); // No userDocId, log out
       }
     };
     fetchGymData();
@@ -193,6 +201,7 @@ export default function OwnerDashboardLayout({
         if (diff <= 0) {
           setTimeLeft("Expired");
           clearInterval(intervalId);
+          handleLogout();
           return;
         }
         
