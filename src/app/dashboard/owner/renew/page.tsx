@@ -10,6 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button";
 import { Loader2, ArrowLeft, Shield, Check, IndianRupee, Phone, Mail } from 'lucide-react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Badge } from '@/components/ui/badge';
 
 interface SubscriptionPlan {
   id: string;
@@ -18,6 +19,8 @@ interface SubscriptionPlan {
   price: number;
   Benefits: string[];
 }
+
+const bestSellingPlanIds = ["6 Month Plan", "3 Month Plan Multi", "1 Year Plan Multi", "1 Year Plan"];
 
 export default function RenewPage() {
   const [plans, setPlans] = useState<SubscriptionPlan[]>([]);
@@ -64,7 +67,10 @@ export default function RenewPage() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {plans.length > 0 ? (
           plans.map(plan => (
-            <Card key={plan.id} className="flex flex-col">
+            <Card key={plan.id} className="flex flex-col relative">
+              {bestSellingPlanIds.includes(plan.id) && (
+                <Badge className="absolute -top-3 right-4">Best Selling</Badge>
+              )}
               <CardHeader>
                 <div className="flex items-center gap-3">
                     <Shield className="h-8 w-8 text-primary"/>
