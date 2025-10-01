@@ -4,7 +4,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { doc, getDoc, collection, getDocs, Timestamp, query, orderBy, limit, where, addDoc } from 'firebase/firestore';
+import { doc, getDoc, collection, getDocs, Timestamp, query, orderBy, limit, where, addDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -23,6 +23,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { Textarea } from '@/components/ui/textarea';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import QRCode from 'qrcode.react';
+import { ThemeToggle } from '@/components/theme-toggle';
 
 
 interface Member {
@@ -378,6 +379,7 @@ export default function OwnerDashboardPage() {
         <div className="flex items-center justify-between space-y-2">
           <h2 className="text-3xl font-bold tracking-tight">{gymData.activeBranchName || 'Trial Dashboard'}</h2>
           <div className="flex items-center space-x-2">
+            <ThemeToggle />
             <DialogTrigger asChild>
                 <Button>
                     <QrCode className="mr-2 h-4 w-4"/>
@@ -738,5 +740,3 @@ export default function OwnerDashboardPage() {
     </ScrollArea>
   );
 }
-
-    
