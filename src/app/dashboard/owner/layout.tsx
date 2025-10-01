@@ -24,12 +24,14 @@ import { Button } from '@/components/ui/button';
 import { addMonths, addYears } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { ThemeToggle } from '@/components/theme-toggle';
+import * as React from 'react';
 
 
 const SubMenu = ({ children, title, icon, isOpen, onToggle }: { children: React.ReactNode, title: string, icon: React.ReactNode, isOpen: boolean, onToggle: () => void }) => {
   const pathname = usePathname();
   const isActive = React.Children.toArray(children).some(child => {
       if (React.isValidElement(child) && child.props.href) {
+        // @ts-ignore
         return pathname === child.props.href;
       }
       return false;
@@ -272,7 +274,7 @@ export default function OwnerDashboardLayout({
 
              <SubMenu title="Financial" icon={<CreditCard />} isOpen={openSubMenu === 'financial'} onToggle={() => toggleSubMenu('financial')}>
                 <SubMenuItem href="/dashboard/owner/add-payment">Collect Fee</SubMenuItem>
-                <SubMenuItem href="/dashboard/owner/revenue-reports">Revenue Reports</Sub_MenuItem>
+                <SubMenuItem href="/dashboard/owner/revenue-reports">Revenue Reports</SubMenuItem>
                 <SubMenuItem href="/dashboard/owner/expenses">Expenses</SubMenuItem>
             </SubMenu>
 
@@ -299,6 +301,7 @@ export default function OwnerDashboardLayout({
                 <SubMenuItem href="/dashboard/owner/gym-info/membership-plans">Membership Plans</SubMenuItem>
                 <SubMenuItem href="/dashboard/owner/gym-info/facilities">Facilities</SubMenuItem>
             </SubMenu>
+            <MenuItem href="/dashboard/owner/change-password" icon={<KeyRound />}>Change Password</MenuItem>
 
           </SidebarMenu>
         </SidebarContent>
