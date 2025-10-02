@@ -5,12 +5,12 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { CalendarCheck, Tags, IndianRupee, Percent, ShieldCheck, User, LogOut, Bell, Building, Cake, Clock, Loader2, MessageSquare, Utensils, Users as UsersIcon, Megaphone, QrCode } from "lucide-react";
+import { CalendarCheck, Tags, IndianRupee, Percent, ShieldCheck, User, LogOut, Bell, Building, Cake, Clock, Loader2, MessageSquare, Utensils, Users as UsersIcon, Megaphone, QrCode, CreditCard } from "lucide-react";
 import Link from 'next/link';
 import { collection, getDocs, query, where, Timestamp, doc, getDoc, collectionGroup, orderBy } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { Badge } from '@/components/ui/badge';
-import { format, parseISO, isBefore, isWithinInterval, addDays, isToday } from 'date-fns';
+import { format, parseISO, isBefore, isWithinInterval, addDays, isToday, differenceInDays } from 'date-fns';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { ThemeToggle } from '@/components/theme-toggle';
@@ -45,6 +45,11 @@ interface Announcement {
     createdAt: Date;
 }
 
+interface MembershipStatus {
+    status: 'Active' | 'Expired' | 'Expiring Soon';
+    daysLeft: number;
+}
+
 
 const membershipPlans = [
     { id: "monthly", label: "Monthly" },
@@ -68,6 +73,7 @@ export default function MemberDashboard() {
     const [equipment, setEquipment] = useState<Equipment[]>([]);
     const [bookedClasses, setBookedClasses] = useState<BookedClass[]>([]);
     const [announcements, setAnnouncements] = useState<Announcement[]>([]);
+    const [membershipStatus, setMembershipStatus] = useState<MembershipStatus | null>(null);
     const [loading, setLoading] = useState(true);
     const [hasNotification, setHasNotification] = useState(false);
     const [birthdayMessage, setBirthdayMessage] = useState<string | null>(null);
@@ -157,10 +163,14 @@ export default function MemberDashboard() {
                     const memberData = memberSnap.data();
                     const endDate = (memberData.endDate as Timestamp)?.toDate();
                     if (endDate) {
-                        const sevenDaysFromNow = addDays(now, 7);
-                        if (isWithinInterval(endDate, { start: now, end: sevenDaysFromNow })) {
-                            setHasNotification(true);
+                        const daysLeft = differenceInDays(endDate, now);
+                        let status: MembershipStatus['status'] = 'Active';
+                        if (daysLeft < 0) {
+                            status = 'Expired';
+                        } else if (daysLeft <= 7) {
+                            status = 'Expiring Soon';
                         }
+                        setMembershipStatus({ status, daysLeft });
                     }
 
                     const dob = (memberData.dob as Timestamp)?.toDate();
@@ -187,6 +197,20 @@ export default function MemberDashboard() {
         localStorage.clear();
         router.push('/');
     };
+    
+  const getStatusProps = (status: MembershipStatus['status'] | undefined) => {
+    switch (status) {
+      case 'Active':
+        return { variant: 'default', text: 'Active' };
+      case 'Expiring Soon':
+        return { variant: 'secondary', text: 'Expiring Soon' };
+      case 'Expired':
+        return { variant: 'destructive', text: 'Expired' };
+      default:
+        return { variant: 'outline', text: 'Unknown' };
+    }
+  };
+  const statusProps = getStatusProps(membershipStatus?.status);
 
   return (
     <div className="flex min-h-screen items-start justify-center bg-background p-4 sm:p-8">
@@ -247,20 +271,46 @@ export default function MemberDashboard() {
         
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <div className="lg:col-span-3 space-y-6">
-                <Card>
-                    <CardHeader>
-                        <CardTitle>Scan to Check In</CardTitle>
-                        <CardDescription>Mark your attendance by scanning the gym's QR code.</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                         <Link href="/dashboard/attendance" passHref>
-                            <Button size="lg" className="w-full" disabled={isCheckedIn}>
-                                {isCheckedIn ? 'Checked In for Today' : 'Check In Now'}
-                                {!isCheckedIn && <QrCode className="w-4 h-4 ml-2" />}
-                            </Button>
-                        </Link>
-                    </CardContent>
-                </Card>
+                <div className="grid md:grid-cols-2 gap-6">
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Scan to Check In</CardTitle>
+                            <CardDescription>Mark your attendance by scanning the gym's QR code.</CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            <Link href="/dashboard/attendance" passHref>
+                                <Button size="lg" className="w-full" disabled={isCheckedIn}>
+                                    {isCheckedIn ? 'Checked In for Today' : 'Check In Now'}
+                                    {!isCheckedIn && <QrCode className="w-4 h-4 ml-2" />}
+                                </Button>
+                            </Link>
+                        </CardContent>
+                    </Card>
+                    {membershipStatus && (
+                        <Card>
+                            <CardHeader>
+                                <CardTitle>Membership Status</CardTitle>
+                                <CardDescription>Your current subscription details.</CardDescription>
+                            </CardHeader>
+                            <CardContent className="flex flex-col items-start justify-between h-full">
+                                <div className="flex justify-between items-center w-full mb-4">
+                                     <div>
+                                        <Badge variant={statusProps.variant}>{statusProps.text}</Badge>
+                                        <p className="text-2xl font-bold mt-1">
+                                            {membershipStatus.daysLeft > 0 ? `${membershipStatus.daysLeft} days left` : 'Expired'}
+                                        </p>
+                                    </div>
+                                    <Link href="/dashboard/member/renew" passHref>
+                                        <Button>
+                                            <CreditCard className="w-4 h-4 mr-2" />
+                                            Renew
+                                        </Button>
+                                    </Link>
+                                </div>
+                            </CardContent>
+                        </Card>
+                    )}
+                </div>
                 <Card>
                     <CardHeader>
                         <CardTitle>My Schedule</CardTitle>
