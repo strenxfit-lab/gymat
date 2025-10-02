@@ -13,7 +13,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSepara
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { differenceInYears, parseISO } from 'date-fns';
+import { differenceInYears, parseISO, isWithinInterval } from 'date-fns';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { useForm } from 'react-hook-form';
@@ -175,11 +175,12 @@ export default function TrainerDashboardPage() {
         const now = new Date();
         const oneDayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
         const announcementsRef = collection(db, 'gyms', userDocId, 'branches', activeBranchId, 'announcements');
-        const qAnnouncements = query(announcementsRef, where("createdAt", ">=", Timestamp.fromDate(oneDayAgo)), orderBy("createdAt", "desc"));
+        const qAnnouncements = query(announcementsRef, where("audience", "in", ["all", "trainers"]), orderBy("createdAt", "desc"));
         const announcementsSnap = await getDocs(qAnnouncements);
+        
         const announcementsList = announcementsSnap.docs
-            .map(doc => ({ id: doc.id, ...doc.data() } as Announcement))
-            .filter(a => a.audience === 'all' || a.audience === 'trainers');
+            .map(doc => ({ id: doc.id, ...doc.data(), createdAt: (doc.data().createdAt as Timestamp).toDate() } as Announcement))
+            .filter(a => a.createdAt >= oneDayAgo);
         setAnnouncements(announcementsList);
         
         // Fetch Trainer Offers
@@ -188,7 +189,7 @@ export default function TrainerDashboardPage() {
         const offersSnap = await getDocs(qOffers);
         const offersList = offersSnap.docs
             .map(doc => ({ id: doc.id, ...doc.data() } as TrainerOffer))
-            .filter(offer => parseISO((offer.startDate as unknown) as string) <= now);
+            .filter(offer => isWithinInterval(now, {start: parseISO((offer.startDate as unknown) as string), end: parseISO((offer.endDate as unknown) as string)}));
         setOffers(offersList);
 
 
