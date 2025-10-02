@@ -114,6 +114,33 @@ export default function MembershipPlansPage() {
       setIsLoading(false);
     }
   };
+
+  const handleConfirmAndUse = () => {
+    const monthlyFeeValue = form.getValues('monthlyFee');
+    if (!monthlyFeeValue || Number(monthlyFeeValue) <= 0) {
+      toast({ title: 'Invalid Fee', description: 'Please enter a valid monthly fee first.', variant: 'destructive' });
+      return;
+    }
+    
+    const fee = Number(monthlyFeeValue);
+    const suggestedPlans = [
+      { name: 'Monthly', price: fee.toString() },
+      { name: 'Quarterly', price: (fee * 3).toString() },
+      { name: 'Yearly', price: (fee * 12).toString() },
+    ];
+    
+    replace(suggestedPlans);
+    form.setValue('hasPlans', 'yes');
+  };
+
+  const handleEditManually = () => {
+    form.setValue('hasPlans', 'yes');
+    replace([{ name: '', price: '' }]); // Start with one blank plan
+  };
+  
+  const handleCancelSuggestion = () => {
+    form.setValue('monthlyFee', '');
+  };
   
   if(isFetching) {
     return (
@@ -177,9 +204,9 @@ export default function MembershipPlansPage() {
                             <p><strong>Yearly:</strong> ₹{(Number(form.getValues('monthlyFee') || 0) * 12).toLocaleString()}</p>
                           </CardContent>
                           <CardFooter className="flex gap-2">
-                            <Button type="button" size="sm">Confirm &amp; Use</Button>
-                            <Button type="button" variant="outline" size="sm">Edit</Button>
-                            <Button type="button" variant="ghost" size="sm">Cancel</Button>
+                            <Button type="button" size="sm" onClick={handleConfirmAndUse}>Confirm &amp; Use</Button>
+                            <Button type="button" variant="outline" size="sm" onClick={handleEditManually}>Edit Manually</Button>
+                            <Button type="button" variant="ghost" size="sm" onClick={handleCancelSuggestion}>Cancel</Button>
                           </CardFooter>
                       </Card>
                     )}
