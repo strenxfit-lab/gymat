@@ -12,6 +12,7 @@ import { Loader2, ArrowLeft, Users, UserX, Clock, BarChart3, Calendar as Calenda
 import { ResponsiveContainer, BarChart, XAxis, YAxis, Tooltip, Bar, Legend } from 'recharts';
 import { subDays, format, eachDayOfInterval, startOfToday, endOfToday } from 'date-fns';
 import { Calendar } from "@/components/ui/calendar";
+import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 
 interface MonthlyChartData {
     name: string;
