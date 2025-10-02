@@ -5,7 +5,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { CalendarCheck, Tags, IndianRupee, Percent, ShieldCheck, User, LogOut, Bell, Building, Cake, Clock, Loader2, MessageSquare, Utensils, Users as UsersIcon, Megaphone, QrCode, CreditCard } from "lucide-react";
+import { CalendarCheck, Tags, IndianRupee, Percent, ShieldCheck, User, LogOut, Bell, Building, Cake, Clock, Loader2, MessageSquare, Utensils, Users as UsersIcon, Megaphone, QrCode, CreditCard, AlertCircle } from "lucide-react";
 import Link from 'next/link';
 import { collection, getDocs, query, where, Timestamp, doc, getDoc, collectionGroup, orderBy } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
@@ -215,25 +215,7 @@ export default function MemberDashboard() {
   return (
     <div className="flex min-h-screen items-start justify-center bg-background p-4 sm:p-8">
       <div className="w-full max-w-6xl space-y-8">
-        {announcements.length > 0 && (
-             <Alert>
-                <Megaphone className="h-4 w-4" />
-                <AlertTitle>Announcement</AlertTitle>
-                <AlertDescription>
-                    {announcements[0].message}
-                </AlertDescription>
-             </Alert>
-        )}
-        {birthdayMessage && (
-            <Alert className="border-amber-500 text-amber-700 bg-amber-50">
-                <Cake className="h-4 w-4 !text-amber-700" />
-                <AlertTitle className="text-amber-800 font-bold">Happy Birthday!</AlertTitle>
-                <AlertDescription className="text-amber-700">
-                   {birthdayMessage}
-                </AlertDescription>
-            </Alert>
-        )}
-
+        
         <div className="flex justify-between items-center">
           <div>
             <h1 className="text-3xl font-bold">Welcome {memberName}!</h1>
@@ -268,6 +250,37 @@ export default function MemberDashboard() {
             </DropdownMenu>
           </div>
         </div>
+
+        {membershipStatus?.status === 'Expiring Soon' && (
+             <Alert variant="destructive">
+                <AlertCircle className="h-4 w-4" />
+                <AlertTitle>Your membership is expiring soon!</AlertTitle>
+                <AlertDescription className="flex justify-between items-center">
+                    <span>You have {membershipStatus.daysLeft} days left. Renew now to avoid interruption.</span>
+                    <Link href="/dashboard/member/renew" passHref>
+                        <Button variant="outline" size="sm">Renew Now</Button>
+                    </Link>
+                </AlertDescription>
+             </Alert>
+        )}
+        {announcements.length > 0 && (
+             <Alert>
+                <Megaphone className="h-4 w-4" />
+                <AlertTitle>Announcement</AlertTitle>
+                <AlertDescription>
+                    {announcements[0].message}
+                </AlertDescription>
+             </Alert>
+        )}
+        {birthdayMessage && (
+            <Alert className="border-amber-500 text-amber-700 bg-amber-50">
+                <Cake className="h-4 w-4 !text-amber-700" />
+                <AlertTitle className="text-amber-800 font-bold">Happy Birthday!</AlertTitle>
+                <AlertDescription className="text-amber-700">
+                   {birthdayMessage}
+                </AlertDescription>
+            </Alert>
+        )}
         
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <div className="lg:col-span-3 space-y-6">
