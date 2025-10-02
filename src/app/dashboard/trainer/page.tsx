@@ -8,7 +8,7 @@ import { db } from '@/lib/firebase';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Loader2, User, LogOut, Building, Cake, MessageSquare, Wrench, Utensils, Megaphone, Clock, Tags, IndianRupee, Percent } from 'lucide-react';
+import { Loader2, User, LogOut, Building, Cake, MessageSquare, Wrench, Utensils, Megaphone, Clock, Tags, IndianRupee, Percent, QrCode } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
@@ -176,8 +176,7 @@ export default function TrainerDashboardPage() {
         const now = new Date();
         const oneDayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
         const announcementsRef = collection(db, 'gyms', userDocId, 'branches', activeBranchId, 'announcements');
-        const qAnnouncements = query(announcementsRef, orderBy("createdAt", "desc"));
-        const announcementsSnap = await getDocs(qAnnouncements);
+        const announcementsSnap = await getDocs(announcementsRef);
         
         const announcementsList = announcementsSnap.docs
             .map(doc => ({ id: doc.id, ...doc.data(), createdAt: (doc.data().createdAt as Timestamp).toDate() } as Announcement))
@@ -397,6 +396,19 @@ export default function TrainerDashboardPage() {
             <div className="md:col-span-1 space-y-4">
                 <Card>
                     <CardHeader>
+                        <CardTitle>Scan QR Code</CardTitle>
+                        <CardDescription>Mark attendance for yourself or a member.</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <Link href="/dashboard/attendance" passHref>
+                            <Button className="w-full justify-start">
+                                <QrCode className="mr-2 h-4 w-4"/> Scan to Check In
+                            </Button>
+                        </Link>
+                    </CardContent>
+                </Card>
+                <Card>
+                    <CardHeader>
                         <CardTitle>Quick Actions</CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-3">
@@ -439,4 +451,3 @@ export default function TrainerDashboardPage() {
   );
 }
 
-    
