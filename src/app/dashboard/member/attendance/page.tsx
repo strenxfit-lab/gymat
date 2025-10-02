@@ -12,7 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { DateRangePicker } from "@/components/ui/date-range-picker";
 import { Loader2, ArrowLeft, BarChart3 } from 'lucide-react';
-import { isSameDay, eachDayOfInterval, isWeekday, format } from 'date-fns';
+import { isSameDay, eachDayOfInterval, isWeekend, format } from 'date-fns';
 import { DateRange } from 'react-day-picker';
 
 interface AttendanceReport {
@@ -62,11 +62,11 @@ export default function MemberAttendancePage() {
         }
 
         const interval = eachDayOfInterval({ start: dateRange.from, end: dateRange.to });
-        const totalDays = interval.filter(day => isWeekday(day)).length; // Considering only weekdays
+        const totalDays = interval.filter(day => !isWeekend(day)).length; // Considering only weekdays
         let presentDays = 0;
 
         interval.forEach(day => {
-            if (isWeekday(day) && attendanceDates.some(attDate => isSameDay(day, attDate))) {
+            if (!isWeekend(day) && attendanceDates.some(attDate => isSameDay(day, attDate))) {
                 presentDays++;
             }
         });
