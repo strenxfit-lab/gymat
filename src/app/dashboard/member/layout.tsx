@@ -81,6 +81,7 @@ export default function MemberDashboardLayout({
             <MenuItem href="/dashboard/member/trainers" icon={<Users />}>View Trainers</MenuItem>
             <MenuItem href="/dashboard/member/diet-plan" icon={<Utensils />}>View Diet Plan</MenuItem>
             <MenuItem href="/dashboard/member/payment-history" icon={<IndianRupee />}>Payment History</MenuItem>
+            <MenuItem href="/dashboard/member/attendance" icon={<CheckSquare />}>Attendance</MenuItem>
             <MenuItem href="/dashboard/member/renew" icon={<CreditCard />}>Renew Membership</MenuItem>
             <MenuItem href="/dashboard/gym-profile" icon={<Building />}>Your Gym Profile</MenuItem>
             <MenuItem href="/dashboard/member/complaints" icon={<MessageSquare />}>Complaints</MenuItem>
