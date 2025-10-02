@@ -14,41 +14,69 @@ import { Button } from "@/components/ui/button";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Loader2, ArrowLeft, Banknote, Landmark, Hash, User } from 'lucide-react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
-const accountSchema = z.object({
+const bankAccountSchema = z.object({
   accountHolderName: z.string().min(1, 'Account holder name is required.'),
   accountNumber: z.string().min(1, 'Account number is required.'),
+  confirmAccountNumber: z.string().min(1, 'Please confirm account number.'),
   bankName: z.string().min(1, 'Bank name is required.'),
   ifscCode: z.string().min(1, 'IFSC code is required.'),
+}).refine(data => data.accountNumber === data.confirmAccountNumber, {
+    message: "Account numbers don't match.",
+    path: ["confirmAccountNumber"],
 });
 
-type AccountFormData = z.infer<typeof accountSchema>;
+const upiSchema = z.object({
+    upiId: z.string().min(1, 'UPI ID is required.'),
+    upiName: z.string().min(1, 'Name is required.'),
+});
+
+type BankAccountFormData = z.infer<typeof bankAccountSchema>;
+type UpiFormData = z.infer<typeof upiSchema>;
 
 export default function AccountDetailsPage() {
-  const [isLoading, setIsLoading] = useState(false);
+  const [bankLoading, setBankLoading] = useState(false);
+  const [upiLoading, setUpiLoading] = useState(false);
   const [isFetching, setIsFetching] = useState(true);
   const { toast } = useToast();
 
-  const form = useForm<AccountFormData>({
-    resolver: zodResolver(accountSchema),
+  const bankForm = useForm<BankAccountFormData>({
+    resolver: zodResolver(bankAccountSchema),
     defaultValues: {
       accountHolderName: '',
       accountNumber: '',
+      confirmAccountNumber: '',
       bankName: '',
       ifscCode: '',
     },
   });
 
+  const upiForm = useForm<UpiFormData>({
+      resolver: zodResolver(upiSchema),
+      defaultValues: { upiId: '', upiName: '' },
+  });
+
   useEffect(() => {
     const userDocId = localStorage.getItem('userDocId');
-    if (!userDocId) return;
+    if (!userDocId) {
+        setIsFetching(false);
+        return;
+    };
 
     const fetchAccountDetails = async () => {
       try {
-        const settlementRef = doc(db, 'gyms', userDocId, 'details', 'settlement');
-        const docSnap = await getDoc(settlementRef);
-        if (docSnap.exists()) {
-          form.reset(docSnap.data());
+        const bankRef = doc(db, 'gyms', userDocId, 'account_details', 'bankAccount');
+        const bankDocSnap = await getDoc(bankRef);
+        if (bankDocSnap.exists()) {
+            const data = bankDocSnap.data();
+            bankForm.reset({ ...data, confirmAccountNumber: data.accountNumber });
+        }
+
+        const upiRef = doc(db, 'gyms', userDocId, 'account_details', 'upi');
+        const upiDocSnap = await getDoc(upiRef);
+        if (upiDocSnap.exists()) {
+            upiForm.reset(upiDocSnap.data());
         }
       } catch (error) {
         console.error("Error fetching account details:", error);
@@ -58,29 +86,56 @@ export default function AccountDetailsPage() {
       }
     };
     fetchAccountDetails();
-  }, [toast, form]);
+  }, [toast, bankForm, upiForm]);
 
-  const onSubmit = async (data: AccountFormData) => {
-    setIsLoading(true);
+  const onBankSubmit = async (data: BankAccountFormData) => {
+    setBankLoading(true);
     const userDocId = localStorage.getItem('userDocId');
     if (!userDocId) {
         toast({ title: 'Error', description: 'Session expired.', variant: 'destructive' });
-        setIsLoading(false);
+        setBankLoading(false);
         return;
     }
     try {
-      const settlementRef = doc(db, 'gyms', userDocId, 'details', 'settlement');
-      await setDoc(settlementRef, data, { merge: true });
-      toast({ title: 'Success!', description: 'Your account details have been saved.' });
+      const { confirmAccountNumber, ...bankData } = data;
+      const bankRef = doc(db, 'gyms', userDocId, 'account_details', 'bankAccount');
+      await setDoc(bankRef, bankData, { merge: true });
+      toast({ title: 'Success!', description: 'Your bank account details have been saved.' });
     } catch (error) {
-      console.error('Error saving account details:', error);
-      toast({ title: 'Error', description: 'Could not save account details.', variant: 'destructive' });
+      console.error('Error saving bank details:', error);
+      toast({ title: 'Error', description: 'Could not save bank account details.', variant: 'destructive' });
     } finally {
-      setIsLoading(false);
+      setBankLoading(false);
     }
   };
   
-  const currentValues = form.watch();
+  const onUpiSubmit = async (data: UpiFormData) => {
+    setUpiLoading(true);
+    const userDocId = localStorage.getItem('userDocId');
+    if (!userDocId) {
+        toast({ title: 'Error', description: 'Session expired.', variant: 'destructive' });
+        setUpiLoading(false);
+        return;
+    }
+    try {
+      const upiRef = doc(db, 'gyms', userDocId, 'account_details', 'upi');
+      await setDoc(upiRef, data, { merge: true });
+      toast({ title: 'Success!', description: 'Your UPI details have been saved.' });
+    } catch (error) {
+      console.error('Error saving UPI details:', error);
+      toast({ title: 'Error', description: 'Could not save UPI details.', variant: 'destructive' });
+    } finally {
+      setUpiLoading(false);
+    }
+  }
+  
+  if (isFetching) {
+      return (
+        <div className="flex min-h-screen items-center justify-center bg-background">
+            <Loader2 className="h-8 w-8 animate-spin" />
+        </div>
+      );
+  }
 
   return (
     <div className="container mx-auto py-10">
@@ -93,47 +148,53 @@ export default function AccountDetailsPage() {
           <Button variant="outline"><ArrowLeft className="mr-2 h-4 w-4" />Back to Dashboard</Button>
         </Link>
       </div>
-
-      <div className="grid md:grid-cols-2 gap-8">
-        <Card>
-          <CardHeader>
-            <CardTitle>Update Account Details</CardTitle>
-            <CardDescription>Enter the bank account where you'd like to receive your payments.</CardDescription>
-          </CardHeader>
-          <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)}>
-              <CardContent className="space-y-4">
-                <FormField control={form.control} name="accountHolderName" render={({ field }) => ( <FormItem><FormLabel>Account Holder Name</FormLabel><FormControl><Input placeholder="John Doe" {...field} /></FormControl><FormMessage /></FormItem> )} />
-                <FormField control={form.control} name="accountNumber" render={({ field }) => ( <FormItem><FormLabel>Account Number</FormLabel><FormControl><Input placeholder="1234567890" {...field} /></FormControl><FormMessage /></FormItem> )} />
-                <FormField control={form.control} name="bankName" render={({ field }) => ( <FormItem><FormLabel>Bank Name</FormLabel><FormControl><Input placeholder="Federal Bank" {...field} /></FormControl><FormMessage /></FormItem> )} />
-                <FormField control={form.control} name="ifscCode" render={({ field }) => ( <FormItem><FormLabel>IFSC Code</FormLabel><FormControl><Input placeholder="FDRL0001234" {...field} /></FormControl><FormMessage /></FormItem> )} />
-              </CardContent>
-              <CardFooter>
-                <Button type="submit" disabled={isLoading}>
-                  {isLoading ? <Loader2 className="animate-spin" /> : 'Save Account Details'}
-                </Button>
-              </CardFooter>
-            </form>
-          </Form>
-        </Card>
-        
         <Card>
             <CardHeader>
-                <CardTitle>Current Account</CardTitle>
-                <CardDescription>This is the account currently on file for your settlements.</CardDescription>
+                <CardTitle>Payment Methods</CardTitle>
+                <CardDescription>Add or update your bank account or UPI details for settlements.</CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
-                {isFetching ? <Loader2 className="animate-spin"/> : (
-                <>
-                <div className="flex items-center gap-3"><User className="text-muted-foreground"/><p><strong>Name:</strong> {currentValues.accountHolderName || 'Not set'}</p></div>
-                <div className="flex items-center gap-3"><Banknote className="text-muted-foreground"/><p><strong>Account No:</strong> {currentValues.accountNumber || 'Not set'}</p></div>
-                <div className="flex items-center gap-3"><Landmark className="text-muted-foreground"/><p><strong>Bank:</strong> {currentValues.bankName || 'Not set'}</p></div>
-                <div className="flex items-center gap-3"><Hash className="text-muted-foreground"/><p><strong>IFSC:</strong> {currentValues.ifscCode || 'Not set'}</p></div>
-                </>
-                )}
+            <CardContent>
+                <Tabs defaultValue="bank">
+                    <TabsList className="grid w-full grid-cols-2">
+                        <TabsTrigger value="bank">Bank Account</TabsTrigger>
+                        <TabsTrigger value="upi">UPI Details</TabsTrigger>
+                    </TabsList>
+                    <TabsContent value="bank">
+                         <Form {...bankForm}>
+                            <form onSubmit={bankForm.handleSubmit(onBankSubmit)}>
+                            <CardContent className="space-y-4 pt-6">
+                                <FormField control={bankForm.control} name="accountHolderName" render={({ field }) => ( <FormItem><FormLabel>Account Holder Name</FormLabel><FormControl><Input placeholder="John Doe" {...field} /></FormControl><FormMessage /></FormItem> )} />
+                                <FormField control={bankForm.control} name="accountNumber" render={({ field }) => ( <FormItem><FormLabel>Account Number</FormLabel><FormControl><Input placeholder="1234567890" {...field} /></FormControl><FormMessage /></FormItem> )} />
+                                <FormField control={bankForm.control} name="confirmAccountNumber" render={({ field }) => ( <FormItem><FormLabel>Re-enter Account Number</FormLabel><FormControl><Input placeholder="1234567890" {...field} /></FormControl><FormMessage /></FormItem> )} />
+                                <FormField control={bankForm.control} name="bankName" render={({ field }) => ( <FormItem><FormLabel>Bank Name</FormLabel><FormControl><Input placeholder="Federal Bank" {...field} /></FormControl><FormMessage /></FormItem> )} />
+                                <FormField control={bankForm.control} name="ifscCode" render={({ field }) => ( <FormItem><FormLabel>IFSC Code</FormLabel><FormControl><Input placeholder="FDRL0001234" {...field} /></FormControl><FormMessage /></FormItem> )} />
+                            </CardContent>
+                            <CardFooter>
+                                <Button type="submit" disabled={bankLoading}>
+                                {bankLoading ? <Loader2 className="animate-spin" /> : 'Save Bank Details'}
+                                </Button>
+                            </CardFooter>
+                            </form>
+                        </Form>
+                    </TabsContent>
+                    <TabsContent value="upi">
+                         <Form {...upiForm}>
+                            <form onSubmit={upiForm.handleSubmit(onUpiSubmit)}>
+                            <CardContent className="space-y-4 pt-6">
+                                <FormField control={upiForm.control} name="upiId" render={({ field }) => ( <FormItem><FormLabel>UPI ID</FormLabel><FormControl><Input placeholder="johndoe@upi" {...field} /></FormControl><FormMessage /></FormItem> )} />
+                                <FormField control={upiForm.control} name="upiName" render={({ field }) => ( <FormItem><FormLabel>Registered Name</FormLabel><FormControl><Input placeholder="John Doe" {...field} /></FormControl><FormMessage /></FormItem> )} />
+                            </CardContent>
+                            <CardFooter>
+                                <Button type="submit" disabled={upiLoading}>
+                                {upiLoading ? <Loader2 className="animate-spin" /> : 'Save UPI Details'}
+                                </Button>
+                            </CardFooter>
+                            </form>
+                        </Form>
+                    </TabsContent>
+                </Tabs>
             </CardContent>
         </Card>
-      </div>
     </div>
   );
 }
