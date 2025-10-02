@@ -12,7 +12,7 @@ import {
   SidebarFooter,
   SidebarProvider,
 } from '@/components/ui/sidebar';
-import { Dumbbell, Users, CreditCard, ClipboardList, BarChart3, Megaphone, Boxes, Info, Mail, Phone, Building, UserCheck, LogOut, MessageSquare, CalendarCheck, CheckSquare, Clock, KeyRound, ChevronDown, IndianRupee } from 'lucide-react';
+import { Dumbbell, Users, CreditCard, ClipboardList, BarChart3, Megaphone, Boxes, Info, Mail, Phone, Building, UserCheck, LogOut, MessageSquare, CalendarCheck, CheckSquare, Clock, KeyRound, ChevronDown, IndianRupee, LifeBuoy } from 'lucide-react';
 import { doc, getDoc, collection, getDocs, Timestamp, query, where } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -99,7 +99,8 @@ export default function OwnerDashboardLayout({
 }) {
   const [openSubMenu, setOpenSubMenu] = useState<string | null>(null);
   const [hasMultiBranch, setHasMultiBranch] = useState(false);
-  const [isSupportDialogOpen, setIsSupportDialogOpen] = useState(false);
+  const [isMultiBranchSupportDialogOpen, setIsMultiBranchSupportDialogOpen] = useState(false);
+  const [isContactSupportDialogOpen, setIsContactSupportDialogOpen] = useState(false);
   const [activeBranchName, setActiveBranchName] = useState<string | null>(null);
   const [tierInfo, setTierInfo] = useState<{ expiresAt: Date | null, tier: string | null }>({ expiresAt: null, tier: null });
   const [timeLeft, setTimeLeft] = useState('');
@@ -220,7 +221,7 @@ export default function OwnerDashboardLayout({
       if (hasMultiBranch) {
         router.push('/dashboard/owner/multi-branch');
       } else {
-        setIsSupportDialogOpen(true);
+        setIsMultiBranchSupportDialogOpen(true);
       }
   };
 
@@ -231,7 +232,7 @@ export default function OwnerDashboardLayout({
 
   return (
     <SidebarProvider>
-      <Dialog open={isSupportDialogOpen} onOpenChange={setIsSupportDialogOpen}>
+      <Dialog open={isMultiBranchSupportDialogOpen} onOpenChange={setIsMultiBranchSupportDialogOpen}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Enable Multi-Branch Support</DialogTitle>
@@ -247,6 +248,26 @@ export default function OwnerDashboardLayout({
             <a href="https://wa.me/917988487892" target="_blank" rel="noopener noreferrer" className="flex items-center justify-center gap-3 p-3 rounded-md hover:bg-accent transition-colors">
               <Phone className="h-5 w-5 text-muted-foreground" />
               <span>+91 79884 87892</span>
+            </a>
+          </div>
+        </DialogContent>
+      </Dialog>
+      <Dialog open={isContactSupportDialogOpen} onOpenChange={setIsContactSupportDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Contact Admin</DialogTitle>
+            <DialogDescription>
+                For any support or queries, please reach out to us via the details below.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex flex-col space-y-4 py-4">
+            <a href="mailto:support@strenxsoftware.in" className="flex items-center gap-3 p-3 rounded-md hover:bg-accent transition-colors">
+              <Mail className="h-5 w-5 text-muted-foreground" />
+              <span>support@strenxsoftware.in</span>
+            </a>
+            <a href="https://wa.me/917988487892" target="_blank" rel="noopener noreferrer" className="flex items-center justify-center gap-3 p-3 rounded-md hover:bg-accent transition-colors">
+              <Phone className="h-5 w-5 text-muted-foreground" />
+              <span>+91 798-848-7892</span>
             </a>
           </div>
         </DialogContent>
@@ -324,6 +345,10 @@ export default function OwnerDashboardLayout({
               <p>Expires in: <span className="font-mono">{timeLeft}</span></p>
             </div>
           )}
+          <Button variant="ghost" className="w-full justify-start gap-2" onClick={() => setIsContactSupportDialogOpen(true)}>
+            <LifeBuoy className="h-5 w-5 text-muted-foreground"/>
+            <span>Support</span>
+          </Button>
           <Button variant="ghost" className="w-full justify-start gap-2" onClick={handleLogout}>
             <LogOut className="h-5 w-5 text-red-500"/>
             <span className="text-red-500">Logout</span>
