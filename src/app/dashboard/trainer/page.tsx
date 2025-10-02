@@ -176,7 +176,8 @@ export default function TrainerDashboardPage() {
         const now = new Date();
         const oneDayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
         const announcementsRef = collection(db, 'gyms', userDocId, 'branches', activeBranchId, 'announcements');
-        const announcementsSnap = await getDocs(query(announcementsRef, orderBy("createdAt", "desc")));
+        const announcementsQuery = query(announcementsRef, orderBy("createdAt", "desc"));
+        const announcementsSnap = await getDocs(announcementsQuery);
         
         const announcementsList = announcementsSnap.docs
             .map(doc => ({ id: doc.id, ...doc.data(), createdAt: (doc.data().createdAt as Timestamp).toDate() } as Announcement))
@@ -421,6 +422,9 @@ export default function TrainerDashboardPage() {
                          </Link>
                          <Link href="/dashboard/trainer/complaints" passHref>
                             <Button className="w-full justify-start" variant="outline"><MessageSquare className="mr-2"/> Complaints</Button>
+                         </Link>
+                         <Link href="/dashboard/owner/transactions" passHref>
+                            <Button className="w-full justify-start" variant="outline"><IndianRupee className="mr-2"/> Payments</Button>
                          </Link>
                     </CardContent>
                 </Card>
