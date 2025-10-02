@@ -3,20 +3,26 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { collection, getDocs, Timestamp, query, where, collectionGroup } from 'firebase/firestore';
+import { collection, getDocs, Timestamp, query, where } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Loader2, ArrowLeft, Users, UserX, Clock, BarChart3, Calendar as CalendarIcon, AlertCircle } from 'lucide-react';
+import { Loader2, ArrowLeft, Users, UserX, Clock, BarChart3, Calendar as CalendarIcon, UserCheck } from 'lucide-react';
 import { ResponsiveContainer, BarChart, XAxis, YAxis, Tooltip, Bar, Legend } from 'recharts';
-import { subDays, format, eachDayOfInterval, startOfToday, endOfToday } from 'date-fns';
+import { subDays, format, eachDayOfInterval, startOfToday, endOfToday, isSameDay } from 'date-fns';
 import { Calendar } from "@/components/ui/calendar";
-import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 interface MonthlyChartData {
     name: string;
     present: number;
+}
+
+interface DailyAttendanceRecord {
+    userName: string;
+    scanTime: Date;
 }
 
 const StatCard = ({ title, value, change, icon, changeType }: { title: string, value: string, change?: string, icon: React.ReactNode, changeType?: 'increase' | 'decrease' }) => {
@@ -40,11 +46,13 @@ const StatCard = ({ title, value, change, icon, changeType }: { title: string, v
 export default function AttendanceDashboardPage() {
   const [loading, setLoading] = useState(true);
   const [monthlyChartData, setMonthlyChartData] = useState<MonthlyChartData[]>([]);
+  const [allAttendanceRecords, setAllAttendanceRecords] = useState<{userId: string, userName: string, scanTime: Date}[]>([]);
+  const [dailyAttendance, setDailyAttendance] = useState<DailyAttendanceRecord[]>([]);
   const [stats, setStats] = useState({
       presentToday: 0,
       absentToday: 0,
       overallAttendance: 0,
-      lateToday: 0, // Placeholder
+      lateToday: 0,
   });
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
   const { toast } = useToast();
@@ -65,22 +73,28 @@ export default function AttendanceDashboardPage() {
         const thirtyDaysAgo = subDays(new Date(), 30);
         const todayStart = startOfToday();
 
-        const attendanceQuery = query(collection(db, 'attendance'), where('branchId', '==', activeBranchId));
-        const attendanceSnapshot = await getDocs(attendanceQuery);
-        const attendanceRecords = attendanceSnapshot.docs.map(doc => ({
-            userId: doc.data().userId,
-            scanTime: (doc.data().scanTime as Timestamp).toDate(),
-        })).filter(record => record.scanTime >= thirtyDaysAgo);
-        
         const membersCollection = collection(db, 'gyms', userDocId, 'branches', activeBranchId, 'members');
         const membersSnapshot = await getDocs(membersCollection);
+        const membersMap = new Map<string, string>();
+        membersSnapshot.docs.forEach(doc => membersMap.set(doc.id, doc.data().fullName));
         const activeMembers = membersSnapshot.docs.filter(doc => {
             const data = doc.data();
             const endDate = (data.endDate as Timestamp)?.toDate();
             return endDate && endDate >= new Date();
         }).length;
 
-        // --- Process Analytics ---
+        const attendanceQuery = query(collection(db, 'attendance'), where('branchId', '==', activeBranchId));
+        const attendanceSnapshot = await getDocs(attendanceQuery);
+        const attendanceRecords = attendanceSnapshot.docs.map(doc => {
+            const data = doc.data();
+            return {
+                userId: data.userId,
+                userName: membersMap.get(data.userId) || data.userName || 'Unknown',
+                scanTime: (data.scanTime as Timestamp).toDate(),
+            };
+        }).filter(record => record.scanTime >= thirtyDaysAgo);
+        setAllAttendanceRecords(attendanceRecords);
+        
         const presentTodaySet = new Set<string>();
         attendanceRecords.forEach(r => {
             if (r.scanTime >= todayStart) {
@@ -107,7 +121,6 @@ export default function AttendanceDashboardPage() {
         setMonthlyChartData(chartData);
         
         const totalPossibleAttendance = activeMembers * 30;
-        // Count unique check-ins per day to get a more accurate attendance metric
         const totalActualAttendanceUnique = Object.values(dailyCounts).reduce((acc, daySet) => acc + daySet.size, 0);
         const overallAttendancePercentage = totalPossibleAttendance > 0 ? (totalActualAttendanceUnique / totalPossibleAttendance) * 100 : 0;
 
@@ -115,7 +128,7 @@ export default function AttendanceDashboardPage() {
             presentToday: presentTodayCount,
             absentToday: absentTodayCount < 0 ? 0 : absentTodayCount,
             overallAttendance: Math.round(overallAttendancePercentage),
-            lateToday: 0, // Placeholder
+            lateToday: 0,
         });
 
       } catch (error) {
@@ -127,6 +140,16 @@ export default function AttendanceDashboardPage() {
     };
     fetchAttendanceData();
   }, [toast]);
+
+  useEffect(() => {
+    if (selectedDate) {
+      const dailyRecords = allAttendanceRecords.filter(record => 
+        isSameDay(record.scanTime, selectedDate)
+      );
+      dailyRecords.sort((a, b) => a.scanTime.getTime() - b.scanTime.getTime());
+      setDailyAttendance(dailyRecords);
+    }
+  }, [selectedDate, allAttendanceRecords]);
 
   if (loading) {
     return <div className="flex min-h-screen items-center justify-center bg-background"><Loader2 className="h-8 w-8 animate-spin" /></div>;
@@ -168,31 +191,58 @@ export default function AttendanceDashboardPage() {
                 </ResponsiveContainer>
             </CardContent>
         </Card>
-         <Card>
-            <CardHeader>
-                <CardTitle>Attendance Calendar</CardTitle>
-                <CardDescription>Select a date to view attendance data.</CardDescription>
-            </CardHeader>
-            <CardContent className="flex justify-center">
-                 <Calendar
-                    mode="single"
-                    selected={selectedDate}
-                    onSelect={setSelectedDate}
-                    className="rounded-md border"
-                    disabled={(date) => date > new Date() || date < new Date("2000-01-01")}
-                />
-            </CardContent>
-            <CardContent>
-                 <Alert variant="destructive">
-                    <AlertCircle className="h-4 w-4"/>
-                    <AlertTitle>Feature in Development</AlertTitle>
-                    <AlertDescription>
-                        Viewing attendance for a specific past date is not yet implemented.
-                    </AlertDescription>
-                </Alert>
-            </CardContent>
-        </Card>
+        <div className="space-y-6">
+             <Card>
+                <CardHeader>
+                    <CardTitle>Attendance Calendar</CardTitle>
+                    <CardDescription>Select a date to view attendance log.</CardDescription>
+                </CardHeader>
+                <CardContent className="flex justify-center">
+                     <Calendar
+                        mode="single"
+                        selected={selectedDate}
+                        onSelect={setSelectedDate}
+                        className="rounded-md border"
+                        disabled={(date) => date > new Date() || date < new Date("2000-01-01")}
+                    />
+                </CardContent>
+            </Card>
+        </div>
       </div>
+      <Card className="mt-6">
+        <CardHeader>
+            <CardTitle className="flex items-center gap-2"><UserCheck /> Attendance Log for {selectedDate ? format(selectedDate, 'PPP') : 'Today'}</CardTitle>
+            <CardDescription>Showing all members who checked in on the selected date.</CardDescription>
+        </CardHeader>
+        <CardContent>
+            <ScrollArea className="h-72">
+                 <Table>
+                    <TableHeader>
+                        <TableRow>
+                            <TableHead>Member Name</TableHead>
+                            <TableHead>Check-in Time</TableHead>
+                        </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                        {dailyAttendance.length > 0 ? (
+                            dailyAttendance.map((record, index) => (
+                                <TableRow key={index}>
+                                    <TableCell className="font-medium">{record.userName}</TableCell>
+                                    <TableCell>{format(record.scanTime, 'p')}</TableCell>
+                                </TableRow>
+                            ))
+                        ) : (
+                            <TableRow>
+                                <TableCell colSpan={2} className="h-24 text-center">
+                                    No attendance records found for this date.
+                                </TableCell>
+                            </TableRow>
+                        )}
+                    </TableBody>
+                </Table>
+            </ScrollArea>
+        </CardContent>
+      </Card>
     </div>
   );
 }
