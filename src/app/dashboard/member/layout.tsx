@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect } from 'react';
@@ -76,7 +77,6 @@ export default function MemberDashboardLayout({
         <SidebarContent className="flex-1 overflow-y-auto">
           <SidebarMenu>
             <MenuItem href="/dashboard/member" icon={<LayoutDashboard />}>Dashboard</MenuItem>
-            <MenuItem href="/dashboard/attendance" icon={<QrCode />}>Scan for Attendance</MenuItem>
             <MenuItem href="/dashboard/member/book-class" icon={<CalendarCheck />}>Book a Class</MenuItem>
             <MenuItem href="/dashboard/member/trainers" icon={<Users />}>View Trainers</MenuItem>
             <MenuItem href="/dashboard/member/diet-plan" icon={<Utensils />}>View Diet Plan</MenuItem>
