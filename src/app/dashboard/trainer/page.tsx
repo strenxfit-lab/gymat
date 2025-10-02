@@ -3,7 +3,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { collection, query, where, getDocs, Timestamp, doc, getDoc, addDoc, orderBy } from 'firebase/firestore';
+import { collection, query, where, getDocs, Timestamp, doc, getDoc, addDoc, orderBy, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -213,12 +213,18 @@ export default function TrainerDashboardPage() {
     if (!userDocId || !activeBranchId || !trainerId) return;
 
     try {
-        const dietCollection = collection(db, 'gyms', userDocId, 'branches', activeBranchId, 'members', selectedMemberForDiet.id, 'dietPlans');
+        const memberRef = doc(db, 'gyms', userDocId, 'branches', activeBranchId, 'members', selectedMemberForDiet.id);
+        const dietCollection = collection(memberRef, 'dietPlans');
+        
         await addDoc(dietCollection, {
             ...data,
             sentByTrainerId: trainerId,
             sentAt: serverTimestamp(),
         });
+        
+        // Set flag on member document
+        await updateDoc(memberRef, { hasNewDietPlan: true });
+
         toast({ title: "Diet Plan Sent!", description: `A new diet plan has been sent to ${selectedMemberForDiet.fullName}.`});
         dietForm.reset();
         setIsDietDialogOpen(false);
@@ -428,3 +434,5 @@ export default function TrainerDashboardPage() {
     </Dialog>
   );
 }
+
+  
