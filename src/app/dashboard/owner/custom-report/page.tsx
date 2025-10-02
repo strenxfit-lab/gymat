@@ -99,9 +99,11 @@ export default function CustomReportPage() {
 
 
         // 4. Fetch Attendance
-        const attendanceQuery = query(collection(db, 'attendance'), where('branchId', '==', activeBranchId), where('scanTime', '>=', from), where('scanTime', '<=', to));
+        const attendanceQuery = query(collection(db, 'attendance'), where('branchId', '==', activeBranchId));
         const attendanceSnap = await getDocs(attendanceQuery);
-        const allAttendance = attendanceSnap.docs.map(doc => ({ ...doc.data(), scanTime: (doc.data().scanTime as Timestamp).toDate() }));
+        const allAttendance = attendanceSnap.docs.map(doc => ({ ...doc.data(), scanTime: (doc.data().scanTime as Timestamp).toDate() })).filter(
+            (record) => record.scanTime >= dateRange.from! && record.scanTime <= dateRange.to!
+        );
 
         // 5. Process Data
         let totalRevenue = 0;
