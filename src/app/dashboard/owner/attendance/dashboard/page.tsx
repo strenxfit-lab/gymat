@@ -64,12 +64,12 @@ export default function AttendanceDashboardPage() {
         const thirtyDaysAgo = subDays(new Date(), 30);
         const todayStart = startOfToday();
 
-        const attendanceQuery = query(collection(db, 'attendance'), where('branchId', '==', activeBranchId), where('scanTime', '>=', Timestamp.fromDate(thirtyDaysAgo)));
+        const attendanceQuery = query(collection(db, 'attendance'), where('branchId', '==', activeBranchId));
         const attendanceSnapshot = await getDocs(attendanceQuery);
         const attendanceRecords = attendanceSnapshot.docs.map(doc => ({
             userId: doc.data().userId,
             scanTime: (doc.data().scanTime as Timestamp).toDate(),
-        }));
+        })).filter(record => record.scanTime >= thirtyDaysAgo);
         
         const membersCollection = collection(db, 'gyms', userDocId, 'branches', activeBranchId, 'members');
         const membersSnapshot = await getDocs(membersCollection);
