@@ -176,12 +176,12 @@ export default function TrainerDashboardPage() {
         const now = new Date();
         const oneDayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
         const announcementsRef = collection(db, 'gyms', userDocId, 'branches', activeBranchId, 'announcements');
-        const qAnnouncements = query(announcementsRef, where("audience", "in", ["all", "trainers"]), orderBy("createdAt", "desc"));
+        const qAnnouncements = query(announcementsRef, orderBy("createdAt", "desc"));
         const announcementsSnap = await getDocs(qAnnouncements);
         
         const announcementsList = announcementsSnap.docs
             .map(doc => ({ id: doc.id, ...doc.data(), createdAt: (doc.data().createdAt as Timestamp).toDate() } as Announcement))
-            .filter(a => a.createdAt >= oneDayAgo);
+            .filter(a => (a.audience === 'all' || a.audience === 'trainers') && a.createdAt >= oneDayAgo);
         setAnnouncements(announcementsList);
         
         // Fetch Trainer Offers
@@ -438,3 +438,5 @@ export default function TrainerDashboardPage() {
     </Dialog>
   );
 }
+
+    
