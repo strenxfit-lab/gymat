@@ -58,6 +58,8 @@ interface TrainerOffer {
   offerType: string;
   bonusType: 'percentage' | 'flat';
   bonusValue: number;
+  startDate: string;
+  endDate: string;
 }
 
 const dietFormSchema = z.object({
@@ -434,5 +436,3 @@ export default function TrainerDashboardPage() {
     </Dialog>
   );
 }
-
-  
