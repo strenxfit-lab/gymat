@@ -277,6 +277,8 @@ export default function OwnerDashboardLayout({
                 <SubMenuItem href="/dashboard/owner/member-status">Membership Status</SubMenuItem>
             </SubMenu>
 
+            <MenuItem href="/dashboard/owner/attendance/dashboard" icon={<CalendarCheck />}>Attendance</MenuItem>
+
              <SubMenu title="Financial" icon={<CreditCard />} isOpen={openSubMenu === 'financial'} onToggle={() => toggleSubMenu('financial')}>
                 <SubMenuItem href="/dashboard/owner/add-payment">Collect Fee</SubMenuItem>
                 <SubMenuItem href="/dashboard/owner/transactions">All Transactions</SubMenuItem>
