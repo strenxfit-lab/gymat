@@ -36,8 +36,7 @@ const formSchema = z.object({
   balanceDue: z.number().min(0),
   paymentDate: z.date(),
   paymentMode: z.string().nonempty({ message: "Please select a payment mode." }),
-  nextDueDate: z.date({ required_error: 'Next due date is required.' }),
-  transactionId: z.string().optional(),
+  transactionId: z.string().optional(), // This will be removed from the form but keep in schema for now
 });
 
 type FormData = z.infer<typeof formSchema>;
@@ -155,7 +154,7 @@ export default function AddPaymentPage() {
       amountPaid: 0,
       balanceDue: 0,
       paymentDate: new Date(),
-      paymentMode: '',
+      paymentMode: 'cash',
       transactionId: '',
       nextDueDate: undefined
     },
@@ -537,20 +536,14 @@ export default function AddPaymentPage() {
                         )} />
                         <FormField control={form.control} name="paymentMode" render={({ field }) => (
                             <FormItem><FormLabel>Payment Mode</FormLabel>
-                            <Select onValueChange={field.onChange} defaultValue={field.value}>
+                            <Select onValueChange={field.onChange} value={field.value}>
                                 <FormControl><SelectTrigger><SelectValue placeholder="Select mode" /></SelectTrigger></FormControl>
                                 <SelectContent>
                                     <SelectItem value="cash">Cash</SelectItem>
-                                    <SelectItem value="upi">UPI</SelectItem>
-                                    <SelectItem value="card">Card</SelectItem>
-                                    <SelectItem value="netbanking">NetBanking</SelectItem>
-                                    <SelectItem value="wallet">Wallet</SelectItem>
-                                    <SelectItem value="cheque">Cheque</SelectItem>
                                 </SelectContent>
                             </Select><FormMessage />
                             </FormItem>
                         )} />
-                         <FormField control={form.control} name="transactionId" render={({ field }) => ( <FormItem><FormLabel>Transaction ID (Optional)</FormLabel><FormControl><Input placeholder="UPI Ref / Card Txn ID" {...field} value={field.value ?? ''} /></FormControl><FormMessage /></FormItem> )} />
                     </div>
                 </div>
                 </CardContent>
