@@ -106,12 +106,13 @@ export default function AttendanceDashboardPage() {
         setMonthlyChartData(chartData);
         
         const totalPossibleAttendance = activeMembers * 30;
-        const totalActualAttendance = attendanceRecords.length;
-        const overallAttendancePercentage = totalPossibleAttendance > 0 ? (totalActualAttendance / totalPossibleAttendance) * 100 : 0;
+        // Count unique check-ins per day to get a more accurate attendance metric
+        const totalActualAttendanceUnique = Object.values(dailyCounts).reduce((acc, daySet) => acc + daySet.size, 0);
+        const overallAttendancePercentage = totalPossibleAttendance > 0 ? (totalActualAttendanceUnique / totalPossibleAttendance) * 100 : 0;
 
         setStats({
             presentToday: presentTodayCount,
-            absentToday: absentTodayCount,
+            absentToday: absentTodayCount < 0 ? 0 : absentTodayCount,
             overallAttendance: Math.round(overallAttendancePercentage),
             lateToday: 0, // Placeholder
         });
@@ -160,7 +161,7 @@ export default function AttendanceDashboardPage() {
                     <BarChart data={monthlyChartData}>
                         <XAxis dataKey="name" stroke="#888888" fontSize={12} interval={3} />
                         <YAxis stroke="#888888" fontSize={12} />
-                        <Tooltip />
+                        <Tooltip contentStyle={{backgroundColor: 'hsl(var(--background))', border: '1px solid hsl(var(--border))' }}/>
                         <Bar dataKey="present" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
                     </BarChart>
                 </ResponsiveContainer>
