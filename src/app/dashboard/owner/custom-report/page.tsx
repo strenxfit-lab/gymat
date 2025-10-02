@@ -75,24 +75,27 @@ export default function CustomReportPage() {
         const from = Timestamp.fromDate(dateRange.from);
         const to = Timestamp.fromDate(dateRange.to);
 
-        // 1. Fetch Payments
-        const paymentsQuery = query(collectionGroup(db, 'payments'), where('gymId', '==', userDocId));
-        const paymentsSnap = await getDocs(paymentsQuery);
-        const allPayments = paymentsSnap.docs
-            .map(doc => ({ ...doc.data(), paymentDate: (doc.data().paymentDate as Timestamp).toDate() }))
-            .filter(p => p.branchId === activeBranchId && p.paymentDate >= dateRange.from! && p.paymentDate <= dateRange.to!);
-
-
-        // 2. Fetch Expenses
-        const expensesQuery = query(collection(db, 'gyms', userDocId, 'branches', activeBranchId, 'expenses'), where('date', '>=', from), where('date', '<=', to));
-        const expensesSnap = await getDocs(expensesQuery);
-        const allExpenses = expensesSnap.docs.map(doc => ({ ...doc.data(), date: (doc.data().date as Timestamp).toDate() }));
-
-        // 3. Fetch Members
+        // 1. Fetch Members for the active branch first
         const membersQuery = query(collection(db, 'gyms', userDocId, 'branches', activeBranchId, 'members'));
         const membersSnap = await getDocs(membersQuery);
         const allMembers = membersSnap.docs.map(doc => ({ id: doc.id, ...doc.data(), createdAt: (doc.data().createdAt as Timestamp).toDate() }));
         const activeMembersInRange = allMembers.filter(m => m.endDate && (m.endDate as Timestamp).toDate() >= dateRange.from!).length;
+
+
+        // 2. Fetch Payments by iterating through members
+        const allPaymentsPromises = allMembers.map(async (member) => {
+            const paymentsRef = collection(db, 'gyms', userDocId, 'branches', activeBranchId, 'members', member.id, 'payments');
+            const paymentsSnap = await getDocs(paymentsRef);
+            return paymentsSnap.docs.map(doc => ({...doc.data(), paymentDate: (doc.data().paymentDate as Timestamp).toDate()}));
+        });
+        const memberPaymentsArrays = await Promise.all(allPaymentsPromises);
+        const allPayments = memberPaymentsArrays.flat().filter(p => p.paymentDate >= dateRange.from! && p.paymentDate <= dateRange.to!);
+
+
+        // 3. Fetch Expenses
+        const expensesQuery = query(collection(db, 'gyms', userDocId, 'branches', activeBranchId, 'expenses'), where('date', '>=', from), where('date', '<=', to));
+        const expensesSnap = await getDocs(expensesQuery);
+        const allExpenses = expensesSnap.docs.map(doc => ({ ...doc.data(), date: (doc.data().date as Timestamp).toDate() }));
 
 
         // 4. Fetch Attendance
@@ -162,7 +165,7 @@ export default function CustomReportPage() {
 
     } catch (error) {
         console.error("Error generating report:", error);
-        toast({ title: "Error", description: "Failed to generate the report. Please check the Firestore indexes if prompted.", variant: "destructive" });
+        toast({ title: "Error", description: "Failed to generate the report. Please try again.", variant: "destructive" });
     } finally {
         setLoading(false);
     }
@@ -245,5 +248,3 @@ export default function CustomReportPage() {
 // This is a placeholder for the actual component from shadcn/ui.
 // For the purpose of this example, let's assume `DateRangePicker` exists and works.
 // In a real scenario, this would be `src/components/ui/date-range-picker.tsx`
-
-
