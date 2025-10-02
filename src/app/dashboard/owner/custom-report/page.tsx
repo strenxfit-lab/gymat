@@ -76,9 +76,12 @@ export default function CustomReportPage() {
         const to = Timestamp.fromDate(dateRange.to);
 
         // 1. Fetch Payments
-        const paymentsQuery = query(collectionGroup(db, 'payments'), where('gymId', '==', userDocId), where('branchId', '==', activeBranchId), where('paymentDate', '>=', from), where('paymentDate', '<=', to));
+        const paymentsQuery = query(collectionGroup(db, 'payments'), where('gymId', '==', userDocId));
         const paymentsSnap = await getDocs(paymentsQuery);
-        const allPayments = paymentsSnap.docs.map(doc => ({ ...doc.data(), paymentDate: (doc.data().paymentDate as Timestamp).toDate() }));
+        const allPayments = paymentsSnap.docs
+            .map(doc => ({ ...doc.data(), paymentDate: (doc.data().paymentDate as Timestamp).toDate() }))
+            .filter(p => p.branchId === activeBranchId && p.paymentDate >= dateRange.from! && p.paymentDate <= dateRange.to!);
+
 
         // 2. Fetch Expenses
         const expensesQuery = query(collection(db, 'gyms', userDocId, 'branches', activeBranchId, 'expenses'), where('date', '>=', from), where('date', '<=', to));
@@ -93,7 +96,7 @@ export default function CustomReportPage() {
 
 
         // 4. Fetch Attendance
-        const attendanceQuery = query(collection(db, 'attendance'), where('gymId', '==', userDocId), where('branchId', '==', activeBranchId), where('scanTime', '>=', from), where('scanTime', '<=', to));
+        const attendanceQuery = query(collection(db, 'attendance'), where('branchId', '==', activeBranchId), where('scanTime', '>=', from), where('scanTime', '<=', to));
         const attendanceSnap = await getDocs(attendanceQuery);
         const allAttendance = attendanceSnap.docs.map(doc => ({ ...doc.data(), scanTime: (doc.data().scanTime as Timestamp).toDate() }));
 
@@ -242,4 +245,5 @@ export default function CustomReportPage() {
 // This is a placeholder for the actual component from shadcn/ui.
 // For the purpose of this example, let's assume `DateRangePicker` exists and works.
 // In a real scenario, this would be `src/components/ui/date-range-picker.tsx`
+
 
