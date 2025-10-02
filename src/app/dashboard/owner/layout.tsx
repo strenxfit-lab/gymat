@@ -290,22 +290,29 @@ export default function OwnerDashboardLayout({
           <SidebarMenu>
             <MenuItem href="/dashboard/owner" icon={<BarChart3 />}>Dashboard</MenuItem>
             
+            <SubMenu title="Gym Info" icon={<Info />} isOpen={openSubMenu === 'gym-info'} onToggle={() => toggleSubMenu('gym-info')}>
+                <SubMenuItem href="/dashboard/owner/gym-info/basic">Basic Information</SubMenuItem>
+                <SubMenuItem href="/dashboard/owner/gym-info/owner">Owner Details</SubMenuItem>
+                <SubMenuItem href="/dashboard/owner/gym-info/membership-plans">Membership Plans</SubMenuItem>
+                <SubMenuItem href="/dashboard/owner/gym-info/facilities">Facilities</SubMenuItem>
+            </SubMenu>
+
             <SubMenu title="Management" icon={<Users />} isOpen={openSubMenu === 'management'} onToggle={() => toggleSubMenu('management')}>
                 <SubMenuItem href="/dashboard/owner/add-member">Add Member</SubMenuItem>
                 <SubMenuItem href="/dashboard/owner/add-trainer">Add Trainer</SubMenuItem>
                 <SubMenuItem href="/dashboard/owner/members">View All</SubMenuItem>
                 <SubMenuItem href="/dashboard/owner/member-status">Membership Status</SubMenuItem>
             </SubMenu>
-
-            <MenuItem href="/dashboard/owner/attendance/dashboard" icon={<CalendarCheck />}>Attendance</MenuItem>
-
-             <SubMenu title="Financial" icon={<CreditCard />} isOpen={openSubMenu === 'financial'} onToggle={() => toggleSubMenu('financial')}>
+            
+            <SubMenu title="Financial" icon={<CreditCard />} isOpen={openSubMenu === 'financial'} onToggle={() => toggleSubMenu('financial')}>
                 <SubMenuItem href="/dashboard/owner/add-payment">Collect Fee</SubMenuItem>
                 <SubMenuItem href="/dashboard/owner/transactions">All Transactions</SubMenuItem>
                 <SubMenuItem href="/dashboard/owner/revenue-reports">Revenue Reports</SubMenuItem>
                 <SubMenuItem href="/dashboard/owner/expenses">Expenses</SubMenuItem>
                 <SubMenuItem href="/dashboard/owner/custom-report">Custom Report</SubMenuItem>
             </SubMenu>
+            
+            <MenuItem href="/dashboard/owner/attendance/dashboard" icon={<CalendarCheck />}>Attendance</MenuItem>
 
             <SubMenu title="Settlement" icon={<IndianRupee />} isOpen={openSubMenu === 'settlement'} onToggle={() => toggleSubMenu('settlement')}>
                 <SubMenuItem href="/dashboard/owner/settlement/account-details">Account Details</SubMenuItem>
@@ -328,12 +335,6 @@ export default function OwnerDashboardLayout({
                 <SubMenuItem href="/dashboard/owner/inventory-tracking">Inventory</SubMenuItem>
             </SubMenu>
              
-             <SubMenu title="Gym Info" icon={<Info />} isOpen={openSubMenu === 'gym-info'} onToggle={() => toggleSubMenu('gym-info')}>
-                <SubMenuItem href="/dashboard/owner/gym-info/basic">Basic Information</SubMenuItem>
-                <SubMenuItem href="/dashboard/owner/gym-info/owner">Owner Details</SubMenuItem>
-                <SubMenuItem href="/dashboard/owner/gym-info/membership-plans">Membership Plans</SubMenuItem>
-                <SubMenuItem href="/dashboard/owner/gym-info/facilities">Facilities</SubMenuItem>
-            </SubMenu>
             <MenuItem href="/dashboard/owner/change-password" icon={<KeyRound />}>Change Password</MenuItem>
 
           </SidebarMenu>
