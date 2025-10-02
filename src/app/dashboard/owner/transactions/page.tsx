@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect } from 'react';
@@ -10,8 +9,10 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Loader2, ArrowLeft, Users, IndianRupee } from 'lucide-react';
-import { startOfWeek, startOfMonth, endOfWeek } from 'date-fns';
+import { startOfWeek, startOfMonth, endOfWeek, format, eachDayOfInterval } from 'date-fns';
 import { Badge } from '@/components/ui/badge';
+import { ResponsiveContainer, BarChart, XAxis, Tooltip, Bar } from 'recharts';
+
 
 interface Payment {
   id: string;
@@ -29,6 +30,11 @@ interface Member {
     endDate?: Date;
 }
 
+interface WeeklyChartData {
+    name: string;
+    total: number;
+}
+
 export default function TransactionsPage() {
   const [transactions, setTransactions] = useState<Payment[]>([]);
   const [loading, setLoading] = useState(true);
@@ -36,6 +42,7 @@ export default function TransactionsPage() {
   const [activeMembers, setActiveMembers] = useState(0);
   const [weeklyTransactions, setWeeklyTransactions] = useState(0);
   const [weeklyUsers, setWeeklyUsers] = useState(0);
+  const [weeklyChartData, setWeeklyChartData] = useState<WeeklyChartData[]>([]);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -67,6 +74,9 @@ export default function TransactionsPage() {
         const startOfWeekDate = startOfWeek(now);
         const endOfWeekDate = endOfWeek(now);
 
+        const weekDays = eachDayOfInterval({ start: startOfWeekDate, end: endOfWeekDate });
+        const dailyTotals = weekDays.map(day => ({ name: format(day, 'EEE'), total: 0 }));
+
         for (const member of allMembers) {
             const paymentsCollection = collection(db, 'gyms', userDocId, 'branches', activeBranchId, 'members', member.id, 'payments');
             const paymentsQuery = query(paymentsCollection, where('paymentDate', '>=', startOfMonthDate));
@@ -88,6 +98,10 @@ export default function TransactionsPage() {
                 if(paymentDate >= startOfWeekDate && paymentDate <= endOfWeekDate) {
                     weeklyTxCount++;
                     weeklyUserSet.add(member.id);
+                    const dayIndex = weekDays.findIndex(day => format(day, 'yyyy-MM-dd') === format(paymentDate, 'yyyy-MM-dd'));
+                    if (dayIndex !== -1) {
+                        dailyTotals[dayIndex].total += data.amountPaid;
+                    }
                 }
             });
         }
@@ -98,6 +112,7 @@ export default function TransactionsPage() {
         setTotalTransactions(allPayments.length);
         setWeeklyTransactions(weeklyTxCount);
         setWeeklyUsers(weeklyUserSet.size);
+        setWeeklyChartData(dailyTotals);
 
       } catch (error) {
         console.error("Error fetching transaction data:", error);
@@ -140,16 +155,29 @@ export default function TransactionsPage() {
           </CardContent>
         </Card>
         <Card>
-          <CardHeader>
-            <CardTitle>Weekly Transactions</CardTitle>
-            <CardDescription>Summary of this week's transactions.</CardDescription>
-          </CardHeader>
-          <CardContent className="flex justify-between items-center">
-             <div className="text-4xl font-bold flex items-center gap-2"><IndianRupee className="h-8 w-8"/>{weeklyTransactions}</div>
-            <div className="text-right">
-                <p className="text-sm text-muted-foreground">Total Users</p>
-                <p className="font-bold flex items-center gap-1"><Users className="h-4 w-4"/>{weeklyUsers}</p>
+          <CardHeader className="flex flex-row items-start justify-between">
+            <div>
+              <CardTitle>Weekly Transactions</CardTitle>
+              <CardDescription>Summary of this week's transactions.</CardDescription>
             </div>
+            <div className="text-right">
+              <p className="text-sm text-muted-foreground">Total Transactions</p>
+              <p className="font-bold flex items-center gap-1"><IndianRupee className="h-4 w-4"/>{weeklyTransactions}</p>
+              <p className="text-sm text-muted-foreground mt-1">Total Users</p>
+              <p className="font-bold flex items-center gap-1"><Users className="h-4 w-4"/>{weeklyUsers}</p>
+            </div>
+          </CardHeader>
+          <CardContent className="h-[100px] -mt-4">
+             <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={weeklyChartData}>
+                <XAxis dataKey="name" stroke="#888888" fontSize={12} tickLine={false} axisLine={false} />
+                <Tooltip
+                  cursor={{ fill: 'hsl(var(--muted))' }}
+                  contentStyle={{ backgroundColor: 'hsl(var(--background))', border: '1px solid hsl(var(--border))' }}
+                />
+                <Bar dataKey="total" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
           </CardContent>
         </Card>
       </div>
