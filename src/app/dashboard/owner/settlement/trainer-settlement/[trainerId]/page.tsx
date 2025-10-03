@@ -17,7 +17,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from '@/components/ui/badge';
-import { startOfMonth, getDaysInMonth } from 'date-fns';
+import { startOfMonth, getDaysInMonth, isWithinInterval } from 'date-fns';
 
 interface Trainer {
   fullName: string;
@@ -93,9 +93,16 @@ export default function TrainerSettlementDetailPage() {
         const monthStart = startOfMonth(now);
         const daysInMonth = getDaysInMonth(now);
 
-        const attendanceQuery = query(collection(db, 'attendance'), where('userId', '==', trainerId), where('branchId', '==', activeBranchId), where('scanTime', '>=', monthStart));
+        const attendanceQuery = query(collection(db, 'attendance'), where('userId', '==', trainerId));
         const attendanceSnap = await getDocs(attendanceQuery);
-        const presentDays = new Set(attendanceSnap.docs.map(d => d.data().scanTime.toDate().getDate())).size;
+        
+        const monthlyAttendanceDocs = attendanceSnap.docs.filter(doc => {
+            const data = doc.data();
+            const scanTime = (data.scanTime as Timestamp).toDate();
+            return data.branchId === activeBranchId && isWithinInterval(scanTime, { start: monthStart, end: now });
+        });
+
+        const presentDays = new Set(monthlyAttendanceDocs.map(d => d.data().scanTime.toDate().getDate())).size;
         setAttendance({ present: presentDays, absent: daysInMonth - presentDays });
 
         const settlementsRef = collection(trainerRef, 'settlements');
