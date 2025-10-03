@@ -78,7 +78,8 @@ export default function TrainerDashboardLayout({
           <SidebarMenu>
             <MenuItem href="/dashboard/trainer" icon={<LayoutDashboard />}>Dashboard</MenuItem>
             <MenuItem href="/dashboard/trainer/profile" icon={<UserCheck />}>My Profile</MenuItem>
-            <MenuItem href="/dashboard/trainer/maintenance" icon={<CheckSquare />}>Maintenance</MenuItem>
+            <MenuItem href="/dashboard/trainer/attendance" icon={<CheckSquare />}>My Attendance</MenuItem>
+            <MenuItem href="/dashboard/trainer/maintenance" icon={<Wrench />}>Maintenance</MenuItem>
             <MenuItem href="/dashboard/trainer/payments" icon={<IndianRupee />}>My Payments</MenuItem>
             <MenuItem href="/dashboard/trainer/complaints" icon={<MessageSquare />}>Complaints</MenuItem>
           </SidebarMenu>

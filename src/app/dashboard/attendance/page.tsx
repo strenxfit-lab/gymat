@@ -86,71 +86,74 @@ export default function ScanAttendancePage() {
         await markAttendance();
       } else {
         toast({ title: "Invalid QR Code", description: "This QR code is not for this gym branch.", variant: "destructive" });
-        router.push('/dashboard/member');
+        router.push(getBackLink());
       }
     } catch (e) {
       toast({ title: "Invalid QR Code", description: "The scanned QR code is not valid.", variant: "destructive" });
-      router.push('/dashboard/member');
+      router.push(getBackLink());
     }
   };
   
   const markAttendance = async () => {
     const gymId = localStorage.getItem('userDocId');
     const branchId = localStorage.getItem('activeBranch');
-    const memberId = localStorage.getItem('memberId');
-    const memberName = localStorage.getItem('userName');
-    const memberPhone = localStorage.getItem('userPhone');
+    const userRole = localStorage.getItem('userRole');
+    const userId = userRole === 'member' ? localStorage.getItem('memberId') : localStorage.getItem('trainerId');
+    const userName = localStorage.getItem('userName');
+    const userPhone = localStorage.getItem('userPhone');
 
-    if (!gymId || !branchId || !memberId || !memberName || !memberPhone) {
+    if (!gymId || !branchId || !userId || !userName || !userPhone || !userRole) {
         toast({ title: "Session Error", description: "Your session is invalid. Please log in again.", variant: "destructive"});
         setLoading(false);
         return;
     }
 
     try {
-        const memberRef = doc(db, 'gyms', gymId, 'branches', branchId, 'members', memberId);
-        const memberSnap = await getDoc(memberRef);
+        if (userRole === 'member') {
+            const memberRef = doc(db, 'gyms', gymId, 'branches', branchId, 'members', userId);
+            const memberSnap = await getDoc(memberRef);
 
-        if (!memberSnap.exists()) {
-             toast({ title: "Error", description: "Member record not found.", variant: "destructive"});
-             setLoading(false);
-             return;
-        }
+            if (!memberSnap.exists()) {
+                 toast({ title: "Error", description: "Member record not found.", variant: "destructive"});
+                 setLoading(false);
+                 return;
+            }
 
-        const memberData = memberSnap.data();
-        const endDate = (memberData.endDate as Timestamp)?.toDate();
-        if (!endDate || endDate < new Date()) {
-            setIsExpired(true);
-            setLoading(false);
-            return;
+            const memberData = memberSnap.data();
+            const endDate = (memberData.endDate as Timestamp)?.toDate();
+            if (!endDate || endDate < new Date()) {
+                setIsExpired(true);
+                setLoading(false);
+                return;
+            }
         }
         
         const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000);
         const attendanceRef = collection(db, 'attendance');
-        const q = query(attendanceRef, where("userId", "==", memberId), where("scanTime", ">=", Timestamp.fromDate(tenMinutesAgo)));
+        const q = query(attendanceRef, where("userId", "==", userId), where("scanTime", ">=", Timestamp.fromDate(tenMinutesAgo)));
         const recentScans = await getDocs(q);
 
         if (!recentScans.empty) {
             toast({ title: "Already Checked In", description: "You have already checked in recently." });
-             localStorage.setItem('lastCheckIn', new Date().toISOString());
-            router.push('/dashboard/member');
+            localStorage.setItem('lastCheckIn', new Date().toISOString());
+            router.push(getBackLink());
             return;
         }
 
         await addDoc(attendanceRef, {
             gymId,
             branchId,
-            userId: memberId,
-            userRole: 'member',
-            userName: memberName,
-            userPhone: memberPhone,
+            userId: userId,
+            userRole: userRole,
+            userName: userName,
+            userPhone: userPhone,
             scanTime: Timestamp.now(),
             method: "QR Scan",
         });
 
-        toast({ title: "Check-in Successful!", description: `Welcome, ${memberName}!` });
+        toast({ title: "Check-in Successful!", description: `Welcome, ${userName}!` });
         localStorage.setItem('lastCheckIn', new Date().toISOString());
-        router.push('/dashboard/member');
+        router.push(getBackLink());
     } catch (error) {
         console.error("Error marking attendance:", error);
         toast({ title: "Error", description: "Could not mark attendance.", variant: "destructive"});
