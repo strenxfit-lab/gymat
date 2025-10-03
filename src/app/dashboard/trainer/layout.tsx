@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect } from 'react';
@@ -79,7 +80,7 @@ export default function TrainerDashboardLayout({
             <MenuItem href="/dashboard/trainer/profile" icon={<UserCheck />}>My Profile</MenuItem>
             <MenuItem href="/dashboard/trainer/maintenance" icon={<CheckSquare />}>Maintenance</MenuItem>
             <MenuItem href="/dashboard/trainer/payments" icon={<IndianRupee />}>My Payments</MenuItem>
-            <MenuItem href="/dashboard/trainer/complaints" icon={<MessageSquare />}>Complaints</Button>
+            <MenuItem href="/dashboard/trainer/complaints" icon={<MessageSquare />}>Complaints</MenuItem>
           </SidebarMenu>
         </SidebarContent>
         <SidebarFooter className="p-4 space-y-4">
