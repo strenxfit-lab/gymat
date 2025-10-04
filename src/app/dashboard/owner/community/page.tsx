@@ -1,13 +1,13 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { collection, addDoc, query, orderBy, onSnapshot, serverTimestamp, Timestamp } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Loader2, Send, Plus, Image as ImageIcon, Video } from "lucide-react";
+import { Loader2, Send, Plus, Image as ImageIcon, Video, X } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { formatDistanceToNow } from 'date-fns';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -17,6 +17,8 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
+import Image from 'next/image';
+
 
 interface Post {
     id: string;
@@ -24,13 +26,19 @@ interface Post {
     authorId: string;
     gymId: string;
     text: string;
+    mediaUrl?: string;
+    mediaType?: 'image' | 'video';
     createdAt: Date;
 }
 
 const postSchema = z.object({
-  text: z.string().min(1, "Post content cannot be empty."),
+  text: z.string().min(1, "Post content cannot be empty.").or(z.literal('')),
   visibility: z.enum(['local', 'global'], { required_error: "You must select a visibility option."}),
-  // mediaUrl: z.string().optional(), // For future use
+  mediaUrl: z.string().optional(),
+  mediaType: z.enum(['image', 'video']).optional(),
+}).refine(data => !!data.text || !!data.mediaUrl, {
+    message: "Post must contain either text or media.",
+    path: ["text"],
 });
 
 type PostFormData = z.infer<typeof postSchema>;
@@ -41,12 +49,19 @@ export default function CommunityPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isPostDialogOpen, setIsPostDialogOpen] = useState(false);
   const { toast } = useToast();
+  
+  const [mediaPreview, setMediaPreview] = useState<{url: string, type: 'image' | 'video'} | null>(null);
+  const imageInputRef = useRef<HTMLInputElement>(null);
+  const videoInputRef = useRef<HTMLInputElement>(null);
+
 
   const form = useForm<PostFormData>({
     resolver: zodResolver(postSchema),
     defaultValues: {
       text: "",
       visibility: "local",
+      mediaUrl: "",
+      mediaType: undefined,
     },
   });
 
@@ -75,6 +90,28 @@ export default function CommunityPage() {
 
     return () => unsubscribe();
   }, [toast]);
+  
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>, type: 'image' | 'video') => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const result = reader.result as string;
+        form.setValue('mediaUrl', result);
+        form.setValue('mediaType', type);
+        setMediaPreview({ url: result, type });
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+  
+  const clearMedia = () => {
+      form.setValue('mediaUrl', undefined);
+      form.setValue('mediaType', undefined);
+      setMediaPreview(null);
+      if(imageInputRef.current) imageInputRef.current.value = "";
+      if(videoInputRef.current) videoInputRef.current.value = "";
+  }
 
   const handlePostSubmit = async (values: PostFormData) => {
     setIsSubmitting(true);
@@ -93,13 +130,15 @@ export default function CommunityPage() {
             authorName,
             authorId,
             gymId,
-            description: values.text,
+            text: values.text,
             visibility: values.visibility,
-            mediaUrl: '', // Placeholder for now
+            mediaUrl: values.mediaUrl || '',
+            mediaType: values.mediaType || '',
             createdAt: serverTimestamp(),
         });
         toast({ title: "Success!", description: "Your post has been published."});
         form.reset();
+        clearMedia();
         setIsPostDialogOpen(false);
     } catch (error) {
         console.error("Error creating post: ", error);
@@ -141,7 +180,16 @@ export default function CommunityPage() {
                                     </div>
                                 </CardHeader>
                                 <CardContent>
-                                    <p className="whitespace-pre-wrap">{post.text}</p>
+                                    {post.text && <p className="whitespace-pre-wrap mb-4">{post.text}</p>}
+                                    {post.mediaUrl && (
+                                        <div className="rounded-lg overflow-hidden border">
+                                            {post.mediaType === 'image' ? (
+                                                <Image src={post.mediaUrl} alt="Post media" width={500} height={500} className="w-full h-auto object-cover"/>
+                                            ) : (
+                                                <video src={post.mediaUrl} controls className="w-full h-auto"/>
+                                            )}
+                                        </div>
+                                    )}
                                 </CardContent>
                             </Card>
                         ))
@@ -192,13 +240,27 @@ export default function CommunityPage() {
                                 </FormItem>
                             )}
                         />
+                        {mediaPreview && (
+                            <div className="relative">
+                                {mediaPreview.type === 'image' ? (
+                                    <Image src={mediaPreview.url} alt="preview" width={100} height={100} className="rounded-md object-cover"/>
+                                ) : (
+                                    <video src={mediaPreview.url} controls className="w-full h-auto rounded-md" />
+                                )}
+                                <Button variant="ghost" size="icon" className="absolute top-1 right-1 h-6 w-6 bg-black/50 hover:bg-black/75 text-white" onClick={clearMedia}>
+                                    <X className="h-4 w-4"/>
+                                </Button>
+                            </div>
+                        )}
                         <div className="flex gap-2">
-                             <Button type="button" variant="outline" disabled>
+                             <Button type="button" variant="outline" onClick={() => imageInputRef.current?.click()}>
                                 <ImageIcon className="mr-2 h-4 w-4"/> Add Photo
                             </Button>
-                             <Button type="button" variant="outline" disabled>
+                            <input type="file" ref={imageInputRef} accept="image/*" className="hidden" onChange={(e) => handleFileChange(e, 'image')} />
+                             <Button type="button" variant="outline" onClick={() => videoInputRef.current?.click()}>
                                 <Video className="mr-2 h-4 w-4"/> Add Video
                             </Button>
+                            <input type="file" ref={videoInputRef} accept="video/*" className="hidden" onChange={(e) => handleFileChange(e, 'video')} />
                         </div>
                          <FormField
                             control={form.control}
