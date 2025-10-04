@@ -45,6 +45,7 @@ const formSchema = z.object({
   // Financial Info
   salaryType: z.string().nonempty({ message: 'Please select a salary type.' }),
   salaryRate: z.string().min(1, { message: 'Please enter salary/pay rate.' }),
+  commission: z.string().optional(),
   bankDetails: z.string().optional(),
 });
 
@@ -54,7 +55,7 @@ type FieldName = keyof FormData;
 const steps: { id: number; title: string; icon: JSX.Element; fields: FieldName[] }[] = [
     { id: 1, title: 'Personal Information', icon: <User />, fields: ['fullName', 'gender', 'dob', 'phone', 'email', 'address', 'emergencyContactName', 'emergencyContactNumber'] },
     { id: 2, title: 'Professional Details', icon: <Briefcase />, fields: ['designation', 'specialization', 'experience', 'certifications', 'joiningDate', 'shiftTiming'] },
-    { id: 3, title: 'Financial Information', icon: <Wallet />, fields: ['salaryType', 'salaryRate', 'bankDetails'] },
+    { id: 3, title: 'Financial Information', icon: <Wallet />, fields: ['salaryType', 'salaryRate', 'commission', 'bankDetails'] },
 ];
 
 interface NewTrainerInfo {
@@ -149,6 +150,7 @@ export default function AddTrainerPage() {
       shiftTiming: '',
       salaryType: '',
       salaryRate: '',
+      commission: '',
       bankDetails: '',
     },
   });
@@ -356,11 +358,12 @@ export default function AddTrainerPage() {
                                 <FormItem><FormLabel>Salary Type</FormLabel>
                                 <Select onValueChange={field.onChange} defaultValue={field.value}>
                                     <FormControl><SelectTrigger><SelectValue placeholder="Select type" /></SelectTrigger></FormControl>
-                                    <SelectContent><SelectItem value="fixed">Fixed</SelectItem><SelectItem value="commission">Commission Based</SelectItem><SelectItem value="hourly">Hourly</SelectItem></SelectContent>
+                                    <SelectContent><SelectItem value="fixed">Fixed</SelectItem><SelectItem value="commission">Commission Based</SelectItem><SelectItem value="hybrid">Hybrid</SelectItem><SelectItem value="freelancer">Freelancer</SelectItem></SelectContent>
                                 </Select><FormMessage />
                                 </FormItem>
                             )} />
                             <FormField control={form.control} name="salaryRate" render={({ field }) => ( <FormItem><FormLabel>Salary / Pay Rate</FormLabel><FormControl><Input type="number" placeholder="30000" {...field} /></FormControl><FormMessage /></FormItem> )} />
+                            <FormField control={form.control} name="commission" render={({ field }) => ( <FormItem><FormLabel>Commission (%)</FormLabel><FormControl><Input type="number" placeholder="10" {...field} /></FormControl><FormMessage /></FormItem> )} />
                             <FormField control={form.control} name="bankDetails" render={({ field }) => ( <FormItem className="md:col-span-2"><FormLabel>Bank Details (Optional)</FormLabel><FormControl><Textarea placeholder="Bank Name, Account Number, IFSC Code" {...field} /></FormControl><FormMessage /></FormItem> )} />
                         </div>
                     )}
@@ -391,3 +394,5 @@ export default function AddTrainerPage() {
     </div>
   );
 }
+
+    
