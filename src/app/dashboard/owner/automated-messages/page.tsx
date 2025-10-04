@@ -19,6 +19,9 @@ import Link from 'next/link';
 import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
+import Image from 'next/image';
+
 
 const formSchema = z.object({
   paymentReminder: z.string().optional(),
@@ -301,12 +304,28 @@ export default function RemindersPage() {
                     </div>
                 </div>
                  <div className="flex items-center gap-2">
-                    <a href="https://web.whatsapp.com" target="_blank" rel="noopener noreferrer">
-                        <Button variant="outline" type="button">
-                            <WhatsAppIcon />
-                            Connect WhatsApp
-                        </Button>
-                    </a>
+                    <Dialog>
+                        <DialogTrigger asChild>
+                             <Button variant="outline" type="button">
+                                <WhatsAppIcon />
+                                Connect WhatsApp
+                            </Button>
+                        </DialogTrigger>
+                        <DialogContent>
+                            <DialogHeader>
+                                <DialogTitle>Connect to WhatsApp Web</DialogTitle>
+                                <DialogDescription>Scan this QR code with your phone to link your device.</DialogDescription>
+                            </DialogHeader>
+                            <div className="flex justify-center p-4">
+                                <Image src="https://www.strenx.in/assets/img/qr.png" alt="WhatsApp QR Code" width={256} height={256} />
+                            </div>
+                            <DialogFooter>
+                                <a href="https://web.whatsapp.com" target="_blank" rel="noopener noreferrer">
+                                    <Button type="button">Open WhatsApp Web</Button>
+                                </a>
+                            </DialogFooter>
+                        </DialogContent>
+                    </Dialog>
                     <Link href="/dashboard/owner">
                         <Button variant="outline" type="button">
                             <ArrowLeft className="mr-2 h-4 w-4" />
