@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { collection, addDoc, query, onSnapshot, serverTimestamp, Timestamp, where, getDocs, doc, setDoc } from "firebase/firestore";
+import { collection, addDoc, query, onSnapshot, serverTimestamp, Timestamp, where, getDocs, doc, setDoc, getDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -59,7 +59,7 @@ export default function CommunityPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isPostDialogOpen, setIsPostDialogOpen] = useState(false);
   const [activeTab, setActiveTab] = useState('global');
-  const [hasCommunityProfile, setHasCommunityProfile] = useState(true);
+  const [hasCommunityProfile, setHasCommunityProfile] = useState<boolean | null>(null);
   const [isUsernameDialogOpen, setIsUsernameDialogOpen] = useState(false);
 
   const { toast } = useToast();
@@ -84,18 +84,27 @@ export default function CommunityPage() {
   });
   
   useEffect(() => {
-    const communityUsername = localStorage.getItem('communityUsername');
-    const role = localStorage.getItem('userRole');
-    if (!communityUsername && role) {
+    const checkCommunityProfile = async () => {
+      const userId = localStorage.getItem('userDocId');
+      if (!userId) return;
+
+      const q = query(collection(db, 'userCommunity'), where('userId', '==', userId));
+      const querySnapshot = await getDocs(q);
+
+      if (!querySnapshot.empty) {
+        const username = querySnapshot.docs[0].id;
+        localStorage.setItem('communityUsername', username);
+        setHasCommunityProfile(true);
+      } else {
         setHasCommunityProfile(false);
         setIsUsernameDialogOpen(true);
-    } else {
-        setHasCommunityProfile(true);
-    }
+      }
+    };
+    checkCommunityProfile();
   }, []);
 
   useEffect(() => {
-    if (!hasCommunityProfile) return;
+    if (hasCommunityProfile !== true) return;
 
     setIsLoading(true);
     const gymId = localStorage.getItem('userDocId');
@@ -241,6 +250,7 @@ export default function CommunityPage() {
         const usernameSnap = await getDoc(usernameRef);
         if (usernameSnap.exists()) {
             usernameForm.setError('username', { type: 'manual', message: 'Username already taken.'});
+            setIsSubmitting(false);
             return;
         }
 
@@ -252,6 +262,7 @@ export default function CommunityPage() {
     } catch (error) {
         console.error("Error setting username:", error);
         toast({ title: 'Error', description: 'Could not set username. Please try again.', variant: 'destructive'});
+        setIsSubmitting(false);
     } finally {
         setIsSubmitting(false);
     }
@@ -304,7 +315,11 @@ export default function CommunityPage() {
     ));
   };
 
-  if (!hasCommunityProfile) {
+  if (hasCommunityProfile === null) {
+      return <div className="flex justify-center p-8"><Loader2 className="h-8 w-8 animate-spin"/></div>;
+  }
+
+  if (hasCommunityProfile === false) {
     return (
         <Dialog open={isUsernameDialogOpen} onOpenChange={setIsUsernameDialogOpen}>
             <DialogContent onInteractOutside={(e) => e.preventDefault()}>
