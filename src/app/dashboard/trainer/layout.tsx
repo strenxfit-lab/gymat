@@ -68,7 +68,7 @@ export default function TrainerDashboardLayout({
       <Sidebar className="flex flex-col shadow-md border-r border-gray-200 dark:border-gray-800 transition-all duration-300 ease-in-out">
         <SidebarHeader>
           <div className="flex items-center gap-2">
-            <Dumbbell className="w-8 h-8 text-indigo-500" />
+            <Dumbbell className="w-8 h-8 text-primary" />
             <h1 className="text-xl font-bold text-gray-900 dark:text-gray-50">Strenx</h1>
           </div>
            {trainerName && (
