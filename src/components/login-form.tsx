@@ -76,7 +76,7 @@ export default function LoginForm({ onExpired }: LoginFormProps) {
 
         if (userData.password === values.password) {
             const expiry = (userData.expiry_at as Timestamp)?.toDate();
-            if (expiry && expiry < new Date()) {
+            if (expiry && expiry < new Date() && !userData.isTrial) {
                 if (onExpired) onExpired(userDoc.id);
                 setIsLoading(false);
                 return;
