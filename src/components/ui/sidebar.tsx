@@ -159,6 +159,9 @@ export const Sidebar = React.forwardRef<
                     className="w-[--sidebar-width] bg-sidebar p-0 text-sidebar-foreground border-r border-gray-200 dark:border-gray-800"
                     style={{ '--sidebar-width': SIDEBAR_WIDTH_MOBILE } as React.CSSProperties}
                 >
+                    <SheetHeader>
+                        <SheetTitle className="sr-only">Sidebar Menu</SheetTitle>
+                    </SheetHeader>
                     <div className="flex h-full w-full flex-col">{children}</div>
                 </SheetContent>
             </Sheet>
