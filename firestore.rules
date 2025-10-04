@@ -1,10 +1,62 @@
 rules_version = '2';
+
 service cloud.firestore {
   match /databases/{database}/documents {
-    // This rule allows anyone to read and write to any collection.
-    // This is for debugging purposes and should be secured before production.
-    match /{document=**} {
-      allow read, write: if true;
+  
+    // Allow public read access to subscription plans
+    match /subscription/{planId} {
+      allow read: if true;
+      allow write: if false; // Only manageable through Firebase Console
+    }
+    
+    // Allow public read access to the server date
+    match /date/current {
+    	allow read: if true;
+      allow write: if false;
+    }
+    
+    // Allow trial key creation/reading under certain conditions
+    match /trialKeys/{keyId} {
+    	allow read, write: if true; // In a real app, this would be more secure
+    }
+
+    // Secure gyms, members, trainers, and all subcollections
+    match /gyms/{gymId} {
+      allow read, write: if request.auth != null; // Simplistic rule, refine for production
+
+      // All subcollections within a gym
+      match /{collectionId}/{docId=**} {
+        allow read, write: if request.auth != null;
+      }
+    }
+    
+    // Rules for the new 'posts' collection
+    match /posts/{postId} {
+    	// Any authenticated user can create a post
+    	allow create: if request.auth != null;
+      
+      // Any authenticated user can read any post for now
+      // This will be refined later for gym-specific vs global feeds
+      allow read: if request.auth != null;
+      
+      // Only the author of the post can update or delete it
+      allow update, delete: if request.auth != null && request.auth.uid == resource.data.authorId;
+    }
+
+    // Allow authenticated users to write to the attendance collection
+    match /attendance/{attendanceId} {
+        allow create: if request.auth != null;
+        allow read, update, delete: if false; // Generally, attendance records shouldn't be client-modifiable
+    }
+    
+    // Rules for superadmins
+    match /superadmins/{adminId} {
+    	allow read, write: if request.auth != null && request.auth.token.isSuperAdmin == true;
+    }
+    
+    // Rules for platform-wide payments
+    match /platform_payments/{paymentId} {
+    	allow read, write: if request.auth != null && request.auth.token.isSuperAdmin == true;
     }
   }
 }
