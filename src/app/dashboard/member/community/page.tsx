@@ -8,7 +8,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Loader2, Send, Plus, Image as ImageIcon, Video, X, ThumbsUp, MessageSquare, MoreVertical, Flag, Repeat, Share2 } from "lucide-react";
+import { Loader2, Send, Plus, Image as ImageIcon, Video, X, ThumbsUp, MessageSquare, MoreVertical, Flag, Repeat, Share2, Search, User, Rss, LayoutDashboard } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { formatDistanceToNow } from 'date-fns';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -22,6 +22,7 @@ import Image from 'next/image';
 import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { BottomNavbar } from "@/components/ui/bottom-navbar";
 
 interface Comment {
     id: string;
@@ -605,7 +606,7 @@ export default function CommunityPage() {
 
 
   return (
-    <div className="h-full w-full flex flex-col relative">
+    <div className="h-screen w-screen flex flex-col">
       <Dialog open={isRepostDialogOpen} onOpenChange={setIsRepostDialogOpen}>
         <DialogContent>
             <DialogHeader>
@@ -659,7 +660,7 @@ export default function CommunityPage() {
         </DialogContent>
       </Dialog>
       <Dialog open={isPostDialogOpen} onOpenChange={setIsPostDialogOpen}>
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col">
+        <div className="flex-1 flex flex-col">
             <header className="p-4 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-10">
                 <div className="flex items-center justify-between">
                     <h1 className="text-2xl font-bold">Community</h1>
@@ -678,17 +679,12 @@ export default function CommunityPage() {
                 </div>
             </header>
             
-            <TabsContent value="global" className="flex-1 overflow-y-auto p-4 space-y-4">
+            <main className="flex-1 overflow-y-auto p-4 pb-20 space-y-4">
                 <div className="max-w-2xl mx-auto w-full">
                     {renderFeed()}
                 </div>
-            </TabsContent>
-            <TabsContent value="your_gym" className="flex-1 overflow-y-auto p-4 space-y-4">
-                <div className="max-w-2xl mx-auto w-full">
-                    {renderFeed()}
-                </div>
-            </TabsContent>
-        </Tabs>
+            </main>
+        </div>
         
         <DialogContent>
              <DialogHeader>
@@ -768,6 +764,14 @@ export default function CommunityPage() {
             </Form>
         </DialogContent>
       </Dialog>
+      <BottomNavbar
+        navItems={[
+          { label: "Dashboard", href: "/dashboard/member", icon: <LayoutDashboard /> },
+          { label: "Search", href: "#", icon: <Search /> },
+          { label: "Feed", href: "/dashboard/member/community", icon: <Rss /> },
+          { label: "Profile", href: "/dashboard/member/profile", icon: <User /> },
+        ]}
+      />
     </div>
   );
 }
