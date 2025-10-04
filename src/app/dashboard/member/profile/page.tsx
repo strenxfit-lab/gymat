@@ -8,13 +8,13 @@ import { db } from '@/lib/firebase';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Loader2, User, Edit, Rss, Image as ImageIcon, Video, ThumbsUp, MessageSquare, Repeat, Share2, MoreVertical, Flag, Send, Trash } from 'lucide-react';
+import { Loader2, User, Edit, Rss, Image as ImageIcon, Video, ThumbsUp, MessageSquare, Repeat, Share2 } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { BottomNavbar } from '@/components/ui/bottom-navbar';
 import { LayoutDashboard, Search } from 'lucide-react';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { formatDistanceToNow } from 'date-fns';
 import { cn } from '@/lib/utils';
 
@@ -77,9 +77,8 @@ export default function MemberCommunityProfilePage() {
 
         const postsQuery = query(collection(db, 'gymRats'), where('authorId', '==', userId));
         const postsSnap = await getDocs(postsQuery);
-        const userPosts = postsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Post));
-        
-        userPosts.sort((a, b) => b.createdAt.toDate().getTime() - a.createdAt.toDate().getTime());
+        const userPosts = postsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Post))
+            .sort((a, b) => b.createdAt.toDate().getTime() - a.createdAt.toDate().getTime());
         
         setStats(prev => ({ ...prev, posts: userPosts.length }));
         setPosts(userPosts);
@@ -164,6 +163,9 @@ export default function MemberCommunityProfilePage() {
         />
         {selectedPost && (
             <DialogContent className="max-w-2xl">
+                 <DialogHeader>
+                    <DialogTitle>Post by {selectedPost.authorName}</DialogTitle>
+                </DialogHeader>
                 <Card className="border-0 shadow-none">
                      <CardHeader className="flex flex-row items-start gap-4">
                         <Avatar>
