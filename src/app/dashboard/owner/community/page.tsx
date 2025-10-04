@@ -4,11 +4,11 @@ import { useState, useEffect } from "react";
 import { collection, addDoc, query, orderBy, onSnapshot, serverTimestamp, Timestamp } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useToast } from "@/hooks/use-toast";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Loader2, Send, Users } from "lucide-react";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Loader2, Send } from "lucide-react";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { formatDistanceToNow } from 'date-fns';
 
 interface Post {
@@ -56,7 +56,9 @@ export default function CommunityPage() {
     if (newPost.trim() === "") return;
 
     const gymId = localStorage.getItem('userDocId');
-    const authorName = "Gym Owner"; // In a real app, this would come from user's profile
+    // For this basic version, we'll hardcode the owner's name.
+    // In a real app, this would come from the user's profile.
+    const authorName = "Gym Owner"; 
     const authorId = localStorage.getItem('userDocId');
 
     if (!gymId || !authorId) {
@@ -72,7 +74,7 @@ export default function CommunityPage() {
             gymId,
             text: newPost,
             createdAt: serverTimestamp(),
-            visibility: 'global', // For now, all posts are global
+            // Default visibility can be set here in the future
         });
         setNewPost("");
     } catch (error) {
@@ -87,7 +89,7 @@ export default function CommunityPage() {
     <div className="container mx-auto py-10">
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-3xl font-bold">Community</h1>
+          <h1 className="text-3xl font-bold">Community Feed</h1>
           <p className="text-muted-foreground">
             Engage with your gym members and trainers.
           </p>
@@ -104,7 +106,7 @@ export default function CommunityPage() {
             <CardContent>
                 <form onSubmit={handlePostSubmit} className="space-y-4">
                     <Textarea 
-                        placeholder="What's on your mind?"
+                        placeholder="What's on your mind? Share an update with the community..."
                         value={newPost}
                         onChange={(e) => setNewPost(e.target.value)}
                         className="min-h-[100px]"
@@ -128,13 +130,13 @@ export default function CommunityPage() {
                     <Card key={post.id}>
                         <CardHeader className="flex flex-row items-center gap-4">
                             <Avatar>
-                                <AvatarFallback>{post.authorName.charAt(0)}</AvatarFallback>
+                                <AvatarFallback>{post.authorName?.charAt(0) || 'U'}</AvatarFallback>
                             </Avatar>
                             <div>
                                 <CardTitle className="text-base">{post.authorName}</CardTitle>
-                                <CardDescription>
+                                <p className="text-xs text-muted-foreground">
                                     {post.createdAt ? `${formatDistanceToNow(post.createdAt)} ago` : 'just now'}
-                                </CardDescription>
+                                </p>
                             </div>
                         </CardHeader>
                         <CardContent>
@@ -143,7 +145,10 @@ export default function CommunityPage() {
                     </Card>
                 ))
             ) : (
-                <p className="text-muted-foreground text-center py-8">No posts yet. Be the first to start a conversation!</p>
+                <div className="text-center py-12 border-2 border-dashed rounded-lg">
+                    <p className="text-muted-foreground">No posts yet.</p>
+                    <p className="text-sm text-muted-foreground">Be the first to start a conversation!</p>
+                </div>
             )}
           </div>
         </div>
