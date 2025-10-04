@@ -23,7 +23,7 @@ import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { BottomNavbar } from "@/components/ui/bottom-navbar";
-import { Command, CommandInput, CommandList, CommandEmpty, CommandGroup, CommandItem } from "@/components/ui/command";
+import { CommandDialog, CommandInput, CommandList, CommandEmpty, CommandGroup, CommandItem } from "@/components/ui/command";
 
 interface Comment {
     id: string;
@@ -700,46 +700,39 @@ export default function CommunityPage() {
         </DialogContent>
       </Dialog>
       
-       <Dialog open={isSearchDialogOpen} onOpenChange={setIsSearchDialogOpen}>
-        <DialogContent>
-            <DialogHeader>
-                <DialogTitle>Search Users</DialogTitle>
-                <DialogDescription>Find other members of the community by their username.</DialogDescription>
-            </DialogHeader>
-            <Command className="rounded-lg border shadow-md">
-                <CommandInput 
-                    placeholder="Type a username to search..." 
-                    value={searchQuery} 
-                    onValueChange={setSearchQuery} 
-                />
-                <CommandList>
-                    {isSearching && <div className="p-4 flex justify-center"><Loader2 className="h-5 w-5 animate-spin" /></div>}
-                    {!isSearching && searchQuery && searchResults.length === 0 && <CommandEmpty>No users found.</CommandEmpty>}
-                    <CommandGroup>
-                        {searchResults.map(user => (
-                            <CommandItem key={user.id} onSelect={() => {
-                                // router.push(`/dashboard/community/profile/${user.id}`)
-                                setIsSearchDialogOpen(false);
-                            }}>
-                                <Avatar className="mr-2 h-8 w-8">
-                                    <AvatarFallback>{user.id.charAt(0).toUpperCase()}</AvatarFallback>
-                                </Avatar>
-                                <span>{user.id}</span>
-                            </CommandItem>
-                        ))}
-                    </CommandGroup>
-                </CommandList>
-            </Command>
-        </DialogContent>
-      </Dialog>
+       <CommandDialog open={isSearchDialogOpen} onOpenChange={setIsSearchDialogOpen}>
+          <CommandInput 
+              placeholder="Type a username to search..." 
+              value={searchQuery} 
+              onValueChange={setSearchQuery} 
+          />
+          <CommandList>
+              {isSearching && <div className="p-4 flex justify-center"><Loader2 className="h-5 w-5 animate-spin" /></div>}
+              {!isSearching && searchQuery && searchResults.length === 0 && <CommandEmpty>No users found.</CommandEmpty>}
+              <CommandGroup>
+                  {searchResults.map(user => (
+                      <CommandItem key={user.id} onSelect={() => {
+                          // router.push(`/dashboard/community/profile/${user.id}`)
+                          setIsSearchDialogOpen(false);
+                      }}>
+                          <Avatar className="mr-2 h-8 w-8">
+                              <AvatarFallback>{user.id.charAt(0).toUpperCase()}</AvatarFallback>
+                          </Avatar>
+                          <span>{user.id}</span>
+                      </CommandItem>
+                  ))}
+              </CommandGroup>
+          </CommandList>
+        </CommandDialog>
+        
       <div className="flex-1 flex flex-col">
         <Dialog open={isPostDialogOpen} onOpenChange={setIsPostDialogOpen}>
-            <Tabs defaultValue="global" value={activeTab} onValueChange={setActiveTab}>
+            <Tabs defaultValue="global" value={activeTab} onValueChange={setActiveTab} className="flex flex-col flex-1">
               <header className="p-4 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-10">
                   <div className="flex items-center justify-between">
                       <h1 className="text-2xl font-bold">Community</h1>
                       <div className="flex items-center gap-4">
-                          <TabsList className="bg-primary/20 text-primary-foreground">
+                          <TabsList className="bg-orange-500/20 text-orange-700 dark:text-orange-300">
                               <TabsTrigger value="your_gym">Your Gym</TabsTrigger>
                               <TabsTrigger value="global">Global</TabsTrigger>
                           </TabsList>

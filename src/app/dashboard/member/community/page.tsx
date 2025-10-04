@@ -23,7 +23,7 @@ import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { BottomNavbar } from "@/components/ui/bottom-navbar";
-import { Command, CommandInput, CommandList, CommandEmpty, CommandGroup, CommandItem } from "@/components/ui/command";
+import { CommandDialog, CommandInput, CommandList, CommandEmpty, CommandGroup, CommandItem } from "@/components/ui/command";
 
 interface Comment {
     id: string;
@@ -700,142 +700,135 @@ export default function CommunityPage() {
         </DialogContent>
       </Dialog>
       
-       <Dialog open={isSearchDialogOpen} onOpenChange={setIsSearchDialogOpen}>
-        <DialogContent>
-            <DialogHeader>
-                <DialogTitle>Search Users</DialogTitle>
-                <DialogDescription>Find other members of the community by their username.</DialogDescription>
-            </DialogHeader>
-            <Command className="rounded-lg border shadow-md">
-                <CommandInput 
-                    placeholder="Type a username to search..." 
-                    value={searchQuery} 
-                    onValueChange={setSearchQuery} 
-                />
-                <CommandList>
-                    {isSearching && <div className="p-4 flex justify-center"><Loader2 className="h-5 w-5 animate-spin" /></div>}
-                    {!isSearching && searchQuery && searchResults.length === 0 && <CommandEmpty>No users found.</CommandEmpty>}
-                    <CommandGroup>
-                        {searchResults.map(user => (
-                            <CommandItem key={user.id} onSelect={() => {
-                                // router.push(`/dashboard/community/profile/${user.id}`)
-                                setIsSearchDialogOpen(false);
-                            }}>
-                                <Avatar className="mr-2 h-8 w-8">
-                                    <AvatarFallback>{user.id.charAt(0).toUpperCase()}</AvatarFallback>
-                                </Avatar>
-                                <span>{user.id}</span>
-                            </CommandItem>
-                        ))}
-                    </CommandGroup>
-                </CommandList>
-            </Command>
-        </DialogContent>
-      </Dialog>
+       <CommandDialog open={isSearchDialogOpen} onOpenChange={setIsSearchDialogOpen}>
+          <CommandInput 
+              placeholder="Type a username to search..." 
+              value={searchQuery} 
+              onValueChange={setSearchQuery} 
+          />
+          <CommandList>
+              {isSearching && <div className="p-4 flex justify-center"><Loader2 className="h-5 w-5 animate-spin" /></div>}
+              {!isSearching && searchQuery && searchResults.length === 0 && <CommandEmpty>No users found.</CommandEmpty>}
+              <CommandGroup>
+                  {searchResults.map(user => (
+                      <CommandItem key={user.id} onSelect={() => {
+                          // router.push(`/dashboard/community/profile/${user.id}`)
+                          setIsSearchDialogOpen(false);
+                      }}>
+                          <Avatar className="mr-2 h-8 w-8">
+                              <AvatarFallback>{user.id.charAt(0).toUpperCase()}</AvatarFallback>
+                          </Avatar>
+                          <span>{user.id}</span>
+                      </CommandItem>
+                  ))}
+              </CommandGroup>
+          </CommandList>
+        </CommandDialog>
+
       <div className="flex-1 flex flex-col">
         <Dialog open={isPostDialogOpen} onOpenChange={setIsPostDialogOpen}>
-            <Tabs defaultValue="global" value={activeTab} onValueChange={setActiveTab}>
-              <header className="p-4 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-10">
-                <div className="flex items-center justify-between">
-                    <h1 className="text-2xl font-bold">Community</h1>
-                    <div className="flex items-center gap-4">
-                        <TabsList className="bg-primary/20 text-primary-foreground">
-                            <TabsTrigger value="your_gym">Your Gym</TabsTrigger>
-                            <TabsTrigger value="global">Global</TabsTrigger>
-                        </TabsList>
-                        <DialogTrigger asChild>
-                        <Button>
-                            <Plus className="h-4 w-4 mr-2" />
-                            Create Post
-                        </Button>
-                        </DialogTrigger>
-                    </div>
-                </div>
-              </header>
-            
-              <main className="flex-1 overflow-y-auto p-4 pb-20 space-y-4">
-                  <div className="max-w-2xl mx-auto w-full">
-                      {renderFeed()}
+          <Tabs defaultValue="global" value={activeTab} onValueChange={setActiveTab} className="flex flex-col flex-1">
+            <header className="p-4 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-10">
+              <div className="flex items-center justify-between">
+                  <h1 className="text-2xl font-bold">Community</h1>
+                  <div className="flex items-center gap-4">
+                      <TabsList className="bg-orange-500/20 text-orange-700 dark:text-orange-300">
+                          <TabsTrigger value="your_gym">Your Gym</TabsTrigger>
+                          <TabsTrigger value="global">Global</TabsTrigger>
+                      </TabsList>
+                      <DialogTrigger asChild>
+                      <Button>
+                          <Plus className="h-4 w-4 mr-2" />
+                          Create Post
+                      </Button>
+                      </DialogTrigger>
                   </div>
-              </main>
-            </Tabs>
-            <DialogContent>
-                 <DialogHeader>
-                    <DialogTitle>Create a New Post</DialogTitle>
-                    <DialogDescription>
-                        Share an update, photo, or video with the community.
-                    </DialogDescription>
-                </DialogHeader>
-                 <Form {...postForm}>
-                    <form onSubmit={postForm.handleSubmit(handlePostSubmit)} className="space-y-4">
-                        <FormField
-                            control={postForm.control}
-                            name="text"
-                            render={({ field }) => (
-                                <FormItem>
-                                <FormControl>
-                                    <Textarea
-                                        placeholder="What's on your mind?"
-                                        className="min-h-[120px]"
-                                        {...field}
-                                    />
-                                </FormControl>
-                                <FormMessage />
-                                </FormItem>
-                            )}
-                        />
-                        
-                        <div className="flex flex-wrap gap-2">
-                            {mediaPreviews.map((media, index) => (
-                                <div key={index} className="relative">
-                                    {media.type === 'image' ? (
-                                        <Image src={media.url} alt="preview" width={80} height={80} className="rounded-md object-cover h-20 w-20"/>
-                                    ) : (
-                                        <video src={media.url} className="w-full h-auto rounded-md" />
-                                    )}
-                                    <Button variant="ghost" size="icon" className="absolute top-1 right-1 h-6 w-6 bg-black/50 hover:bg-black/75 text-white" onClick={() => clearMedia(index)}>
-                                        <X className="h-4 w-4"/>
-                                    </Button>
-                                </div>
-                            ))}
-                        </div>
+              </div>
+            </header>
+          
+            <main className="flex-1 overflow-y-auto p-4 pb-20 space-y-4">
+                <div className="max-w-2xl mx-auto w-full">
+                    {renderFeed()}
+                </div>
+            </main>
+          </Tabs>
+          <DialogContent>
+               <DialogHeader>
+                  <DialogTitle>Create a New Post</DialogTitle>
+                  <DialogDescription>
+                      Share an update, photo, or video with the community.
+                  </DialogDescription>
+              </DialogHeader>
+               <Form {...postForm}>
+                  <form onSubmit={postForm.handleSubmit(handlePostSubmit)} className="space-y-4">
+                      <FormField
+                          control={postForm.control}
+                          name="text"
+                          render={({ field }) => (
+                              <FormItem>
+                              <FormControl>
+                                  <Textarea
+                                      placeholder="What's on your mind?"
+                                      className="min-h-[120px]"
+                                      {...field}
+                                  />
+                              </FormControl>
+                              <FormMessage />
+                              </FormItem>
+                          )}
+                      />
+                      
+                      <div className="flex flex-wrap gap-2">
+                          {mediaPreviews.map((media, index) => (
+                              <div key={index} className="relative">
+                                  {media.type === 'image' ? (
+                                      <Image src={media.url} alt="preview" width={80} height={80} className="rounded-md object-cover h-20 w-20"/>
+                                  ) : (
+                                      <video src={media.url} className="w-full h-auto rounded-md" />
+                                  )}
+                                  <Button variant="ghost" size="icon" className="absolute top-1 right-1 h-6 w-6 bg-black/50 hover:bg-black/75 text-white" onClick={() => clearMedia(index)}>
+                                      <X className="h-4 w-4"/>
+                                  </Button>
+                              </div>
+                          ))}
+                      </div>
 
-                        <div className="flex gap-2">
-                             <Button type="button" variant="outline" onClick={() => imageInputRef.current?.click()} disabled={mediaPreviews.some(m => m.type === 'video') || mediaPreviews.filter(m => m.type === 'image').length >= 3}>
-                                <ImageIcon className="mr-2 h-4 w-4"/> Add Photo(s)
-                            </Button>
-                            <input type="file" ref={imageInputRef} multiple accept="image/*" className="hidden" onChange={(e) => handleFileChange(e, 'image')} />
-                            
-                             <Button type="button" variant="outline" onClick={() => videoInputRef.current?.click()} disabled={mediaPreviews.length > 0}>
-                                <Video className="mr-2 h-4 w-4"/> Add Video
-                            </Button>
-                            <input type="file" ref={videoInputRef} accept="video/*" className="hidden" onChange={(e) => handleFileChange(e, 'video')} />
-                        </div>
+                      <div className="flex gap-2">
+                           <Button type="button" variant="outline" onClick={() => imageInputRef.current?.click()} disabled={mediaPreviews.some(m => m.type === 'video') || mediaPreviews.filter(m => m.type === 'image').length >= 3}>
+                              <ImageIcon className="mr-2 h-4 w-4"/> Add Photo(s)
+                          </Button>
+                          <input type="file" ref={imageInputRef} multiple accept="image/*" className="hidden" onChange={(e) => handleFileChange(e, 'image')} />
+                          
+                           <Button type="button" variant="outline" onClick={() => videoInputRef.current?.click()} disabled={mediaPreviews.length > 0}>
+                              <Video className="mr-2 h-4 w-4"/> Add Video
+                          </Button>
+                          <input type="file" ref={videoInputRef} accept="video/*" className="hidden" onChange={(e) => handleFileChange(e, 'video')} />
+                      </div>
 
-                         <FormField
-                            control={postForm.control}
-                            name="visibility"
-                            render={({ field }) => (
-                                <FormItem className="space-y-3">
-                                <FormLabel>Visibility</FormLabel>
-                                <FormControl>
-                                    <RadioGroup onValueChange={field.onChange} value={field.value} className="flex gap-4">
-                                        <FormItem className="flex items-center space-x-3 space-y-0"><FormControl><RadioGroupItem value="local" /></FormControl><FormLabel className="font-normal">Your Gym</FormLabel></FormItem>
-                                        <FormItem className="flex items-center space-x-3 space-y-0"><FormControl><RadioGroupItem value="global" /></FormControl><FormLabel className="font-normal">Global</FormLabel></FormItem>
-                                    </RadioGroup>
-                                </FormControl>
-                                    <FormMessage />
-                                </FormItem>
-                            )} />
-                        <DialogFooter>
-                            <Button type="button" variant="ghost" onClick={() => setIsPostDialogOpen(false)}>Cancel</Button>
-                            <Button type="submit" disabled={isSubmitting}>
-                                {isSubmitting ? <Loader2 className="animate-spin mr-2"/> : <Send className="mr-2 h-4 w-4"/>} Post
-                            </Button>
-                        </DialogFooter>
-                    </form>
-                </Form>
-            </DialogContent>
+                       <FormField
+                          control={postForm.control}
+                          name="visibility"
+                          render={({ field }) => (
+                              <FormItem className="space-y-3">
+                              <FormLabel>Visibility</FormLabel>
+                              <FormControl>
+                                  <RadioGroup onValueChange={field.onChange} value={field.value} className="flex gap-4">
+                                      <FormItem className="flex items-center space-x-3 space-y-0"><FormControl><RadioGroupItem value="local" /></FormControl><FormLabel className="font-normal">Your Gym</FormLabel></FormItem>
+                                      <FormItem className="flex items-center space-x-3 space-y-0"><FormControl><RadioGroupItem value="global" /></FormControl><FormLabel className="font-normal">Global</FormLabel></FormItem>
+                                  </RadioGroup>
+                              </FormControl>
+                                  <FormMessage />
+                              </FormItem>
+                          )} />
+                      <DialogFooter>
+                          <Button type="button" variant="ghost" onClick={() => setIsPostDialogOpen(false)}>Cancel</Button>
+                          <Button type="submit" disabled={isSubmitting}>
+                              {isSubmitting ? <Loader2 className="animate-spin mr-2"/> : <Send className="mr-2 h-4 w-4"/>} Post
+                          </Button>
+                      </DialogFooter>
+                  </form>
+              </Form>
+          </DialogContent>
         </Dialog>
       </div>
       
