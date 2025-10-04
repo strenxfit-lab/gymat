@@ -86,7 +86,11 @@ export default function CommunityPage() {
   useEffect(() => {
     const checkCommunityProfile = async () => {
       const userId = localStorage.getItem('userDocId');
-      if (!userId) return;
+      if (!userId) {
+        setHasCommunityProfile(false);
+        // Or handle error, maybe redirect
+        return;
+      }
 
       const q = query(collection(db, 'userCommunity'), where('userId', '==', userId));
       const querySnapshot = await getDocs(q);
@@ -105,7 +109,7 @@ export default function CommunityPage() {
 
   useEffect(() => {
     if (hasCommunityProfile !== true) return;
-
+    
     setIsLoading(true);
     const gymId = localStorage.getItem('userDocId');
     if (!gymId) {
@@ -124,7 +128,7 @@ export default function CommunityPage() {
       const postsData: Post[] = [];
       querySnapshot.forEach((doc) => {
         const data = doc.data();
-        if (data.createdAt) { 
+        if (data.createdAt) { // Ensure createdAt exists before processing
           postsData.push({
             id: doc.id,
             ...data,
@@ -132,6 +136,7 @@ export default function CommunityPage() {
           } as Post);
         }
       });
+      // Sort posts on the client-side
       postsData.sort((a, b) => {
           if (!a.createdAt || !b.createdAt) return 0;
           return b.createdAt.getTime() - a.createdAt.getTime()

@@ -85,7 +85,11 @@ export default function CommunityPage() {
   useEffect(() => {
     const checkCommunityProfile = async () => {
       const userId = localStorage.getItem('trainerId');
-      if (!userId) return;
+      if (!userId) {
+        setHasCommunityProfile(false);
+        // Or handle error, maybe redirect
+        return;
+      }
 
       const q = query(collection(db, 'userCommunity'), where('userId', '==', userId));
       const querySnapshot = await getDocs(q);
@@ -101,7 +105,7 @@ export default function CommunityPage() {
     };
     checkCommunityProfile();
   }, []);
-
+  
   useEffect(() => {
     if (hasCommunityProfile !== true) return;
     
