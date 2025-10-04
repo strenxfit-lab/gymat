@@ -8,7 +8,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Loader2, Send, Plus, Image as ImageIcon, Video, X, ThumbsUp, MessageSquare, MoreVertical, Flag } from "lucide-react";
+import { Loader2, Send, Plus, Image as ImageIcon, Video, X, ThumbsUp, MessageSquare, MoreVertical, Flag, Repeat } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { formatDistanceToNow } from 'date-fns';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -23,6 +23,7 @@ import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Separator } from "@/components/ui/separator";
 
 
 interface Comment {
@@ -45,6 +46,10 @@ interface Post {
     visibility: 'local' | 'global';
     likes?: string[];
     comments?: Comment[];
+    repost?: {
+        originalAuthorName: string;
+        originalAuthorId: string;
+    }
 }
 
 const postSchema = z.object({
@@ -71,6 +76,11 @@ const commentSchema = z.object({
 });
 type CommentFormData = z.infer<typeof commentSchema>;
 
+const repostSchema = z.object({
+  visibility: z.enum(['local', 'global']),
+});
+type RepostFormData = z.infer<typeof repostSchema>;
+
 
 export default function CommunityPage() {
   const [posts, setPosts] = useState<Post[]>([]);
@@ -80,14 +90,15 @@ export default function CommunityPage() {
   const [activeTab, setActiveTab] = useState('global');
   const [hasCommunityProfile, setHasCommunityProfile] = useState<boolean | null>(null);
   const [isUsernameDialogOpen, setIsUsernameDialogOpen] = useState(false);
-
   const { toast } = useToast();
   
   const [mediaPreviews, setMediaPreviews] = useState<{url: string, type: 'image' | 'video'}[]>([]);
   const imageInputRef = useRef<HTMLInputElement>(null);
   const videoInputRef = useRef<HTMLInputElement>(null);
   const [openComments, setOpenComments] = useState<Record<string, boolean>>({});
-  const [replyTo, setReplyTo] = useState<string | null>(null);
+  
+  const [repostingPost, setRepostingPost] = useState<Post | null>(null);
+  const [isRepostDialogOpen, setIsRepostDialogOpen] = useState(false);
 
 
   const postForm = useForm<PostFormData>({
@@ -107,6 +118,11 @@ export default function CommunityPage() {
   const commentForm = useForm<CommentFormData>({
       resolver: zodResolver(commentSchema),
       defaultValues: { text: "" },
+  });
+
+  const repostForm = useForm<RepostFormData>({
+    resolver: zodResolver(repostSchema),
+    defaultValues: { visibility: "local" },
   });
   
   useEffect(() => {
@@ -353,6 +369,47 @@ export default function CommunityPage() {
     toast({ title: "Post Reported", description: "Thank you for your feedback. We will review this post."});
   }
 
+  const handleRepostSubmit = async (values: RepostFormData) => {
+    if (!repostingPost) return;
+    setIsSubmitting(true);
+
+    const gymId = localStorage.getItem('userDocId');
+    const authorName = localStorage.getItem('communityUsername') || "Gym Owner";
+    const authorId = localStorage.getItem('userDocId');
+    if (!gymId || !authorId) {
+      toast({ title: "Error", description: "You must be logged in to repost.", variant: "destructive" });
+      setIsSubmitting(false);
+      return;
+    }
+
+    try {
+      await addDoc(collection(db, "gymRats"), {
+        authorName,
+        authorId,
+        gymId,
+        text: repostingPost.text,
+        visibility: values.visibility,
+        mediaUrls: repostingPost.mediaUrls || [],
+        createdAt: serverTimestamp(),
+        likes: [],
+        comments: [],
+        repost: {
+            originalAuthorName: repostingPost.authorName,
+            originalAuthorId: repostingPost.authorId,
+        }
+      });
+      toast({ title: "Success!", description: "Post has been reposted." });
+      setIsRepostDialogOpen(false);
+      setRepostingPost(null);
+    } catch (error) {
+      console.error("Error reposting post: ", error);
+      toast({ title: "Error", description: "Could not repost.", variant: "destructive" });
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
+
   const renderFeed = () => {
     if (isLoading) {
         return <div className="flex justify-center p-8"><Loader2 className="h-8 w-8 animate-spin"/></div>;
@@ -371,6 +428,12 @@ export default function CommunityPage() {
 
     return posts.map(post => (
         <Card key={post.id} className="mb-4">
+            {post.repost && (
+                <div className="text-xs text-muted-foreground px-4 pt-3 flex items-center gap-2">
+                    <Repeat className="h-3 w-3" />
+                    Reposted from {post.repost.originalAuthorName}
+                </div>
+            )}
             <CardHeader className="flex flex-row items-start gap-4">
                 <Avatar>
                     <AvatarImage src={post.authorPhotoUrl} />
@@ -424,6 +487,9 @@ export default function CommunityPage() {
                      <Button variant="ghost" size="sm" onClick={() => setOpenComments(prev => ({...prev, [post.id]: !prev[post.id]}))}>
                         <MessageSquare className="mr-2 h-4 w-4"/> 
                         {post.comments?.length || 0} Comments
+                    </Button>
+                     <Button variant="ghost" size="sm" onClick={() => { setRepostingPost(post); setIsRepostDialogOpen(true); }}>
+                        <Repeat className="mr-2 h-4 w-4"/> Repost
                     </Button>
                 </div>
                  {openComments[post.id] && (
@@ -497,6 +563,42 @@ export default function CommunityPage() {
 
   return (
     <div className="h-full w-full flex flex-col relative">
+      <Dialog open={isRepostDialogOpen} onOpenChange={setIsRepostDialogOpen}>
+        <DialogContent>
+            <DialogHeader>
+                <DialogTitle>Repost this Post</DialogTitle>
+                <DialogDescription>Share this post with your community.</DialogDescription>
+            </DialogHeader>
+            <div className="my-4 p-4 border rounded-md bg-muted/50">
+                <p className="text-sm text-muted-foreground whitespace-pre-wrap">{repostingPost?.text}</p>
+            </div>
+            <Form {...repostForm}>
+                <form onSubmit={repostForm.handleSubmit(handleRepostSubmit)}>
+                    <FormField
+                        control={repostForm.control}
+                        name="visibility"
+                        render={({ field }) => (
+                            <FormItem className="space-y-3">
+                            <FormLabel>Share To</FormLabel>
+                            <FormControl>
+                                <RadioGroup onValueChange={field.onChange} value={field.value} className="flex gap-4">
+                                    <FormItem className="flex items-center space-x-3 space-y-0"><FormControl><RadioGroupItem value="local" /></FormControl><FormLabel className="font-normal">Your Gym</FormLabel></FormItem>
+                                    <FormItem className="flex items-center space-x-3 space-y-0"><FormControl><RadioGroupItem value="global" /></FormControl><FormLabel className="font-normal">Global</FormLabel></FormItem>
+                                </RadioGroup>
+                            </FormControl>
+                            <FormMessage />
+                            </FormItem>
+                        )} />
+                     <DialogFooter className="mt-4">
+                        <Button type="button" variant="ghost" onClick={() => setIsRepostDialogOpen(false)}>Cancel</Button>
+                        <Button type="submit" disabled={isSubmitting}>
+                            {isSubmitting ? <Loader2 className="animate-spin mr-2"/> : <Repeat className="mr-2 h-4 w-4"/>} Repost
+                        </Button>
+                    </DialogFooter>
+                </form>
+            </Form>
+        </DialogContent>
+      </Dialog>
       <Dialog open={isPostDialogOpen} onOpenChange={setIsPostDialogOpen}>
         <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col">
             <header className="p-4 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-10">
@@ -610,3 +712,5 @@ export default function CommunityPage() {
     </div>
   );
 }
+
+    
