@@ -6,14 +6,16 @@ import { useRouter } from 'next/navigation';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 import * as z from 'zod';
-import { Loader2, Lock, Mail } from 'lucide-react';
-import { collection, query, where, getDocs, DocumentData, Timestamp } from 'firebase/firestore';
+import { Loader2, Lock, Mail, AlertTriangle } from 'lucide-react';
+import { collection, query, where, getDocs, DocumentData, Timestamp, doc, getDoc } from 'firebase/firestore';
 
 import { Button } from '@/components/ui/button';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { db } from '@/lib/firebase';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { isSameDay } from 'date-fns';
 
 const formSchema = z.object({
   email: z.string().min(1, { message: 'Please enter a valid email or login ID.' }),
@@ -33,6 +35,8 @@ interface LoginFormProps {
 
 export default function LoginForm({ onExpired }: LoginFormProps) {
   const [isLoading, setIsLoading] = useState(false);
+  const [isVerifyingDate, setIsVerifyingDate] = useState(false);
+  const [isDateMismatched, setIsDateMismatched] = useState(false);
   const { toast } = useToast();
   const router = useRouter();
 
@@ -44,9 +48,49 @@ export default function LoginForm({ onExpired }: LoginFormProps) {
     },
   });
 
+  async function verifyDate() {
+    setIsVerifyingDate(true);
+    try {
+        const dateRef = doc(db, 'date', 'current');
+        const dateSnap = await getDoc(dateRef);
+
+        if (dateSnap.exists()) {
+            const serverDate = (dateSnap.data().date as Timestamp).toDate();
+            const localDate = new Date();
+
+            if (!isSameDay(serverDate, localDate)) {
+                setIsDateMismatched(true);
+                return false;
+            }
+            setIsDateMismatched(false);
+            return true;
+        } else {
+            toast({
+                title: "Configuration Error",
+                description: "The server date document could not be found. Please contact support.",
+                variant: "destructive"
+            });
+            return false;
+        }
+    } catch (error) {
+        console.error("Date verification failed:", error);
+        toast({ title: "Error", description: "Could not verify server date.", variant: "destructive" });
+        return false;
+    } finally {
+        setIsVerifyingDate(false);
+    }
+  }
+
+
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setIsLoading(true);
     
+    const isDateCorrect = await verifyDate();
+    if (!isDateCorrect) {
+        setIsLoading(false);
+        return;
+    }
+
     try {
       // 1. Check if it's a superadmin
       const superadminsCollection = collection(db, 'superadmins');
@@ -188,6 +232,23 @@ export default function LoginForm({ onExpired }: LoginFormProps) {
   }
 
   return (
+    <>
+    <Dialog open={isDateMismatched} onOpenChange={setIsDateMismatched}>
+        <DialogContent>
+            <DialogHeader>
+                <DialogTitle className="flex items-center gap-2"><AlertTriangle className="text-destructive"/> Date & Time Mismatch</DialogTitle>
+                <DialogDescription>
+                    Your device's date does not match the server's date. Please correct your system's date and time settings to ensure all data is logged accurately.
+                </DialogDescription>
+            </DialogHeader>
+            <DialogFooter>
+                <Button onClick={verifyDate} disabled={isVerifyingDate}>
+                    {isVerifyingDate ? <Loader2 className="animate-spin mr-2"/> : null}
+                    Retry
+                </Button>
+            </DialogFooter>
+        </DialogContent>
+    </Dialog>
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
         <FormField
@@ -227,5 +288,6 @@ export default function LoginForm({ onExpired }: LoginFormProps) {
         </Button>
       </form>
     </Form>
+    </>
   );
 }
