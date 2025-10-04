@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect } from 'react';
@@ -18,6 +17,7 @@ import { Form, FormControl, FormField, FormItem } from '@/components/ui/form';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
+import Link from 'next/link';
 
 interface Comment {
     id: string;
@@ -49,8 +49,18 @@ export default function PostPage() {
     const postId = params.postId as string;
     const [post, setPost] = useState<Post | null>(null);
     const [loading, setLoading] = useState(true);
+    const [backLink, setBackLink] = useState('/dashboard/owner/community');
     const router = useRouter();
     const { toast } = useToast();
+
+    useEffect(() => {
+        const role = localStorage.getItem('userRole');
+        if (role === 'member') {
+            setBackLink('/dashboard/member/community');
+        } else if (role === 'trainer') {
+            setBackLink('/dashboard/trainer/community');
+        }
+    }, []);
 
     const commentForm = useForm<CommentFormData>({
         resolver: zodResolver(commentSchema),
@@ -149,9 +159,11 @@ export default function PostPage() {
     return (
         <div className="container mx-auto py-10 max-w-2xl">
             <div className="mb-4">
-                <Button variant="outline" onClick={() => router.back()}>
-                    <ArrowLeft className="mr-2 h-4 w-4" /> Go Back
-                </Button>
+                <Link href={backLink} passHref>
+                    <Button variant="outline">
+                        <ArrowLeft className="mr-2 h-4 w-4" /> Go Back
+                    </Button>
+                </Link>
             </div>
             <Card>
                 <CardHeader className="flex flex-row items-start gap-4">
