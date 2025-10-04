@@ -2,7 +2,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { collection, addDoc, query, onSnapshot, serverTimestamp, Timestamp, where, getDocs, doc, setDoc, updateDoc, arrayUnion, arrayRemove } from "firebase/firestore";
+import { collection, addDoc, query, onSnapshot, serverTimestamp, Timestamp, where, getDocs, doc, setDoc, updateDoc, arrayUnion, arrayRemove, limit, startAt, endAt, orderBy } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
@@ -23,6 +23,7 @@ import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { BottomNavbar } from "@/components/ui/bottom-navbar";
+import { Command, CommandInput, CommandList, CommandEmpty, CommandGroup, CommandItem } from "@/components/ui/command";
 
 interface Comment {
     id: string;
@@ -50,6 +51,11 @@ interface Post {
         originalText?: string;
         originalMediaUrls?: { url: string, type: 'image' | 'video' }[];
     }
+}
+
+interface CommunityUser {
+    id: string;
+    userId: string;
 }
 
 const postSchema = z.object({
@@ -100,6 +106,10 @@ export default function CommunityPage() {
   
   const [repostingPost, setRepostingPost] = useState<Post | null>(null);
   const [isRepostDialogOpen, setIsRepostDialogOpen] = useState(false);
+  const [isSearchDialogOpen, setIsSearchDialogOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<CommunityUser[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
 
 
   const postForm = useForm<PostFormData>({
@@ -131,6 +141,7 @@ export default function CommunityPage() {
       const userId = localStorage.getItem('memberId');
       if (!userId) {
         setHasCommunityProfile(false);
+        setIsLoading(false);
         return;
       }
       
@@ -140,7 +151,7 @@ export default function CommunityPage() {
         return;
       }
 
-      const q = query(collection(db, 'userCommunity'), where('userId', '==', userId));
+      const q = query(collection(db, 'userCommunity'), where('userId', '==', userId), limit(1));
       const querySnapshot = await getDocs(q);
 
       if (!querySnapshot.empty) {
@@ -200,6 +211,35 @@ export default function CommunityPage() {
     return () => unsubscribe();
   }, [activeTab, toast, hasCommunityProfile]);
   
+  useEffect(() => {
+    const handleSearch = async () => {
+        if(searchQuery.trim() === '') {
+            setSearchResults([]);
+            return;
+        }
+        setIsSearching(true);
+        try {
+            const q = query(
+                collection(db, 'userCommunity'), 
+                orderBy('__name__'), 
+                startAt(searchQuery), 
+                endAt(searchQuery + '\uf8ff'),
+                limit(10)
+            );
+            const querySnapshot = await getDocs(q);
+            const users = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as CommunityUser));
+            setSearchResults(users);
+        } catch (error) {
+            console.error("Error searching users:", error);
+            toast({ title: "Search Error", description: "Could not perform search.", variant: "destructive" });
+        } finally {
+            setIsSearching(false);
+        }
+    }
+    const debounceId = setTimeout(handleSearch, 300);
+    return () => clearTimeout(debounceId);
+  }, [searchQuery, toast]);
+
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>, type: 'image' | 'video') => {
     const files = e.target.files;
     if (!files) return;
@@ -660,34 +700,6 @@ export default function CommunityPage() {
         </DialogContent>
       </Dialog>
       <Dialog open={isPostDialogOpen} onOpenChange={setIsPostDialogOpen}>
-        <div className="flex-1 flex flex-col">
-          <Tabs defaultValue="global" value={activeTab} onValueChange={setActiveTab}>
-            <header className="p-4 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-10">
-                <div className="flex items-center justify-between">
-                    <h1 className="text-2xl font-bold">Community</h1>
-                    <div className="flex items-center gap-4">
-                      <TabsList className="bg-primary text-primary-foreground">
-                          <TabsTrigger value="your_gym">Your Gym</TabsTrigger>
-                          <TabsTrigger value="global">Global</TabsTrigger>
-                      </TabsList>
-                      <DialogTrigger asChild>
-                        <Button>
-                            <Plus className="h-4 w-4 mr-2" />
-                            Create Post
-                        </Button>
-                      </DialogTrigger>
-                    </div>
-                </div>
-            </header>
-            
-            <main className="flex-1 overflow-y-auto p-4 pb-20 space-y-4">
-                <div className="max-w-2xl mx-auto w-full">
-                    {renderFeed()}
-                </div>
-            </main>
-          </Tabs>
-        </div>
-        
         <DialogContent>
              <DialogHeader>
                 <DialogTitle>Create a New Post</DialogTitle>
@@ -766,10 +778,70 @@ export default function CommunityPage() {
             </Form>
         </DialogContent>
       </Dialog>
+       <Dialog open={isSearchDialogOpen} onOpenChange={setIsSearchDialogOpen}>
+        <DialogContent>
+            <DialogHeader>
+                <DialogTitle>Search Users</DialogTitle>
+                <DialogDescription>Find other members of the community by their username.</DialogDescription>
+            </DialogHeader>
+            <Command className="rounded-lg border shadow-md">
+                <CommandInput 
+                    placeholder="Type a username to search..." 
+                    value={searchQuery} 
+                    onValueChange={setSearchQuery} 
+                />
+                <CommandList>
+                    {isSearching && <div className="p-4 flex justify-center"><Loader2 className="h-5 w-5 animate-spin" /></div>}
+                    {!isSearching && searchQuery && searchResults.length === 0 && <CommandEmpty>No users found.</CommandEmpty>}
+                    <CommandGroup>
+                        {searchResults.map(user => (
+                            <CommandItem key={user.id} onSelect={() => {
+                                // router.push(`/dashboard/community/profile/${user.id}`)
+                                setIsSearchDialogOpen(false);
+                            }}>
+                                <Avatar className="mr-2 h-8 w-8">
+                                    <AvatarFallback>{user.id.charAt(0).toUpperCase()}</AvatarFallback>
+                                </Avatar>
+                                <span>{user.id}</span>
+                            </CommandItem>
+                        ))}
+                    </CommandGroup>
+                </CommandList>
+            </Command>
+        </DialogContent>
+      </Dialog>
+      <div className="flex-1 flex flex-col">
+        <Tabs defaultValue="global" value={activeTab} onValueChange={setActiveTab}>
+        <header className="p-4 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-10">
+            <div className="flex items-center justify-between">
+                <h1 className="text-2xl font-bold">Community</h1>
+                <div className="flex items-center gap-4">
+                    <TabsList className="bg-primary text-primary-foreground">
+                        <TabsTrigger value="your_gym">Your Gym</TabsTrigger>
+                        <TabsTrigger value="global">Global</TabsTrigger>
+                    </TabsList>
+                    <DialogTrigger asChild>
+                    <Button onClick={() => setIsPostDialogOpen(true)}>
+                        <Plus className="h-4 w-4 mr-2" />
+                        Create Post
+                    </Button>
+                    </DialogTrigger>
+                </div>
+            </div>
+        </header>
+        
+        <main className="flex-1 overflow-y-auto p-4 pb-20 space-y-4">
+            <div className="max-w-2xl mx-auto w-full">
+                {renderFeed()}
+            </div>
+        </main>
+        </Tabs>
+      </div>
+      
       <BottomNavbar
         navItems={[
           { label: "Dashboard", href: "/dashboard/member", icon: <LayoutDashboard /> },
-          { label: "Search", href: "#", icon: <Search /> },
+          { label: "Search", href: "#", icon: <Search />, onClick: () => setIsSearchDialogOpen(true) },
           { label: "Feed", href: "/dashboard/member/community", icon: <Rss /> },
           { label: "Profile", href: "/dashboard/member/profile", icon: <User /> },
         ]}
