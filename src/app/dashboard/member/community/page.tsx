@@ -643,7 +643,7 @@ export default function CommunityPage() {
                 <div className="flex items-center justify-between">
                     <h1 className="text-2xl font-bold">Community</h1>
                     <div className="flex items-center gap-4">
-                      <TabsList>
+                      <TabsList className="bg-muted text-muted-foreground">
                           <TabsTrigger value="your_gym">Your Gym</TabsTrigger>
                           <TabsTrigger value="global">Global</TabsTrigger>
                       </TabsList>
