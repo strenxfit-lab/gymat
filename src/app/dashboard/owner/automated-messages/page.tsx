@@ -405,8 +405,9 @@ export default function RemindersPage() {
                                                             href={`https://wa.me/91${member.phone}?text=${encodeURIComponent(generateMessage(form.getValues(template.value as MessageType) || template.placeholder, member))}`}
                                                             target="_blank" 
                                                             rel="noopener noreferrer"
+                                                            onClick={(e) => handleMessageSent(template.value, member, e)}
                                                           >
-                                                            <Button size="sm" variant="outline" onClick={(e) => handleMessageSent(template.value, member, e)}><Send className="mr-2 h-3 w-3"/>Send</Button>
+                                                            <Button type="button" size="sm" variant="outline"><Send className="mr-2 h-3 w-3"/>Send</Button>
                                                           </a>
                                                         </li>
                                                     ))}
