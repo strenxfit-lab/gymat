@@ -47,10 +47,12 @@ export default function TrainerDashboardLayout({
   children: React.ReactNode;
 }) {
   const [trainerName, setTrainerName] = useState<string | null>(null);
+  const [isMounted, setIsMounted] = useState(false);
   const router = useRouter();
   const pathname = usePathname();
 
   useEffect(() => {
+    setIsMounted(true);
     const name = localStorage.getItem('userName');
     setTrainerName(name);
   }, []);
@@ -103,7 +105,7 @@ export default function TrainerDashboardLayout({
         <header className="sticky top-0 z-10 flex h-16 items-center justify-between border-b bg-background/80 backdrop-blur-sm px-4 md:px-8">
             <SidebarTrigger className="md:hidden" />
             <div className='flex-1'></div>
-            <ThemeToggle />
+            {isMounted && <ThemeToggle />}
         </header>
         <main className="flex-1 p-4 md:p-8">
           {children}

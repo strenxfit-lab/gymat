@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect } from 'react';
@@ -43,9 +44,11 @@ export default function SuperAdminDashboardLayout({
   children: React.ReactNode;
 }) {
   const [adminName, setAdminName] = useState<string | null>(null);
+  const [isMounted, setIsMounted] = useState(false);
   const router = useRouter();
 
   useEffect(() => {
+    setIsMounted(true);
     // In a real app, you'd fetch the admin's name based on their ID
     setAdminName("Super Admin");
   }, []);
@@ -87,7 +90,7 @@ export default function SuperAdminDashboardLayout({
         <header className="sticky top-0 z-10 flex h-16 items-center justify-between border-b bg-background/80 backdrop-blur-sm px-4 md:px-8">
             <SidebarTrigger className="md:hidden" />
             <div className='flex-1'></div>
-            <ThemeToggle />
+            {isMounted && <ThemeToggle />}
         </header>
         <main className="flex-1 p-4 md:p-8">
           {children}
