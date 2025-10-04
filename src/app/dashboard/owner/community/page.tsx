@@ -2,7 +2,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { collection, addDoc, query, onSnapshot, serverTimestamp, Timestamp, where } from "firebase/firestore";
+import { collection, addDoc, query, onSnapshot, serverTimestamp, Timestamp, where, getDocs } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -88,11 +88,13 @@ export default function CommunityPage() {
       const postsData: Post[] = [];
       querySnapshot.forEach((doc) => {
         const data = doc.data();
-        postsData.push({
-          id: doc.id,
-          ...data,
-          createdAt: (data.createdAt as Timestamp)?.toDate(),
-        } as Post);
+        if (data.createdAt) { // Ensure createdAt exists before processing
+          postsData.push({
+            id: doc.id,
+            ...data,
+            createdAt: (data.createdAt as Timestamp)?.toDate(),
+          } as Post);
+        }
       });
       // Sort posts on the client-side
       postsData.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
