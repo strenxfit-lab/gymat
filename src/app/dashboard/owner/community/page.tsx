@@ -661,6 +661,7 @@ export default function CommunityPage() {
       </Dialog>
       <Dialog open={isPostDialogOpen} onOpenChange={setIsPostDialogOpen}>
         <div className="flex-1 flex flex-col">
+          <Tabs defaultValue="global" value={activeTab} onValueChange={setActiveTab}>
             <header className="p-4 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-10">
                 <div className="flex items-center justify-between">
                     <h1 className="text-2xl font-bold">Community</h1>
@@ -684,6 +685,7 @@ export default function CommunityPage() {
                     {renderFeed()}
                 </div>
             </main>
+          </Tabs>
         </div>
         
         <DialogContent>
