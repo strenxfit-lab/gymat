@@ -22,9 +22,6 @@ import Image from 'next/image';
 import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { Separator } from "@/components/ui/separator";
-
 
 interface Comment {
     id: string;
@@ -49,6 +46,8 @@ interface Post {
     repost?: {
         originalAuthorName: string;
         originalAuthorId: string;
+        originalText?: string;
+        originalMediaUrls?: { url: string, type: 'image' | 'video' }[];
     }
 }
 
@@ -77,6 +76,7 @@ const commentSchema = z.object({
 type CommentFormData = z.infer<typeof commentSchema>;
 
 const repostSchema = z.object({
+  caption: z.string().optional(),
   visibility: z.enum(['local', 'global']),
 });
 type RepostFormData = z.infer<typeof repostSchema>;
@@ -122,7 +122,7 @@ export default function CommunityPage() {
 
   const repostForm = useForm<RepostFormData>({
     resolver: zodResolver(repostSchema),
-    defaultValues: { visibility: "local" },
+    defaultValues: { caption: '', visibility: "local" },
   });
   
   useEffect(() => {
@@ -387,20 +387,22 @@ export default function CommunityPage() {
         authorName,
         authorId,
         gymId,
-        text: repostingPost.text,
+        text: values.caption || '',
         visibility: values.visibility,
-        mediaUrls: repostingPost.mediaUrls || [],
         createdAt: serverTimestamp(),
         likes: [],
         comments: [],
         repost: {
             originalAuthorName: repostingPost.authorName,
             originalAuthorId: repostingPost.authorId,
+            originalText: repostingPost.text,
+            originalMediaUrls: repostingPost.mediaUrls || [],
         }
       });
       toast({ title: "Success!", description: "Post has been reposted." });
       setIsRepostDialogOpen(false);
       setRepostingPost(null);
+      repostForm.reset();
     } catch (error) {
       console.error("Error reposting post: ", error);
       toast({ title: "Error", description: "Could not repost.", variant: "destructive" });
@@ -428,12 +430,6 @@ export default function CommunityPage() {
 
     return posts.map(post => (
         <Card key={post.id} className="mb-4">
-            {post.repost && (
-                <div className="text-xs text-muted-foreground px-4 pt-3 flex items-center gap-2">
-                    <Repeat className="h-3 w-3" />
-                    Reposted from {post.repost.originalAuthorName}
-                </div>
-            )}
             <CardHeader className="flex flex-row items-start gap-4">
                 <Avatar>
                     <AvatarImage src={post.authorPhotoUrl} />
@@ -464,18 +460,44 @@ export default function CommunityPage() {
             </CardHeader>
             <CardContent>
                 {post.text && <p className="whitespace-pre-wrap mb-4">{post.text}</p>}
-                {post.mediaUrls && post.mediaUrls.length > 0 && (
-                    <div className={cn("grid gap-2", post.mediaUrls.length > 1 ? "grid-cols-2" : "grid-cols-1")}>
-                        {post.mediaUrls.map((media, index) => (
-                            <div key={index} className="rounded-lg overflow-hidden border">
-                                {media.type === 'image' ? (
-                                    <Image src={media.url} alt={`Post media ${index + 1}`} width={500} height={500} className="w-full h-auto object-cover"/>
-                                ) : (
-                                    <video src={media.url} controls className="w-full h-auto"/>
-                                )}
+                
+                {post.repost ? (
+                    <div className="border rounded-md p-4 mt-2">
+                         <div className="flex items-center gap-2 mb-2">
+                             <Avatar className="h-6 w-6">
+                                <AvatarFallback>{post.repost.originalAuthorName?.charAt(0).toUpperCase() || 'U'}</AvatarFallback>
+                            </Avatar>
+                            <span className="text-sm font-semibold">{post.repost.originalAuthorName}</span>
+                         </div>
+                         {post.repost.originalText && <p className="whitespace-pre-wrap text-sm text-muted-foreground">{post.repost.originalText}</p>}
+                         {post.repost.originalMediaUrls && post.repost.originalMediaUrls.length > 0 && (
+                            <div className={cn("grid gap-2 mt-2", post.repost.originalMediaUrls.length > 1 ? "grid-cols-2" : "grid-cols-1")}>
+                                {post.repost.originalMediaUrls.map((media, index) => (
+                                    <div key={index} className="rounded-lg overflow-hidden border">
+                                        {media.type === 'image' ? (
+                                            <Image src={media.url} alt={`Post media ${index + 1}`} width={300} height={300} className="w-full h-auto object-cover"/>
+                                        ) : (
+                                            <video src={media.url} controls className="w-full h-auto"/>
+                                        )}
+                                    </div>
+                                ))}
                             </div>
-                        ))}
+                        )}
                     </div>
+                ) : (
+                    post.mediaUrls && post.mediaUrls.length > 0 && (
+                        <div className={cn("grid gap-2", post.mediaUrls.length > 1 ? "grid-cols-2" : "grid-cols-1")}>
+                            {post.mediaUrls.map((media, index) => (
+                                <div key={index} className="rounded-lg overflow-hidden border">
+                                    {media.type === 'image' ? (
+                                        <Image src={media.url} alt={`Post media ${index + 1}`} width={500} height={500} className="w-full h-auto object-cover"/>
+                                    ) : (
+                                        <video src={media.url} controls className="w-full h-auto"/>
+                                    )}
+                                </div>
+                            ))}
+                        </div>
+                    )
                 )}
             </CardContent>
             <CardFooter className="flex flex-col items-start gap-4">
@@ -566,14 +588,30 @@ export default function CommunityPage() {
       <Dialog open={isRepostDialogOpen} onOpenChange={setIsRepostDialogOpen}>
         <DialogContent>
             <DialogHeader>
-                <DialogTitle>Repost this Post</DialogTitle>
-                <DialogDescription>Share this post with your community.</DialogDescription>
+                <DialogTitle>Repost</DialogTitle>
+                <DialogDescription>Add a caption and share this post with the community.</DialogDescription>
             </DialogHeader>
-            <div className="my-4 p-4 border rounded-md bg-muted/50">
-                <p className="text-sm text-muted-foreground whitespace-pre-wrap">{repostingPost?.text}</p>
-            </div>
             <Form {...repostForm}>
-                <form onSubmit={repostForm.handleSubmit(handleRepostSubmit)}>
+                <form onSubmit={repostForm.handleSubmit(handleRepostSubmit)} className="space-y-4">
+                    <FormField control={repostForm.control} name="caption" render={({ field }) => (
+                        <FormItem>
+                            <FormControl>
+                                <Textarea placeholder="Add a caption..." {...field} />
+                            </FormControl>
+                            <FormMessage />
+                        </FormItem>
+                    )} />
+
+                    <div className="my-4 p-4 border rounded-md bg-muted/50 max-h-48 overflow-y-auto">
+                         <div className="flex items-center gap-2 mb-2">
+                             <Avatar className="h-6 w-6">
+                                <AvatarFallback>{repostingPost?.authorName?.charAt(0).toUpperCase() || 'U'}</AvatarFallback>
+                            </Avatar>
+                            <span className="text-sm font-semibold">{repostingPost?.authorName}</span>
+                         </div>
+                        <p className="text-sm text-muted-foreground whitespace-pre-wrap">{repostingPost?.text}</p>
+                    </div>
+                    
                     <FormField
                         control={repostForm.control}
                         name="visibility"
@@ -712,5 +750,3 @@ export default function CommunityPage() {
     </div>
   );
 }
-
-    
