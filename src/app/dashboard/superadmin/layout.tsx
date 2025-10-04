@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect } from 'react';
@@ -13,7 +12,7 @@ import {
   SidebarFooter,
   SidebarProvider,
 } from '@/components/ui/sidebar';
-import { Dumbbell, LogOut, LayoutDashboard, UserCog } from 'lucide-react';
+import { Dumbbell, LogOut, LayoutDashboard, UserCog, IndianRupee } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { ThemeToggle } from '@/components/theme-toggle';
@@ -74,6 +73,7 @@ export default function SuperAdminDashboardLayout({
         <SidebarContent className="flex-1 overflow-y-auto">
           <SidebarMenu>
             <MenuItem href="/dashboard/superadmin" icon={<LayoutDashboard />}>Dashboard</MenuItem>
+            <MenuItem href="/dashboard/superadmin/settlements" icon={<IndianRupee />}>Settlements</MenuItem>
           </SidebarMenu>
         </SidebarContent>
         <SidebarFooter className="p-4 space-y-4">
