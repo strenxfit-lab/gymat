@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Loader2, ArrowLeft, User, Calendar, Dumbbell, HeartPulse, Mail, Phone, Briefcase, Edit } from 'lucide-react';
 import Link from 'next/link';
+import Image from 'next/image';
 
 type MemberStatus = 'Active' | 'Expired' | 'Pending' | 'Frozen' | 'Stopped';
 
@@ -20,6 +21,7 @@ interface MemberDetails {
   gender: string;
   phone: string;
   email?: string;
+  photoUrl?: string;
   joiningDate: string;
   membershipType: string;
   startDate: string;
@@ -104,6 +106,7 @@ export default function MemberProfilePage() {
           gender: data.gender,
           phone: data.phone,
           email: data.email,
+          photoUrl: data.photoUrl,
           joiningDate: (data.createdAt as Timestamp)?.toDate().toLocaleDateString(),
           membershipType: data.membershipType,
           startDate: (data.startDate as Timestamp)?.toDate().toLocaleDateString(),
@@ -139,9 +142,20 @@ export default function MemberProfilePage() {
   return (
     <div className="container mx-auto py-10 space-y-6">
         <div className="flex items-center justify-between">
-            <div>
-                 <h1 className="text-3xl font-bold">{member.fullName}</h1>
-                 <p className="text-muted-foreground">My Profile</p>
+            <div className="flex items-center gap-4">
+                <div className="relative h-20 w-20 rounded-full border-2 border-primary">
+                    {member.photoUrl ? (
+                        <Image src={member.photoUrl} alt="Profile" layout="fill" className="rounded-full object-cover" />
+                    ) : (
+                        <div className="h-full w-full flex items-center justify-center rounded-full bg-muted">
+                            <User className="h-8 w-8 text-muted-foreground" />
+                        </div>
+                    )}
+                </div>
+                <div>
+                     <h1 className="text-3xl font-bold">{member.fullName}</h1>
+                     <p className="text-muted-foreground">My Profile</p>
+                </div>
             </div>
             <div className="flex items-center gap-2">
                 <Link href="/dashboard/member" passHref>
