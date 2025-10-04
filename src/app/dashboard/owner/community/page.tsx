@@ -1,7 +1,8 @@
+
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { collection, addDoc, query, orderBy, onSnapshot, serverTimestamp, Timestamp } from "firebase/firestore";
+import { collection, addDoc, query, orderBy, onSnapshot, serverTimestamp, Timestamp, where } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -29,6 +30,7 @@ interface Post {
     text: string;
     mediaUrls?: { url: string, type: 'image' | 'video' }[];
     createdAt: Date;
+    visibility: 'local' | 'global';
 }
 
 const postSchema = z.object({
@@ -50,6 +52,7 @@ export default function CommunityPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isPostDialogOpen, setIsPostDialogOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState('global');
   const { toast } = useToast();
   
   const [mediaPreviews, setMediaPreviews] = useState<{url: string, type: 'image' | 'video'}[]>([]);
@@ -67,7 +70,18 @@ export default function CommunityPage() {
   });
 
   useEffect(() => {
-    const q = query(collection(db, "gymRats"), orderBy("createdAt", "desc"));
+    const gymId = localStorage.getItem('userDocId');
+    if (!gymId) {
+        setIsLoading(false);
+        return;
+    }
+
+    let q;
+    if (activeTab === 'global') {
+        q = query(collection(db, "gymRats"), where("visibility", "==", "global"), orderBy("createdAt", "desc"));
+    } else { // 'your_gym'
+        q = query(collection(db, "gymRats"), where("gymId", "==", gymId), orderBy("createdAt", "desc"));
+    }
 
     const unsubscribe = onSnapshot(q, (querySnapshot) => {
       const postsData: Post[] = [];
@@ -88,7 +102,7 @@ export default function CommunityPage() {
     });
 
     return () => unsubscribe();
-  }, [toast]);
+  }, [activeTab, toast]);
   
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>, type: 'image' | 'video') => {
     const files = e.target.files;
@@ -174,10 +188,58 @@ export default function CommunityPage() {
         setIsSubmitting(false);
     }
   }
+  
+  const renderFeed = () => {
+    if (isLoading) {
+        return <div className="flex justify-center p-8"><Loader2 className="h-8 w-8 animate-spin"/></div>;
+    }
+
+    if (posts.length === 0) {
+        return (
+            <div className="text-center py-12 border-2 border-dashed rounded-lg">
+                <p className="text-muted-foreground">No posts yet.</p>
+                <p className="text-sm text-muted-foreground">Be the first to start a conversation!</p>
+            </div>
+        );
+    }
+
+    return posts.map(post => (
+        <Card key={post.id} className="mb-4">
+            <CardHeader className="flex flex-row items-center gap-4">
+                <Avatar>
+                    <AvatarFallback>{post.authorName?.charAt(0) || 'U'}</AvatarFallback>
+                </Avatar>
+                <div>
+                    <CardTitle className="text-base">{post.authorName}</CardTitle>
+                    <p className="text-xs text-muted-foreground">
+                        {post.createdAt ? `${formatDistanceToNow(post.createdAt)} ago` : 'just now'}
+                    </p>
+                </div>
+            </CardHeader>
+            <CardContent>
+                {post.text && <p className="whitespace-pre-wrap mb-4">{post.text}</p>}
+                {post.mediaUrls && post.mediaUrls.length > 0 && (
+                    <div className={cn("grid gap-2", post.mediaUrls.length > 1 ? "grid-cols-2" : "grid-cols-1")}>
+                        {post.mediaUrls.map((media, index) => (
+                            <div key={index} className="rounded-lg overflow-hidden border">
+                                {media.type === 'image' ? (
+                                    <Image src={media.url} alt={`Post media ${index + 1}`} width={500} height={500} className="w-full h-auto object-cover"/>
+                                ) : (
+                                    <video src={media.url} controls className="w-full h-auto"/>
+                                )}
+                            </div>
+                        ))}
+                    </div>
+                )}
+            </CardContent>
+        </Card>
+    ));
+  };
+
 
   return (
     <div className="h-full w-full flex flex-col relative">
-        <Tabs defaultValue="global" className="flex-1 flex flex-col">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col">
             <header className="p-4 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-10">
                 <div className="flex items-center justify-between">
                     <h1 className="text-2xl font-bold">Community</h1>
@@ -190,52 +252,13 @@ export default function CommunityPage() {
             
             <TabsContent value="global" className="flex-1 overflow-y-auto p-4 space-y-4">
                 <div className="max-w-2xl mx-auto w-full">
-                    {isLoading ? (
-                        <div className="flex justify-center p-8"><Loader2 className="h-8 w-8 animate-spin"/></div>
-                    ) : posts.length > 0 ? (
-                        posts.map(post => (
-                            <Card key={post.id} className="mb-4">
-                                <CardHeader className="flex flex-row items-center gap-4">
-                                    <Avatar>
-                                        <AvatarFallback>{post.authorName?.charAt(0) || 'U'}</AvatarFallback>
-                                    </Avatar>
-                                    <div>
-                                        <CardTitle className="text-base">{post.authorName}</CardTitle>
-                                        <p className="text-xs text-muted-foreground">
-                                            {post.createdAt ? `${formatDistanceToNow(post.createdAt)} ago` : 'just now'}
-                                        </p>
-                                    </div>
-                                </CardHeader>
-                                <CardContent>
-                                    {post.text && <p className="whitespace-pre-wrap mb-4">{post.text}</p>}
-                                    {post.mediaUrls && post.mediaUrls.length > 0 && (
-                                        <div className={cn("grid gap-2", post.mediaUrls.length > 1 ? "grid-cols-2" : "grid-cols-1")}>
-                                            {post.mediaUrls.map((media, index) => (
-                                                <div key={index} className="rounded-lg overflow-hidden border">
-                                                    {media.type === 'image' ? (
-                                                        <Image src={media.url} alt={`Post media ${index + 1}`} width={500} height={500} className="w-full h-auto object-cover"/>
-                                                    ) : (
-                                                        <video src={media.url} controls className="w-full h-auto"/>
-                                                    )}
-                                                </div>
-                                            ))}
-                                        </div>
-                                    )}
-                                </CardContent>
-                            </Card>
-                        ))
-                    ) : (
-                        <div className="text-center py-12 border-2 border-dashed rounded-lg">
-                            <p className="text-muted-foreground">No posts yet.</p>
-                            <p className="text-sm text-muted-foreground">Be the first to start a conversation!</p>
-                        </div>
-                    )}
+                    {renderFeed()}
                 </div>
             </TabsContent>
-            <TabsContent value="your_gym" className="flex-1 overflow-y-auto p-4">
-                <div className="text-center py-12 border-2 border-dashed rounded-lg">
-                <p className="text-muted-foreground">"Your Gym" feed coming soon!</p>
-            </div>
+            <TabsContent value="your_gym" className="flex-1 overflow-y-auto p-4 space-y-4">
+                <div className="max-w-2xl mx-auto w-full">
+                    {renderFeed()}
+                </div>
             </TabsContent>
         </Tabs>
         
