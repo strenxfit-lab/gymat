@@ -2,7 +2,7 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { collection, getDocs, doc, getDoc, updateDoc, addDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
@@ -37,6 +37,7 @@ export default function RenewPage() {
   const [gymId, setGymId] = useState<string | null>(null);
   const { toast } = useToast();
   const searchParams = useSearchParams();
+  const router = useRouter();
 
   useEffect(() => {
     const idFromParams = searchParams.get('gymId');
@@ -119,7 +120,7 @@ export default function RenewPage() {
                 });
 
                 toast({ title: "Payment Successful!", description: "Your subscription has been renewed."});
-                window.location.href = '/dashboard/owner';
+                router.push('/dashboard/owner');
             } catch (error) {
                  console.error("Error updating subscription:", error);
                  toast({ title: "Update Failed", description: "Payment was successful, but updating your profile failed. Please contact support.", variant: 'destructive'});
