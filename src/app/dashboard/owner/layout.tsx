@@ -289,6 +289,7 @@ export default function OwnerDashboardLayout({
         <SidebarContent className="flex-1 overflow-y-auto">
           <SidebarMenu>
             <MenuItem href="/dashboard/owner" icon={<BarChart3 />}>Dashboard</MenuItem>
+            <MenuItem href="/dashboard/owner/community" icon={<Users />}>Community</MenuItem>
             
             <SubMenu title="Gym Info" icon={<Info />} isOpen={openSubMenu === 'gym-info'} onToggle={() => toggleSubMenu('gym-info')}>
                 <SubMenuItem href="/dashboard/owner/gym-info/basic">Basic Information</SubMenuItem>
