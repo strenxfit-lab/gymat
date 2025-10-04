@@ -2,13 +2,13 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { collection, addDoc, query, onSnapshot, serverTimestamp, Timestamp, where, getDocs, doc, setDoc, updateDoc, arrayUnion, arrayRemove, limit, startAt, endAt, orderBy } from "firebase/firestore";
+import { collection, addDoc, query, onSnapshot, serverTimestamp, Timestamp, where, getDocs, doc, setDoc, updateDoc, arrayUnion, arrayRemove, limit, startAt, endAt, orderBy, deleteDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Loader2, Send, Plus, Image as ImageIcon, Video, X, ThumbsUp, MessageSquare, MoreVertical, Flag, Repeat, Share2, Search, User, Rss, LayoutDashboard } from "lucide-react";
+import { Loader2, Send, Plus, Image as ImageIcon, Video, X, ThumbsUp, MessageSquare, MoreVertical, Flag, Repeat, Share2, Search, User, Rss, LayoutDashboard, Edit, Trash } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { formatDistanceToNow } from 'date-fns';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -21,8 +21,10 @@ import * as z from 'zod';
 import Image from 'next/image';
 import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { BottomNavbar } from "@/components/ui/bottom-navbar";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+
 
 interface Comment {
     id: string;
@@ -100,6 +102,7 @@ export default function CommunityPage() {
   
   const [repostingPost, setRepostingPost] = useState<Post | null>(null);
   const [isRepostDialogOpen, setIsRepostDialogOpen] = useState(false);
+  const [editingPost, setEditingPost] = useState<Post | null>(null);
 
   const postForm = useForm<PostFormData>({
     resolver: zodResolver(postSchema),
@@ -125,6 +128,21 @@ export default function CommunityPage() {
     defaultValues: { caption: '', visibility: "local" },
   });
   
+  useEffect(() => {
+    if (editingPost) {
+        postForm.reset({
+            text: editingPost.text,
+            visibility: editingPost.visibility,
+            mediaUrls: editingPost.mediaUrls || [],
+        });
+        setMediaPreviews(editingPost.mediaUrls || []);
+        setIsPostDialogOpen(true);
+    } else {
+        postForm.reset({ text: '', visibility: 'local', mediaUrls: []});
+        setMediaPreviews([]);
+    }
+  }, [editingPost, postForm]);
+
   useEffect(() => {
     const checkCommunityProfile = async () => {
       const userId = localStorage.getItem('trainerId');
@@ -268,24 +286,35 @@ export default function CommunityPage() {
     }
     
     try {
-        await addDoc(collection(db, "gymRats"), {
-            authorName,
-            authorId,
-            gymId,
-            text: values.text,
-            visibility: values.visibility,
-            mediaUrls: values.mediaUrls || [],
-            createdAt: serverTimestamp(),
-            likes: [],
-            comments: [],
-        });
-        toast({ title: "Success!", description: "Your post has been published."});
+        if (editingPost) {
+            const postRef = doc(db, 'gymRats', editingPost.id);
+            await updateDoc(postRef, {
+                text: values.text,
+                visibility: values.visibility,
+                mediaUrls: values.mediaUrls || [],
+            });
+            toast({ title: "Success!", description: "Your post has been updated." });
+        } else {
+            await addDoc(collection(db, "gymRats"), {
+                authorName,
+                authorId,
+                gymId,
+                text: values.text,
+                visibility: values.visibility,
+                mediaUrls: values.mediaUrls || [],
+                createdAt: serverTimestamp(),
+                likes: [],
+                comments: [],
+            });
+            toast({ title: "Success!", description: "Your post has been published."});
+        }
         postForm.reset();
         clearMedia();
         setIsPostDialogOpen(false);
+        setEditingPost(null);
     } catch (error) {
-        console.error("Error creating post: ", error);
-        toast({ title: "Error", description: "Could not create post.", variant: "destructive" });
+        console.error("Error creating/updating post: ", error);
+        toast({ title: "Error", description: "Could not save post.", variant: "destructive" });
     } finally {
         setIsSubmitting(false);
     }
@@ -369,6 +398,16 @@ export default function CommunityPage() {
   const handleReportPost = async (postId: string) => {
     toast({ title: "Post Reported", description: "Thank you for your feedback. We will review this post."});
   }
+
+  const handleDeletePost = async (postId: string) => {
+      try {
+          await deleteDoc(doc(db, 'gymRats', postId));
+          toast({ title: "Post Deleted", description: "Your post has been successfully removed." });
+      } catch (error) {
+          console.error("Error deleting post: ", error);
+          toast({ title: "Error", description: "Could not delete post.", variant: "destructive" });
+      }
+  };
 
   const handleRepostSubmit = async (values: RepostFormData) => {
     if (!repostingPost) return;
@@ -469,7 +508,32 @@ export default function CommunityPage() {
                                 </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent>
-                                <DropdownMenuItem onSelect={() => handleReportPost(post.id)} className="text-destructive focus:text-destructive">
+                                {post.authorId === userId && (
+                                    <>
+                                        <DropdownMenuItem onSelect={() => setEditingPost(post)}>
+                                            <Edit className="mr-2 h-4 w-4" /> Edit
+                                        </DropdownMenuItem>
+                                        <AlertDialog>
+                                            <AlertDialogTrigger asChild>
+                                                <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="text-destructive focus:text-destructive">
+                                                    <Trash className="mr-2 h-4 w-4" /> Delete
+                                                </DropdownMenuItem>
+                                            </AlertDialogTrigger>
+                                            <AlertDialogContent>
+                                                <AlertDialogHeader>
+                                                    <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                                                    <AlertDialogDescription>This action cannot be undone. This will permanently delete your post.</AlertDialogDescription>
+                                                </AlertDialogHeader>
+                                                <AlertDialogFooter>
+                                                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                                    <AlertDialogAction onClick={() => handleDeletePost(post.id)}>Delete</AlertDialogAction>
+                                                </AlertDialogFooter>
+                                            </AlertDialogContent>
+                                        </AlertDialog>
+                                        <DropdownMenuSeparator />
+                                    </>
+                                )}
+                                <DropdownMenuItem onSelect={() => handleReportPost(post.id)}>
                                     <Flag className="mr-2"/> Report Post
                                 </DropdownMenuItem>
                             </DropdownMenuContent>
@@ -661,7 +725,12 @@ export default function CommunityPage() {
       </Dialog>
       
       <div className="flex-1 flex flex-col">
-        <Dialog open={isPostDialogOpen} onOpenChange={setIsPostDialogOpen}>
+        <Dialog open={isPostDialogOpen} onOpenChange={(open) => {
+            if (!open) {
+                setEditingPost(null);
+            }
+            setIsPostDialogOpen(open);
+        }}>
           <Tabs defaultValue="global" value={activeTab} onValueChange={setActiveTab} className="flex flex-col flex-1">
             <header className="p-4 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-10">
               <div className="flex items-center justify-between">
@@ -689,9 +758,9 @@ export default function CommunityPage() {
           </Tabs>
           <DialogContent>
                <DialogHeader>
-                  <DialogTitle>Create a New Post</DialogTitle>
+                  <DialogTitle>{editingPost ? "Edit Post" : "Create a New Post"}</DialogTitle>
                   <DialogDescription>
-                      Share an update, photo, or video with the community.
+                    {editingPost ? "Edit your post below." : "Share an update, photo, or video with the community."}
                   </DialogDescription>
               </DialogHeader>
                <Form {...postForm}>
@@ -758,7 +827,7 @@ export default function CommunityPage() {
                       <DialogFooter>
                           <Button type="button" variant="ghost" onClick={() => setIsPostDialogOpen(false)}>Cancel</Button>
                           <Button type="submit" disabled={isSubmitting}>
-                              {isSubmitting ? <Loader2 className="animate-spin mr-2"/> : <Send className="mr-2 h-4 w-4"/>} Post
+                              {isSubmitting ? <Loader2 className="animate-spin mr-2"/> : <Send className="mr-2 h-4 w-4"/>} {editingPost ? "Save Changes" : "Post"}
                           </Button>
                       </DialogFooter>
                   </form>
