@@ -1,16 +1,17 @@
-
 "use client";
 
 import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
-import { doc, getDoc, Timestamp } from 'firebase/firestore';
+import { doc, getDoc, Timestamp, deleteDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Loader2, ArrowLeft, User, Briefcase, Wallet, Calendar, Mail, Phone, Clock, Edit, Star, KeyRound } from 'lucide-react';
+import { Loader2, ArrowLeft, User, Briefcase, Wallet, Calendar, Mail, Phone, Clock, Edit, Star, KeyRound, Trash } from 'lucide-react';
 import Link from 'next/link';
 import { Separator } from '@/components/ui/separator';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+
 
 interface TrainerDetails {
   fullName: string;
@@ -105,6 +106,26 @@ export default function TrainerProfilePage() {
 
     fetchTrainerData();
   }, [trainerId, router, toast]);
+  
+  const handleDeleteProfile = async () => {
+    const userDocId = localStorage.getItem('userDocId');
+    const activeBranchId = localStorage.getItem('activeBranch');
+
+    if (!userDocId || !activeBranchId || !trainerId) {
+      toast({ title: 'Error', description: 'Session data is missing.', variant: 'destructive' });
+      return;
+    }
+
+    try {
+        const trainerRef = doc(db, 'gyms', userDocId, 'branches', activeBranchId, 'trainers', trainerId);
+        await deleteDoc(trainerRef);
+        toast({ title: 'Success', description: `${trainer?.fullName}'s profile has been deleted.` });
+        router.push('/dashboard/owner/members');
+    } catch (error) {
+        console.error('Error deleting trainer profile:', error);
+        toast({ title: 'Error', description: 'Could not delete the profile.', variant: 'destructive' });
+    }
+  };
 
   if (loading) {
     return <div className="flex min-h-screen items-center justify-center bg-background"><Loader2 className="h-8 w-8 animate-spin" /></div>;
@@ -128,6 +149,23 @@ export default function TrainerProfilePage() {
                 <Link href={`/dashboard/owner/trainers/${trainerId}/edit`} passHref>
                     <Button><Edit className="mr-2 h-4 w-4"/>Edit Profile</Button>
                 </Link>
+                 <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                         <Button variant="destructive"><Trash className="mr-2 h-4 w-4"/>Delete Profile</Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                        <AlertDialogHeader>
+                            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                                This action cannot be undone. This will permanently delete this trainer's profile and all associated data. They will not be able to log in again.
+                            </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                            <AlertDialogAction onClick={handleDeleteProfile}>Continue</AlertDialogAction>
+                        </AlertDialogFooter>
+                    </AlertDialogContent>
+                </AlertDialog>
             </div>
         </div>
         
