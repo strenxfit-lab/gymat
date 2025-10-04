@@ -124,7 +124,7 @@ export default function TrainerCommunityProfilePage() {
                             ) : (
                                 <div className="flex items-center justify-center h-full"><ImageIcon className="h-8 w-8 text-muted-foreground"/></div>
                             )}
-                            {post.mediaUrls && post.mediaUrls[0].type === 'video' && <Video className="absolute bottom-2 right-2 h-5 w-5 text-white"/>}
+                            {post.mediaUrls && post.mediaUrls.length > 0 && post.mediaUrls[0].type === 'video' && <Video className="absolute bottom-2 right-2 h-5 w-5 text-white"/>}
                         </div>
                     ))}
                 </div>
