@@ -23,7 +23,6 @@ import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { BottomNavbar } from "@/components/ui/bottom-navbar";
-import { CommandDialog, CommandInput, CommandList, CommandEmpty, CommandGroup, CommandItem } from "@/components/ui/command";
 
 interface Comment {
     id: string;
@@ -51,11 +50,6 @@ interface Post {
         originalText?: string;
         originalMediaUrls?: { url: string, type: 'image' | 'video' }[];
     }
-}
-
-interface CommunityUser {
-    id: string;
-    userId: string;
 }
 
 const postSchema = z.object({
@@ -106,11 +100,6 @@ export default function CommunityPage() {
   
   const [repostingPost, setRepostingPost] = useState<Post | null>(null);
   const [isRepostDialogOpen, setIsRepostDialogOpen] = useState(false);
-  const [isSearchDialogOpen, setIsSearchDialogOpen] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [searchResults, setSearchResults] = useState<CommunityUser[]>([]);
-  const [isSearching, setIsSearching] = useState(false);
-
 
   const postForm = useForm<PostFormData>({
     resolver: zodResolver(postSchema),
@@ -211,34 +200,6 @@ export default function CommunityPage() {
     return () => unsubscribe();
   }, [activeTab, toast, hasCommunityProfile]);
   
-   useEffect(() => {
-    const handleSearch = async () => {
-        if(searchQuery.trim() === '') {
-            setSearchResults([]);
-            return;
-        }
-        setIsSearching(true);
-        try {
-            const q = query(
-                collection(db, 'userCommunity'), 
-                orderBy('__name__'), 
-                startAt(searchQuery), 
-                endAt(searchQuery + '\uf8ff'),
-                limit(10)
-            );
-            const querySnapshot = await getDocs(q);
-            const users = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as CommunityUser));
-            setSearchResults(users);
-        } catch (error) {
-            console.error("Error searching users:", error);
-            toast({ title: "Search Error", description: "Could not perform search.", variant: "destructive" });
-        } finally {
-            setIsSearching(false);
-        }
-    }
-    const debounceId = setTimeout(handleSearch, 300);
-    return () => clearTimeout(debounceId);
-  }, [searchQuery, toast]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>, type: 'image' | 'video') => {
     const files = e.target.files;
@@ -700,31 +661,6 @@ export default function CommunityPage() {
         </DialogContent>
       </Dialog>
       
-       <CommandDialog open={isSearchDialogOpen} onOpenChange={setIsSearchDialogOpen}>
-          <CommandInput 
-              placeholder="Type a username to search..." 
-              value={searchQuery} 
-              onValueChange={setSearchQuery} 
-          />
-          <CommandList>
-              {isSearching && <div className="p-4 flex justify-center"><Loader2 className="h-5 w-5 animate-spin" /></div>}
-              {!isSearching && searchQuery && searchResults.length === 0 && <CommandEmpty>No users found.</CommandEmpty>}
-              <CommandGroup>
-                  {searchResults.map(user => (
-                      <CommandItem key={user.id} onSelect={() => {
-                          // router.push(`/dashboard/community/profile/${user.id}`)
-                          setIsSearchDialogOpen(false);
-                      }}>
-                          <Avatar className="mr-2 h-8 w-8">
-                              <AvatarFallback>{user.id.charAt(0).toUpperCase()}</AvatarFallback>
-                          </Avatar>
-                          <span>{user.id}</span>
-                      </CommandItem>
-                  ))}
-              </CommandGroup>
-          </CommandList>
-        </CommandDialog>
-        
       <div className="flex-1 flex flex-col">
         <Dialog open={isPostDialogOpen} onOpenChange={setIsPostDialogOpen}>
             <Tabs defaultValue="global" value={activeTab} onValueChange={setActiveTab} className="flex flex-col flex-1">
@@ -835,7 +771,7 @@ export default function CommunityPage() {
       <BottomNavbar
         navItems={[
           { label: "Dashboard", href: "/dashboard/owner", icon: <LayoutDashboard /> },
-          { label: "Search", href: "#", icon: <Search />, onClick: () => setIsSearchDialogOpen(true) },
+          { label: "Search", href: "/dashboard/search", icon: <Search /> },
           { label: "Feed", href: "/dashboard/owner/community", icon: <Rss /> },
           { label: "Profile", href: "/dashboard/owner/gym-info/owner", icon: <User /> },
         ]}
