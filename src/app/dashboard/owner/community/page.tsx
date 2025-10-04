@@ -26,17 +26,18 @@ interface Post {
     authorId: string;
     gymId: string;
     text: string;
-    mediaUrl?: string;
-    mediaType?: 'image' | 'video';
+    mediaUrls?: { url: string, type: 'image' | 'video' }[];
     createdAt: Date;
 }
 
 const postSchema = z.object({
   text: z.string().min(1, "Post content cannot be empty.").or(z.literal('')),
   visibility: z.enum(['local', 'global'], { required_error: "You must select a visibility option."}),
-  mediaUrl: z.string().optional(),
-  mediaType: z.enum(['image', 'video']).optional(),
-}).refine(data => !!data.text || !!data.mediaUrl, {
+  mediaUrls: z.array(z.object({
+      url: z.string(),
+      type: z.enum(['image', 'video'])
+  })).optional(),
+}).refine(data => !!data.text || (data.mediaUrls && data.mediaUrls.length > 0), {
     message: "Post must contain either text or media.",
     path: ["text"],
 });
@@ -50,7 +51,7 @@ export default function CommunityPage() {
   const [isPostDialogOpen, setIsPostDialogOpen] = useState(false);
   const { toast } = useToast();
   
-  const [mediaPreview, setMediaPreview] = useState<{url: string, type: 'image' | 'video'} | null>(null);
+  const [mediaPreviews, setMediaPreviews] = useState<{url: string, type: 'image' | 'video'}[]>([]);
   const imageInputRef = useRef<HTMLInputElement>(null);
   const videoInputRef = useRef<HTMLInputElement>(null);
 
@@ -60,14 +61,11 @@ export default function CommunityPage() {
     defaultValues: {
       text: "",
       visibility: "local",
-      mediaUrl: "",
-      mediaType: undefined,
+      mediaUrls: [],
     },
   });
 
   useEffect(() => {
-    // Note: This currently fetches all posts for the "Global" feed.
-    // Filtering for "Your Gym" would be a future step.
     const q = query(collection(db, "gymRats"), orderBy("createdAt", "desc"));
 
     const unsubscribe = onSnapshot(q, (querySnapshot) => {
@@ -92,23 +90,52 @@ export default function CommunityPage() {
   }, [toast]);
   
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>, type: 'image' | 'video') => {
-    const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        const result = reader.result as string;
-        form.setValue('mediaUrl', result);
-        form.setValue('mediaType', type);
-        setMediaPreview({ url: result, type });
-      };
-      reader.readAsDataURL(file);
+    const files = e.target.files;
+    if (!files) return;
+
+    if (type === 'video') {
+        const file = files[0];
+        const reader = new FileReader();
+        reader.onloadend = () => {
+            const result = reader.result as string;
+            const newMedia = [{ url: result, type: 'video' }];
+            setMediaPreviews(newMedia);
+            form.setValue('mediaUrls', newMedia);
+        };
+        reader.readAsDataURL(file);
+    } else { // image
+        const imageFiles = Array.from(files);
+        if (mediaPreviews.length + imageFiles.length > 3) {
+            toast({ title: "Limit Exceeded", description: "You can upload a maximum of 3 photos.", variant: "destructive" });
+            return;
+        }
+
+        const newPreviews = [...mediaPreviews.filter(m => m.type === 'image')];
+
+        imageFiles.forEach(file => {
+            const reader = new FileReader();
+            reader.onloadend = () => {
+                const result = reader.result as string;
+                newPreviews.push({ url: result, type: 'image' });
+                if(newPreviews.length === mediaPreviews.length + imageFiles.length) {
+                    setMediaPreviews(newPreviews);
+                    form.setValue('mediaUrls', newPreviews);
+                }
+            };
+            reader.readAsDataURL(file);
+        });
     }
   };
   
-  const clearMedia = () => {
-      form.setValue('mediaUrl', undefined);
-      form.setValue('mediaType', undefined);
-      setMediaPreview(null);
+  const clearMedia = (index?: number) => {
+      if (typeof index === 'number') {
+        const newPreviews = mediaPreviews.filter((_, i) => i !== index);
+        setMediaPreviews(newPreviews);
+        form.setValue('mediaUrls', newPreviews);
+      } else {
+        setMediaPreviews([]);
+        form.setValue('mediaUrls', []);
+      }
       if(imageInputRef.current) imageInputRef.current.value = "";
       if(videoInputRef.current) videoInputRef.current.value = "";
   }
@@ -116,7 +143,7 @@ export default function CommunityPage() {
   const handlePostSubmit = async (values: PostFormData) => {
     setIsSubmitting(true);
     const gymId = localStorage.getItem('userDocId');
-    const authorName = "Gym Owner"; // In a real app, this would be dynamic
+    const authorName = "Gym Owner";
     const authorId = localStorage.getItem('userDocId');
 
     if (!gymId || !authorId) {
@@ -132,8 +159,7 @@ export default function CommunityPage() {
             gymId,
             text: values.text,
             visibility: values.visibility,
-            mediaUrl: values.mediaUrl || '',
-            mediaType: values.mediaType || '',
+            mediaUrls: values.mediaUrls || [],
             createdAt: serverTimestamp(),
         });
         toast({ title: "Success!", description: "Your post has been published."});
@@ -181,13 +207,17 @@ export default function CommunityPage() {
                                 </CardHeader>
                                 <CardContent>
                                     {post.text && <p className="whitespace-pre-wrap mb-4">{post.text}</p>}
-                                    {post.mediaUrl && (
-                                        <div className="rounded-lg overflow-hidden border">
-                                            {post.mediaType === 'image' ? (
-                                                <Image src={post.mediaUrl} alt="Post media" width={500} height={500} className="w-full h-auto object-cover"/>
-                                            ) : (
-                                                <video src={post.mediaUrl} controls className="w-full h-auto"/>
-                                            )}
+                                    {post.mediaUrls && post.mediaUrls.length > 0 && (
+                                        <div className={cn("grid gap-2", post.mediaUrls.length > 1 ? "grid-cols-2" : "grid-cols-1")}>
+                                            {post.mediaUrls.map((media, index) => (
+                                                <div key={index} className="rounded-lg overflow-hidden border">
+                                                    {media.type === 'image' ? (
+                                                        <Image src={media.url} alt={`Post media ${index + 1}`} width={500} height={500} className="w-full h-auto object-cover"/>
+                                                    ) : (
+                                                        <video src={media.url} controls className="w-full h-auto"/>
+                                                    )}
+                                                </div>
+                                            ))}
                                         </div>
                                     )}
                                 </CardContent>
@@ -240,28 +270,34 @@ export default function CommunityPage() {
                                 </FormItem>
                             )}
                         />
-                        {mediaPreview && (
-                            <div className="relative">
-                                {mediaPreview.type === 'image' ? (
-                                    <Image src={mediaPreview.url} alt="preview" width={100} height={100} className="rounded-md object-cover"/>
-                                ) : (
-                                    <video src={mediaPreview.url} controls className="w-full h-auto rounded-md" />
-                                )}
-                                <Button variant="ghost" size="icon" className="absolute top-1 right-1 h-6 w-6 bg-black/50 hover:bg-black/75 text-white" onClick={clearMedia}>
-                                    <X className="h-4 w-4"/>
-                                </Button>
-                            </div>
-                        )}
+                        
+                        <div className="flex flex-wrap gap-2">
+                            {mediaPreviews.map((media, index) => (
+                                <div key={index} className="relative">
+                                    {media.type === 'image' ? (
+                                        <Image src={media.url} alt="preview" width={80} height={80} className="rounded-md object-cover h-20 w-20"/>
+                                    ) : (
+                                        <video src={media.url} className="w-full h-auto rounded-md" />
+                                    )}
+                                    <Button variant="ghost" size="icon" className="absolute top-1 right-1 h-6 w-6 bg-black/50 hover:bg-black/75 text-white" onClick={() => clearMedia(index)}>
+                                        <X className="h-4 w-4"/>
+                                    </Button>
+                                </div>
+                            ))}
+                        </div>
+
                         <div className="flex gap-2">
-                             <Button type="button" variant="outline" onClick={() => imageInputRef.current?.click()}>
-                                <ImageIcon className="mr-2 h-4 w-4"/> Add Photo
+                             <Button type="button" variant="outline" onClick={() => imageInputRef.current?.click()} disabled={mediaPreviews.some(m => m.type === 'video') || mediaPreviews.length >= 3}>
+                                <ImageIcon className="mr-2 h-4 w-4"/> Add Photo(s)
                             </Button>
-                            <input type="file" ref={imageInputRef} accept="image/*" className="hidden" onChange={(e) => handleFileChange(e, 'image')} />
-                             <Button type="button" variant="outline" onClick={() => videoInputRef.current?.click()}>
+                            <input type="file" ref={imageInputRef} multiple accept="image/*" className="hidden" onChange={(e) => handleFileChange(e, 'image')} />
+                            
+                             <Button type="button" variant="outline" onClick={() => videoInputRef.current?.click()} disabled={mediaPreviews.length > 0}>
                                 <Video className="mr-2 h-4 w-4"/> Add Video
                             </Button>
                             <input type="file" ref={videoInputRef} accept="video/*" className="hidden" onChange={(e) => handleFileChange(e, 'video')} />
                         </div>
+
                          <FormField
                             control={form.control}
                             name="visibility"
