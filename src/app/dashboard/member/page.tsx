@@ -112,22 +112,30 @@ export default function MemberDashboard() {
                 
                 const memberData = memberSnap.data();
                 setHasNewDietPlan(memberData.hasNewDietPlan || false);
-                const endDate = (memberData.endDate as Timestamp)?.toDate();
-                
-                if (memberData.isTrial) {
+
+                // Check gym's trial status first
+                const gymRef = doc(db, 'gyms', userDocId);
+                const gymSnap = await getDoc(gymRef);
+                const isGymTrial = gymSnap.exists() && gymSnap.data().isTrial;
+
+                if (isGymTrial) {
                      setMembershipStatus({ status: 'Trial', daysLeft: Infinity });
-                } else if (endDate) {
-                    const daysLeft = differenceInDays(endDate, new Date());
-                    let status: MembershipStatus['status'] = 'Active';
-                    if (daysLeft < 0) {
-                        status = 'Expired';
-                    } else if (daysLeft <= 7) {
-                        status = 'Expiring Soon';
-                    }
-                    setMembershipStatus({ status, daysLeft });
                 } else {
-                     router.push('/');
-                     return;
+                    const endDate = (memberData.endDate as Timestamp)?.toDate();
+                    if (endDate) {
+                        const daysLeft = differenceInDays(endDate, new Date());
+                        let status: MembershipStatus['status'] = 'Active';
+                        if (daysLeft < 0) {
+                            status = 'Expired';
+                        } else if (daysLeft <= 7) {
+                            status = 'Expiring Soon';
+                        }
+                        setMembershipStatus({ status, daysLeft });
+                    } else {
+                        // If not a trial gym and no end date, the session might be invalid.
+                        router.push('/');
+                        return;
+                    }
                 }
 
 
@@ -190,8 +198,6 @@ export default function MemberDashboard() {
                 const dob = (memberData.dob as Timestamp)?.toDate();
                 if (dob) {
                     if (dob.getDate() === now.getDate() && dob.getMonth() === now.getMonth()) {
-                        const gymRef = doc(db, 'gyms', userDocId);
-                        const gymSnap = await getDoc(gymRef);
                         const gymName = gymSnap.exists() ? gymSnap.data().name : "the gym";
                         setBirthdayMessage(`Happy Birthday! ${memberData.fullName} 🎂💪 Wishing you another year of strength, health, and success—both inside and outside the gym! From ${gymName}`);
                     }
