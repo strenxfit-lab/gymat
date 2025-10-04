@@ -31,7 +31,7 @@ const formSchema = z.object({
 
 type FormData = z.infer<typeof formSchema>;
 
-export default function EditMemberCommunityProfilePage() {
+export default function EditTrainerCommunityProfilePage() {
   const [isLoading, setIsLoading] = useState(false);
   const [isFetching, setIsFetching] = useState(true);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
@@ -53,7 +53,7 @@ export default function EditMemberCommunityProfilePage() {
       const storedUsername = localStorage.getItem('communityUsername');
       if (!storedUsername) {
         toast({ title: 'Error', description: 'Community profile not found.', variant: 'destructive' });
-        router.push('/dashboard/member/profile');
+        router.push('/dashboard/trainer/profile');
         return;
       }
 
@@ -102,7 +102,7 @@ export default function EditMemberCommunityProfilePage() {
   const onSubmit = async (data: FormData) => {
     setIsLoading(true);
     const oldUsername = localStorage.getItem('communityUsername');
-    const userId = localStorage.getItem('memberId');
+    const userId = localStorage.getItem('trainerId');
     if (!oldUsername || !userId) {
         toast({ title: "Error", description: "Session expired. Please log in again.", variant: "destructive" });
         setIsLoading(false);
@@ -136,7 +136,7 @@ export default function EditMemberCommunityProfilePage() {
         title: 'Success!',
         description: 'Your profile has been updated.',
       });
-      router.push('/dashboard/member/profile');
+      router.push('/dashboard/trainer/profile');
     } catch (error) {
       console.error("Error updating profile:", error);
       toast({
@@ -203,7 +203,7 @@ export default function EditMemberCommunityProfilePage() {
               )} />
             </CardContent>
             <CardFooter className="flex justify-between">
-              <Link href="/dashboard/member/profile" passHref>
+              <Link href="/dashboard/trainer/profile" passHref>
                 <Button variant="outline" type="button"><ArrowLeft className="mr-2 h-4 w-4"/> Cancel</Button>
               </Link>
               <Button type="submit" disabled={isLoading}>

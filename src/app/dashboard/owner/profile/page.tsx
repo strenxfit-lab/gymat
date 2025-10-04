@@ -27,7 +27,7 @@ interface CommunityProfile {
     photoUrl?: string;
 }
 
-export default function TrainerCommunityProfilePage() {
+export default function OwnerCommunityProfilePage() {
   const [profile, setProfile] = useState<CommunityProfile | null>(null);
   const [stats, setStats] = useState<ProfileStats>({ posts: 0, followers: 0, following: 0 });
   const [username, setUsername] = useState<string | null>(null);
@@ -38,11 +38,11 @@ export default function TrainerCommunityProfilePage() {
   useEffect(() => {
     const fetchProfileData = async () => {
       const storedUsername = localStorage.getItem('communityUsername');
-      const userId = localStorage.getItem('trainerId');
+      const userId = localStorage.getItem('userDocId');
 
       if (!storedUsername || !userId) {
         toast({ title: 'Error', description: 'Community profile not found.', variant: 'destructive' });
-        router.push('/dashboard/trainer/community');
+        router.push('/dashboard/owner/community');
         return;
       }
       setUsername(storedUsername);
@@ -85,7 +85,7 @@ export default function TrainerCommunityProfilePage() {
             <div className="flex-1">
                  <div className="flex items-center gap-4 mb-2">
                     <h1 className="text-2xl font-bold">{username}</h1>
-                     <Link href="/dashboard/trainer/profile/edit" passHref>
+                     <Link href="/dashboard/owner/profile/edit" passHref>
                         <Button variant="outline" size="sm"><Edit className="mr-2 h-4 w-4"/>Edit Profile</Button>
                     </Link>
                  </div>
@@ -112,10 +112,10 @@ export default function TrainerCommunityProfilePage() {
       </main>
       <BottomNavbar
         navItems={[
-          { label: "Dashboard", href: "/dashboard/trainer", icon: <LayoutDashboard /> },
+          { label: "Dashboard", href: "/dashboard/owner", icon: <LayoutDashboard /> },
           { label: "Search", href: "/dashboard/search", icon: <Search /> },
-          { label: "Feed", href: "/dashboard/trainer/community", icon: <Rss /> },
-          { label: "Profile", href: "/dashboard/trainer/profile", icon: <User /> },
+          { label: "Feed", href: "/dashboard/owner/community", icon: <Rss /> },
+          { label: "Profile", href: "/dashboard/owner/profile", icon: <User /> },
         ]}
       />
     </div>

@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import { useState, useEffect } from 'react';
@@ -109,7 +110,7 @@ export default function OwnerDashboardLayout({
   const router = useRouter();
   const pathname = usePathname();
 
-  const isCommunityPage = pathname === '/dashboard/owner/community';
+  const isCommunityPage = pathname.startsWith('/dashboard/owner/community') || pathname.startsWith('/dashboard/owner/profile');
 
   useEffect(() => {
     setIsMounted(true);

@@ -3,216 +3,121 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { doc, getDoc, Timestamp } from 'firebase/firestore';
+import { doc, getDoc, collection, query, where, getDocs, Timestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Loader2, ArrowLeft, User, Calendar, Dumbbell, HeartPulse, Mail, Phone, Briefcase, Edit } from 'lucide-react';
+import { Loader2, User, Edit, Rss } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { BottomNavbar } from '@/components/ui/bottom-navbar';
+import { LayoutDashboard, Search } from 'lucide-react';
 
-type MemberStatus = 'Active' | 'Expired' | 'Pending' | 'Frozen' | 'Stopped';
-
-interface MemberDetails {
-  fullName: string;
-  dob: string;
-  gender: string;
-  phone: string;
-  email?: string;
-  photoUrl?: string;
-  joiningDate: string;
-  membershipType: string;
-  startDate: string;
-  endDate: string;
-  status: MemberStatus;
-  plan?: string;
-  assignedTrainerName?: string;
-  height?: string;
-  weight?: string;
-  medicalConditions?: string;
-  fitnessGoal?: string;
+interface ProfileStats {
+  posts: number;
+  followers: number;
+  following: number;
 }
 
-const DetailItem = ({ label, value, icon }: { label: string, value: string | undefined, icon?: React.ReactNode }) => (
-    <div className="flex flex-col space-y-1">
-        <p className="text-sm font-medium text-muted-foreground flex items-center gap-2">{icon}{label}</p>
-        <p className="font-semibold">{value || 'N/A'}</p>
-    </div>
-);
-
-const getStatusVariant = (status: MemberStatus) => {
-    switch (status) {
-        case 'Active': return 'default';
-        case 'Expired': return 'destructive';
-        case 'Pending': return 'secondary';
-        case 'Frozen':
-        case 'Stopped':
-             return 'destructive';
-        default: return 'outline';
-    }
+interface CommunityProfile {
+    bio?: string;
+    gender?: string;
+    photoUrl?: string;
 }
 
-export default function MemberProfilePage() {
-  const [member, setMember] = useState<MemberDetails | null>(null);
+export default function MemberCommunityProfilePage() {
+  const [profile, setProfile] = useState<CommunityProfile | null>(null);
+  const [stats, setStats] = useState<ProfileStats>({ posts: 0, followers: 0, following: 0 });
+  const [username, setUsername] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
   const { toast } = useToast();
 
   useEffect(() => {
-    const userDocId = localStorage.getItem('userDocId');
-    const activeBranchId = localStorage.getItem('activeBranch');
-    const memberId = localStorage.getItem('memberId');
+    const fetchProfileData = async () => {
+      const storedUsername = localStorage.getItem('communityUsername');
+      const userId = localStorage.getItem('memberId');
 
-    if (!userDocId || !activeBranchId || !memberId) {
-      toast({ title: 'Error', description: 'Session data not found.', variant: 'destructive' });
-      router.push('/dashboard/member');
-      return;
-    }
+      if (!storedUsername || !userId) {
+        toast({ title: 'Error', description: 'Community profile not found.', variant: 'destructive' });
+        router.push('/dashboard/member/community');
+        return;
+      }
+      setUsername(storedUsername);
 
-    const fetchMemberData = async () => {
       try {
-        const memberRef = doc(db, 'gyms', userDocId, 'branches', activeBranchId, 'members', memberId);
-        const memberSnap = await getDoc(memberRef);
+        const profileRef = doc(db, 'userCommunity', storedUsername);
+        const profileSnap = await getDoc(profileRef);
 
-        if (!memberSnap.exists()) {
-          toast({ title: 'Error', description: 'Member not found.', variant: 'destructive' });
-          router.push('/dashboard/member');
-          return;
+        if (profileSnap.exists()) {
+          setProfile(profileSnap.data() as CommunityProfile);
         }
 
-        const data = memberSnap.data();
-        const now = new Date();
-        const endDate = (data.endDate as Timestamp)?.toDate();
-        
-        let status: MemberStatus = data.status || 'Pending';
-        if (status === 'Active' && endDate && endDate < now) {
-            status = 'Expired';
-        }
-        
-        let assignedTrainerName = 'N/A';
-        if (data.assignedTrainer) {
-            const trainerRef = doc(db, 'gyms', userDocId, 'branches', activeBranchId, 'trainers', data.assignedTrainer);
-            const trainerSnap = await getDoc(trainerRef);
-            if (trainerSnap.exists()) {
-                assignedTrainerName = trainerSnap.data().fullName;
-            }
-        }
-
-        setMember({
-          fullName: data.fullName,
-          dob: (data.dob as Timestamp)?.toDate().toLocaleDateString() || 'N/A',
-          gender: data.gender,
-          phone: data.phone,
-          email: data.email,
-          photoUrl: data.photoUrl,
-          joiningDate: (data.createdAt as Timestamp)?.toDate().toLocaleDateString(),
-          membershipType: data.membershipType,
-          startDate: (data.startDate as Timestamp)?.toDate().toLocaleDateString(),
-          endDate: endDate?.toLocaleDateString() || 'N/A',
-          status: status,
-          plan: data.plan,
-          assignedTrainerName: assignedTrainerName,
-          height: data.height,
-          weight: data.weight,
-          medicalConditions: data.medicalConditions,
-          fitnessGoal: data.fitnessGoal,
-        });
+        const postsQuery = query(collection(db, 'gymRats'), where('authorId', '==', userId));
+        const postsSnap = await getDocs(postsQuery);
+        setStats(prev => ({ ...prev, posts: postsSnap.size }));
         
       } catch (error) {
-        console.error("Error fetching member data:", error);
-        toast({ title: 'Error', description: 'Failed to fetch member details.', variant: 'destructive' });
+        console.error("Error fetching profile data:", error);
+        toast({ title: 'Error', description: 'Failed to fetch profile details.', variant: 'destructive' });
       } finally {
         setLoading(false);
       }
     };
 
-    fetchMemberData();
+    fetchProfileData();
   }, [router, toast]);
 
   if (loading) {
     return <div className="flex min-h-screen items-center justify-center bg-background"><Loader2 className="h-8 w-8 animate-spin" /></div>;
   }
 
-  if (!member) {
-    return <div className="flex min-h-screen items-center justify-center bg-background">Member not found.</div>;
-  }
-
   return (
-    <div className="container mx-auto py-10 space-y-6">
-        <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-                <div className="relative h-20 w-20 rounded-full border-2 border-primary">
-                    {member.photoUrl ? (
-                        <Image src={member.photoUrl} alt="Profile" layout="fill" className="rounded-full object-cover" />
-                    ) : (
-                        <div className="h-full w-full flex items-center justify-center rounded-full bg-muted">
-                            <User className="h-8 w-8 text-muted-foreground" />
-                        </div>
-                    )}
+    <div className="flex flex-col min-h-screen">
+      <main className="flex-1 container mx-auto py-10 space-y-6">
+        <div className="flex items-center gap-8">
+            <Avatar className="h-24 w-24 border-4 border-primary">
+                <AvatarImage src={profile?.photoUrl} alt={username || 'User'}/>
+                <AvatarFallback className="text-3xl">{username?.charAt(0).toUpperCase()}</AvatarFallback>
+            </Avatar>
+            <div className="flex-1">
+                 <div className="flex items-center gap-4 mb-2">
+                    <h1 className="text-2xl font-bold">{username}</h1>
+                     <Link href="/dashboard/member/profile/edit" passHref>
+                        <Button variant="outline" size="sm"><Edit className="mr-2 h-4 w-4"/>Edit Profile</Button>
+                    </Link>
+                 </div>
+                 <div className="flex space-x-6">
+                    <div><span className="font-bold">{stats.posts}</span> posts</div>
+                    <div><span className="font-bold">{stats.followers}</span> followers</div>
+                    <div><span className="font-bold">{stats.following}</span> following</div>
                 </div>
-                <div>
-                     <h1 className="text-3xl font-bold">{member.fullName}</h1>
-                     <p className="text-muted-foreground">My Profile</p>
+                <div className="mt-2">
+                    <p className="text-sm">{profile?.bio || 'No bio yet.'}</p>
+                    <p className="text-xs text-muted-foreground capitalize">{profile?.gender}</p>
                 </div>
-            </div>
-            <div className="flex items-center gap-2">
-                <Link href="/dashboard/member" passHref>
-                    <Button variant="outline"><ArrowLeft className="mr-2 h-4 w-4"/>Back to Dashboard</Button>
-                </Link>
-                 <Link href="/dashboard/member/profile/edit" passHref>
-                    <Button><Edit className="mr-2 h-4 w-4"/>Edit Profile</Button>
-                </Link>
             </div>
         </div>
         
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-1 space-y-6">
-            <Card>
-                <CardHeader>
-                    <CardTitle className="flex items-center gap-2"><User /> Personal Details</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4 grid grid-cols-2 gap-4">
-                    <DetailItem label="Gender" value={member.gender} />
-                    <DetailItem label="Date of Birth" value={member.dob} />
-                    <DetailItem label="Phone" value={member.phone} icon={<Phone />} />
-                    <DetailItem label="Email" value={member.email} icon={<Mail />} />
-                    <DetailItem label="Joining Date" value={member.joiningDate} icon={<Calendar />} />
-                </CardContent>
-            </Card>
+        {/* Placeholder for posts grid */}
+        <div className="border-t pt-6">
+            <h2 className="text-xl font-bold text-center">Posts</h2>
+            <div className="text-center text-muted-foreground mt-8">
+                <p>Your posts will appear here.</p>
+            </div>
         </div>
-        <div className="lg:col-span-2 space-y-6">
-            <Card>
-                <CardHeader>
-                    <CardTitle className="flex items-center gap-2"><Dumbbell /> Membership</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4 grid grid-cols-2 gap-4">
-                    <DetailItem label="Plan Type" value={member.membershipType} />
-                    <DetailItem label="Package" value={member.plan} />
-                    <DetailItem label="Start Date" value={member.startDate} />
-                    <DetailItem label="End Date" value={member.endDate} />
-                    <DetailItem label="Assigned Trainer" value={member.assignedTrainerName} icon={<Briefcase />} />
-                    <div>
-                        <p className="text-sm font-medium text-muted-foreground flex items-center gap-2">Status</p>
-                        <Badge variant={getStatusVariant(member.status)} className="mt-1">{member.status}</Badge>
-                    </div>
-                </CardContent>
-            </Card>
 
-            <Card>
-                <CardHeader>
-                    <CardTitle className="flex items-center gap-2"><HeartPulse /> Health & Fitness</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4 grid grid-cols-2 gap-4">
-                    <DetailItem label="Height" value={member.height ? `${member.height} cm` : undefined} />
-                    <DetailItem label="Weight" value={member.weight ? `${member.weight} kg` : undefined} />
-                    <div className="col-span-2"><DetailItem label="Fitness Goal" value={member.fitnessGoal} /></div>
-                    <div className="col-span-2"><DetailItem label="Medical Conditions" value={member.medicalConditions} /></div>
-                </CardContent>
-            </Card>
-        </div>
-      </div>
+      </main>
+      <BottomNavbar
+        navItems={[
+          { label: "Dashboard", href: "/dashboard/member", icon: <LayoutDashboard /> },
+          { label: "Search", href: "/dashboard/search", icon: <Search /> },
+          { label: "Feed", href: "/dashboard/member/community", icon: <Rss /> },
+          { label: "Profile", href: "/dashboard/member/profile", icon: <User /> },
+        ]}
+      />
     </div>
   );
 }

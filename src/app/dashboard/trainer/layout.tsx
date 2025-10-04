@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import { useState, useEffect } from 'react';
@@ -62,7 +63,7 @@ export default function TrainerDashboardLayout({
     router.push('/');
   };
   
-  const isCommunityPage = pathname === '/dashboard/trainer/community';
+  const isCommunityPage = pathname.startsWith('/dashboard/trainer/community') || pathname.startsWith('/dashboard/trainer/profile');
 
   if (isCommunityPage) {
     return <>{children}</>;
