@@ -10,6 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Loader2, Send } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { formatDistanceToNow } from 'date-fns';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 interface Post {
     id: string;
@@ -56,8 +57,6 @@ export default function CommunityPage() {
     if (newPost.trim() === "") return;
 
     const gymId = localStorage.getItem('userDocId');
-    // For this basic version, we'll hardcode the owner's name.
-    // In a real app, this would come from the user's profile.
     const authorName = "Gym Owner"; 
     const authorId = localStorage.getItem('userDocId');
 
@@ -74,7 +73,6 @@ export default function CommunityPage() {
             gymId,
             text: newPost,
             createdAt: serverTimestamp(),
-            // Default visibility can be set here in the future
         });
         setNewPost("");
     } catch (error) {
@@ -86,76 +84,77 @@ export default function CommunityPage() {
   }
 
   return (
-    <div className="container mx-auto py-10">
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-3xl font-bold">Community Feed</h1>
-          <p className="text-muted-foreground">
-            Engage with your gym members and trainers.
-          </p>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="md:col-span-2">
-          {/* Post Composer */}
-          <Card className="mb-6">
-            <CardHeader>
-                <CardTitle>Create a Post</CardTitle>
-            </CardHeader>
-            <CardContent>
-                <form onSubmit={handlePostSubmit} className="space-y-4">
-                    <Textarea 
-                        placeholder="What's on your mind? Share an update with the community..."
-                        value={newPost}
-                        onChange={(e) => setNewPost(e.target.value)}
-                        className="min-h-[100px]"
-                    />
-                    <div className="flex justify-end">
-                        <Button type="submit" disabled={isSubmitting}>
-                            {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Send className="mr-2 h-4 w-4"/>}
-                            Post
-                        </Button>
-                    </div>
-                </form>
-            </CardContent>
-          </Card>
-
-          {/* Feed */}
-          <div className="space-y-4">
-            {isLoading ? (
-                <div className="flex justify-center p-8"><Loader2 className="h-8 w-8 animate-spin"/></div>
-            ) : posts.length > 0 ? (
-                posts.map(post => (
-                    <Card key={post.id}>
-                        <CardHeader className="flex flex-row items-center gap-4">
-                            <Avatar>
-                                <AvatarFallback>{post.authorName?.charAt(0) || 'U'}</AvatarFallback>
-                            </Avatar>
-                            <div>
-                                <CardTitle className="text-base">{post.authorName}</CardTitle>
-                                <p className="text-xs text-muted-foreground">
-                                    {post.createdAt ? `${formatDistanceToNow(post.createdAt)} ago` : 'just now'}
-                                </p>
+    <div className="flex h-full bg-background">
+      <div className="flex-1 flex flex-col">
+        <header className="p-4 border-b">
+          <h1 className="text-2xl font-bold">Community</h1>
+        </header>
+        <Tabs defaultValue="global" className="flex-1 flex flex-col">
+          <TabsList className="m-4">
+            <TabsTrigger value="global">Global</TabsTrigger>
+            <TabsTrigger value="your_gym" disabled>Your Gym</TabsTrigger>
+          </TabsList>
+          <TabsContent value="global" className="flex-1 overflow-y-auto p-4 space-y-4">
+              <div className="max-w-2xl mx-auto w-full">
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Create a Post</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <form onSubmit={handlePostSubmit} className="space-y-4">
+                            <Textarea 
+                                placeholder="What's on your mind? Share an update with the community..."
+                                value={newPost}
+                                onChange={(e) => setNewPost(e.target.value)}
+                                className="min-h-[100px]"
+                            />
+                            <div className="flex justify-end">
+                                <Button type="submit" disabled={isSubmitting}>
+                                    {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Send className="mr-2 h-4 w-4"/>}
+                                    Post
+                                </Button>
                             </div>
-                        </CardHeader>
-                        <CardContent>
-                            <p className="whitespace-pre-wrap">{post.text}</p>
-                        </CardContent>
-                    </Card>
-                ))
-            ) : (
-                <div className="text-center py-12 border-2 border-dashed rounded-lg">
-                    <p className="text-muted-foreground">No posts yet.</p>
-                    <p className="text-sm text-muted-foreground">Be the first to start a conversation!</p>
-                </div>
-            )}
-          </div>
-        </div>
+                        </form>
+                    </CardContent>
+                </Card>
 
-        <div className="md:col-span-1">
-            {/* Placeholder for future features like Trending, etc. */}
-        </div>
+                <div className="space-y-4 mt-6">
+                    {isLoading ? (
+                        <div className="flex justify-center p-8"><Loader2 className="h-8 w-8 animate-spin"/></div>
+                    ) : posts.length > 0 ? (
+                        posts.map(post => (
+                            <Card key={post.id}>
+                                <CardHeader className="flex flex-row items-center gap-4">
+                                    <Avatar>
+                                        <AvatarFallback>{post.authorName?.charAt(0) || 'U'}</AvatarFallback>
+                                    </Avatar>
+                                    <div>
+                                        <CardTitle className="text-base">{post.authorName}</CardTitle>
+                                        <p className="text-xs text-muted-foreground">
+                                            {post.createdAt ? `${formatDistanceToNow(post.createdAt)} ago` : 'just now'}
+                                        </p>
+                                    </div>
+                                </CardHeader>
+                                <CardContent>
+                                    <p className="whitespace-pre-wrap">{post.text}</p>
+                                </CardContent>
+                            </Card>
+                        ))
+                    ) : (
+                        <div className="text-center py-12 border-2 border-dashed rounded-lg">
+                            <p className="text-muted-foreground">No posts yet.</p>
+                            <p className="text-sm text-muted-foreground">Be the first to start a conversation!</p>
+                        </div>
+                    )}
+                </div>
+              </div>
+          </TabsContent>
+          <TabsContent value="your_gym" className="flex-1 overflow-y-auto p-4">
+             <div className="text-center py-12 border-2 border-dashed rounded-lg">
+                <p className="text-muted-foreground">"Your Gym" feed coming soon!</p>
+            </div>
+          </TabsContent>
+        </Tabs>
       </div>
     </div>
   );
