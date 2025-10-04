@@ -48,6 +48,7 @@ export default function TrainerDashboardLayout({
 }) {
   const [trainerName, setTrainerName] = useState<string | null>(null);
   const router = useRouter();
+  const pathname = usePathname();
 
   useEffect(() => {
     const name = localStorage.getItem('userName');
@@ -58,6 +59,8 @@ export default function TrainerDashboardLayout({
     localStorage.clear();
     router.push('/');
   };
+  
+  const isCommunityPage = pathname === '/dashboard/trainer/community';
 
   return (
     <SidebarProvider>
@@ -78,6 +81,7 @@ export default function TrainerDashboardLayout({
           <SidebarMenu>
             <MenuItem href="/dashboard/trainer" icon={<LayoutDashboard />}>Dashboard</MenuItem>
             <MenuItem href="/dashboard/trainer/profile" icon={<UserCheck />}>My Profile</MenuItem>
+            <MenuItem href="/dashboard/trainer/community" icon={<Users />}>Community</MenuItem>
             <MenuItem href="/dashboard/trainer/attendance" icon={<CheckSquare />}>My Attendance</MenuItem>
             <MenuItem href="/dashboard/trainer/maintenance" icon={<Wrench />}>Maintenance</MenuItem>
             <MenuItem href="/dashboard/trainer/payments" icon={<IndianRupee />}>My Payments</MenuItem>
@@ -92,12 +96,15 @@ export default function TrainerDashboardLayout({
         </SidebarFooter>
       </Sidebar>
       <div className="flex-1 flex flex-col transition-all duration-300 ease-in-out">
-        <header className="sticky top-0 z-10 flex h-16 items-center justify-between border-b bg-background/80 backdrop-blur-sm px-4 md:px-8">
-            <SidebarTrigger className="md:hidden" />
-            <div className='flex-1'></div>
-            <ThemeToggle />
-        </header>
-        <main className="flex-1 p-4 md:p-8">
+        {isCommunityPage && <div className="flex-shrink-0" />}
+        {!isCommunityPage && (
+          <header className="sticky top-0 z-10 flex h-16 items-center justify-between border-b bg-background/80 backdrop-blur-sm px-4 md:px-8">
+              <SidebarTrigger className="md:hidden" />
+              <div className='flex-1'></div>
+              <ThemeToggle />
+          </header>
+        )}
+        <main className={cn("flex-1", !isCommunityPage && "p-4 md:p-8")}>
           {children}
         </main>
       </div>

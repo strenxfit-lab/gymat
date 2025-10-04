@@ -136,6 +136,15 @@ export default function OwnerDashboardLayout({
                          if (expirationDate < new Date()) {
                             isValidSession = false; // Expired trial
                         }
+                    } else { // if expiresAt is not set, it could be a newly activated key. Give it 24 hours.
+                        const activatedAt = (trialData.activatedAt as Timestamp).toDate();
+                        if (activatedAt) {
+                           expirationDate = new Date(activatedAt.getTime() + 24 * 60 * 60 * 1000);
+                           planTier = 'Trial';
+                           if (expirationDate < new Date()) {
+                               isValidSession = false;
+                           }
+                        }
                     }
                 }
             } else if (gymData.expiry_at) {
