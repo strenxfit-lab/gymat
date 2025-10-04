@@ -3,7 +3,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { doc, getDoc, collection, query, where, getDocs, Timestamp, orderBy } from 'firebase/firestore';
+import { doc, getDoc, collection, query, where, getDocs, Timestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -29,6 +29,7 @@ interface CommunityProfile {
 
 interface Post {
     id: string;
+    createdAt: Timestamp;
     mediaUrls?: { url: string, type: 'image' | 'video' }[];
 }
 
@@ -61,10 +62,14 @@ export default function TrainerCommunityProfilePage() {
           setProfile(profileSnap.data() as CommunityProfile);
         }
 
-        const postsQuery = query(collection(db, 'gymRats'), where('authorId', '==', userId), orderBy('createdAt', 'desc'));
+        const postsQuery = query(collection(db, 'gymRats'), where('authorId', '==', userId));
         const postsSnap = await getDocs(postsQuery);
-        setStats(prev => ({ ...prev, posts: postsSnap.size }));
-        setPosts(postsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Post)));
+        const userPosts = postsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Post));
+        
+        userPosts.sort((a, b) => b.createdAt.toDate().getTime() - a.createdAt.toDate().getTime());
+        
+        setStats(prev => ({ ...prev, posts: userPosts.length }));
+        setPosts(userPosts);
         
       } catch (error) {
         console.error("Error fetching profile data:", error);
