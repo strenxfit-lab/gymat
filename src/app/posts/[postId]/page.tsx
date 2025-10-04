@@ -3,7 +3,7 @@
 
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { doc, getDoc, updateDoc, arrayUnion, arrayRemove, Timestamp, collection, query, where, getDocs } from 'firebase/firestore';
+import { doc, getDoc, updateDoc, arrayUnion, arrayRemove, Timestamp, collection, query, where, getDocs, collectionGroup } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
@@ -87,14 +87,12 @@ export default function PostPage() {
                         }
                     }
                 }
-
-                setPost({ id: postSnap.id, ...postData, authorRole } as Post);
-
-                const currentUserRole = localStorage.getItem('userRole');
-                if (authorRole === currentUserRole) {
-                    setBackLink(`/dashboard/${currentUserRole}/profile`);
-                } else {
-                    setBackLink(`/dashboard/${currentUserRole}/community`);
+                
+                const fullPostData = { id: postSnap.id, ...postData, authorRole } as Post;
+                setPost(fullPostData);
+                
+                if (fullPostData.authorRole) {
+                    setBackLink(`/dashboard/${fullPostData.authorRole}/profile`);
                 }
 
             } else {
