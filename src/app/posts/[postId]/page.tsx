@@ -1,8 +1,9 @@
+
 "use client";
 
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { doc, getDoc, updateDoc, arrayUnion, arrayRemove, Timestamp } from 'firebase/firestore';
+import { doc, getDoc, updateDoc, arrayUnion, arrayRemove, Timestamp, collection, query, where, getDocs } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
@@ -33,6 +34,7 @@ interface Post {
     authorName: string;
     authorId: string;
     authorPhotoUrl?: string;
+    authorRole?: 'owner' | 'member' | 'trainer';
     createdAt: Timestamp;
     mediaUrls?: { url: string, type: 'image' | 'video' }[];
     likes?: string[];
@@ -53,15 +55,6 @@ export default function PostPage() {
     const router = useRouter();
     const { toast } = useToast();
 
-    useEffect(() => {
-        const role = localStorage.getItem('userRole');
-        if (role === 'member') {
-            setBackLink('/dashboard/member/community');
-        } else if (role === 'trainer') {
-            setBackLink('/dashboard/trainer/community');
-        }
-    }, []);
-
     const commentForm = useForm<CommentFormData>({
         resolver: zodResolver(commentSchema),
         defaultValues: { text: "" },
@@ -73,7 +66,37 @@ export default function PostPage() {
             const postSnap = await getDoc(postRef);
 
             if (postSnap.exists()) {
-                setPost({ id: postSnap.id, ...postSnap.data() } as Post);
+                const postData = postSnap.data();
+                const authorId = postData.authorId;
+                let authorRole: Post['authorRole'] = 'member'; // Default
+
+                const ownerQuery = query(collection(db, 'gyms'), where('__name__', '==', authorId));
+                const ownerSnap = await getDocs(ownerQuery);
+                if (!ownerSnap.empty) {
+                    authorRole = 'owner';
+                } else {
+                    const memberQuery = query(collectionGroup(db, 'members'), where('__name__', '==', authorId));
+                    const memberSnap = await getDocs(memberQuery);
+                     if (!memberSnap.empty) {
+                        authorRole = 'member';
+                    } else {
+                        const trainerQuery = query(collectionGroup(db, 'trainers'), where('__name__', '==', authorId));
+                        const trainerSnap = await getDocs(trainerQuery);
+                        if(!trainerSnap.empty) {
+                            authorRole = 'trainer';
+                        }
+                    }
+                }
+
+                setPost({ id: postSnap.id, ...postData, authorRole } as Post);
+
+                const currentUserRole = localStorage.getItem('userRole');
+                if (authorRole === currentUserRole) {
+                    setBackLink(`/dashboard/${currentUserRole}/profile`);
+                } else {
+                    setBackLink(`/dashboard/${currentUserRole}/community`);
+                }
+
             } else {
                 toast({ title: 'Error', description: 'Post not found.', variant: 'destructive' });
                 router.back();
