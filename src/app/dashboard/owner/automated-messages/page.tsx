@@ -313,12 +313,11 @@ export default function RemindersPage() {
                         </DialogTrigger>
                         <DialogContent>
                             <DialogHeader>
-                                <DialogTitle>Connect to WhatsApp Web</DialogTitle>
-                                <DialogDescription>Scan this QR code with your phone to link your device.</DialogDescription>
+                                <DialogTitle>Connect to WhatsApp</DialogTitle>
+                                <DialogDescription>
+                                    To send messages, you need to have WhatsApp Web open in a browser tab. Click the button below to open WhatsApp Web and scan the QR code with your phone if you are not already logged in.
+                                </DialogDescription>
                             </DialogHeader>
-                            <div className="flex justify-center p-4">
-                                <Image src="https://www.strenx.in/assets/img/qr.png" alt="WhatsApp QR Code" width={256} height={256} />
-                            </div>
                             <DialogFooter>
                                 <a href="https://web.whatsapp.com" target="_blank" rel="noopener noreferrer">
                                     <Button type="button">Open WhatsApp Web</Button>
