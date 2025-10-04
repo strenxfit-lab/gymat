@@ -1,14 +1,15 @@
+
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { collection, addDoc, query, onSnapshot, serverTimestamp, Timestamp, where, getDocs, doc, setDoc } from "firebase/firestore";
+import { collection, addDoc, query, onSnapshot, serverTimestamp, Timestamp, where, getDocs, doc, setDoc, updateDoc, arrayUnion, arrayRemove } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useToast } from "@/hooks/use-toast";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Loader2, Send, Plus, Image as ImageIcon, Video, X } from "lucide-react";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Loader2, Send, Plus, Image as ImageIcon, Video, X, ThumbsUp, MessageSquare, MoreVertical, Flag } from "lucide-react";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { formatDistanceToNow } from 'date-fns';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
@@ -20,17 +21,30 @@ import * as z from 'zod';
 import Image from 'next/image';
 import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 
+
+interface Comment {
+    id: string;
+    authorId: string;
+    authorName: string;
+    text: string;
+    createdAt: Date;
+}
 
 interface Post {
     id: string;
     authorName: string;
     authorId: string;
+    authorPhotoUrl?: string;
     gymId: string;
     text: string;
     mediaUrls?: { url: string, type: 'image' | 'video' }[];
     createdAt: Date;
     visibility: 'local' | 'global';
+    likes?: string[];
+    comments?: Comment[];
 }
 
 const postSchema = z.object({
@@ -52,6 +66,11 @@ const usernameSchema = z.object({
 });
 type UsernameFormData = z.infer<typeof usernameSchema>;
 
+const commentSchema = z.object({
+    text: z.string().min(1, "Comment cannot be empty."),
+});
+type CommentFormData = z.infer<typeof commentSchema>;
+
 
 export default function CommunityPage() {
   const [posts, setPosts] = useState<Post[]>([]);
@@ -67,6 +86,8 @@ export default function CommunityPage() {
   const [mediaPreviews, setMediaPreviews] = useState<{url: string, type: 'image' | 'video'}[]>([]);
   const imageInputRef = useRef<HTMLInputElement>(null);
   const videoInputRef = useRef<HTMLInputElement>(null);
+  const [openComments, setOpenComments] = useState<Record<string, boolean>>({});
+  const [replyTo, setReplyTo] = useState<string | null>(null);
 
 
   const postForm = useForm<PostFormData>({
@@ -82,13 +103,17 @@ export default function CommunityPage() {
     resolver: zodResolver(usernameSchema),
     defaultValues: { username: "" },
   });
+
+  const commentForm = useForm<CommentFormData>({
+      resolver: zodResolver(commentSchema),
+      defaultValues: { text: "" },
+  });
   
   useEffect(() => {
     const checkCommunityProfile = async () => {
       const userId = localStorage.getItem('userDocId');
       if (!userId) {
         setHasCommunityProfile(false);
-        // Or handle error, maybe redirect
         return;
       }
       
@@ -234,6 +259,8 @@ export default function CommunityPage() {
             visibility: values.visibility,
             mediaUrls: values.mediaUrls || [],
             createdAt: serverTimestamp(),
+            likes: [],
+            comments: [],
         });
         toast({ title: "Success!", description: "Your post has been published."});
         postForm.reset();
@@ -279,6 +306,53 @@ export default function CommunityPage() {
     }
   }
   
+  const handleLike = async (postId: string) => {
+    const userId = localStorage.getItem('userDocId');
+    if (!userId) return;
+
+    const postRef = doc(db, 'gymRats', postId);
+    const post = posts.find(p => p.id === postId);
+    const isLiked = post?.likes?.includes(userId);
+
+    try {
+        await updateDoc(postRef, {
+            likes: isLiked ? arrayRemove(userId) : arrayUnion(userId)
+        });
+    } catch (error) {
+        console.error("Error liking post:", error);
+        toast({ title: 'Error', description: 'Could not update like status.', variant: 'destructive' });
+    }
+  };
+
+  const handleCommentSubmit = async (postId: string, data: CommentFormData) => {
+    const authorId = localStorage.getItem('userDocId');
+    const authorName = localStorage.getItem('communityUsername') || 'Gym Owner';
+    if (!authorId) return;
+
+    const postRef = doc(db, 'gymRats', postId);
+    const newComment = {
+        id: new Date().toISOString(), // Simple unique ID
+        authorId,
+        authorName,
+        text: data.text,
+        createdAt: new Date(),
+    };
+
+    try {
+        await updateDoc(postRef, {
+            comments: arrayUnion(newComment)
+        });
+        commentForm.reset();
+    } catch (error) {
+        console.error("Error adding comment:", error);
+        toast({ title: 'Error', description: 'Could not post comment.', variant: 'destructive' });
+    }
+  };
+  
+  const handleReportPost = async (postId: string) => {
+    toast({ title: "Post Reported", description: "Thank you for your feedback. We will review this post."});
+  }
+
   const renderFeed = () => {
     if (isLoading) {
         return <div className="flex justify-center p-8"><Loader2 className="h-8 w-8 animate-spin"/></div>;
@@ -293,17 +367,36 @@ export default function CommunityPage() {
         );
     }
 
+    const userId = localStorage.getItem('userDocId');
+
     return posts.map(post => (
         <Card key={post.id} className="mb-4">
-            <CardHeader className="flex flex-row items-center gap-4">
+            <CardHeader className="flex flex-row items-start gap-4">
                 <Avatar>
+                    <AvatarImage src={post.authorPhotoUrl} />
                     <AvatarFallback>{post.authorName?.charAt(0).toUpperCase() || 'U'}</AvatarFallback>
                 </Avatar>
-                <div>
-                    <CardTitle className="text-base">{post.authorName}</CardTitle>
-                    <p className="text-xs text-muted-foreground">
-                        {post.createdAt ? `${formatDistanceToNow(post.createdAt)} ago` : 'just now'}
-                    </p>
+                <div className="flex-1">
+                    <div className="flex justify-between items-start">
+                        <div>
+                            <CardTitle className="text-base">{post.authorName}</CardTitle>
+                            <p className="text-xs text-muted-foreground">
+                                {post.createdAt ? `${formatDistanceToNow(post.createdAt)} ago` : 'just now'}
+                            </p>
+                        </div>
+                        <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" size="icon" className="h-8 w-8">
+                                    <MoreVertical className="h-4 w-4"/>
+                                </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent>
+                                <DropdownMenuItem onSelect={() => handleReportPost(post.id)} className="text-destructive focus:text-destructive">
+                                    <Flag className="mr-2"/> Report Post
+                                </DropdownMenuItem>
+                            </DropdownMenuContent>
+                        </DropdownMenu>
+                    </div>
                 </div>
             </CardHeader>
             <CardContent>
@@ -322,10 +415,43 @@ export default function CommunityPage() {
                     </div>
                 )}
             </CardContent>
+            <CardFooter className="flex flex-col items-start gap-4">
+                 <div className="flex gap-4">
+                    <Button variant="ghost" size="sm" onClick={() => handleLike(post.id)}>
+                        <ThumbsUp className={cn("mr-2 h-4 w-4", post.likes?.includes(userId!) && "fill-primary text-primary")}/> 
+                        {post.likes?.length || 0} Likes
+                    </Button>
+                     <Button variant="ghost" size="sm" onClick={() => setOpenComments(prev => ({...prev, [post.id]: !prev[post.id]}))}>
+                        <MessageSquare className="mr-2 h-4 w-4"/> 
+                        {post.comments?.length || 0} Comments
+                    </Button>
+                </div>
+                 {openComments[post.id] && (
+                     <div className="w-full pl-4 border-l-2">
+                        <Form {...commentForm}>
+                            <form onSubmit={commentForm.handleSubmit((data) => handleCommentSubmit(post.id, data))} className="flex gap-2 mb-4">
+                                <FormField control={commentForm.control} name="text" render={({field}) => (
+                                    <FormItem className="flex-1">
+                                        <FormControl><Input placeholder="Write a comment..." {...field} /></FormControl>
+                                    </FormItem>
+                                )}/>
+                                <Button type="submit" size="icon"><Send className="h-4 w-4"/></Button>
+                            </form>
+                        </Form>
+                        <div className="space-y-4">
+                            {post.comments?.map(comment => (
+                                <div key={comment.id} className="text-sm">
+                                    <p><span className="font-semibold">{comment.authorName}</span>: {comment.text}</p>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                 )}
+            </CardFooter>
         </Card>
     ));
   };
-
+  
   if (hasCommunityProfile === null) {
       return <div className="flex justify-center p-8"><Loader2 className="h-8 w-8 animate-spin"/></div>;
   }
