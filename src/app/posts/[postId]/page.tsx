@@ -75,16 +75,27 @@ export default function PostPage() {
                 if (!ownerSnap.empty) {
                     authorRole = 'owner';
                 } else {
-                    const memberQuery = query(collectionGroup(db, 'members'), where('__name__', '==', authorId));
-                    const memberSnap = await getDocs(memberQuery);
-                     if (!memberSnap.empty) {
-                        authorRole = 'member';
-                    } else {
-                        const trainerQuery = query(collectionGroup(db, 'trainers'), where('__name__', '==', authorId));
-                        const trainerSnap = await getDocs(trainerQuery);
-                        if(!trainerSnap.empty) {
-                            authorRole = 'trainer';
+                    const allGymsSnap = await getDocs(collection(db, 'gyms'));
+                    let userFound = false;
+                    for (const gymDoc of allGymsSnap.docs) {
+                        const branchesSnap = await getDocs(collection(gymDoc.ref, 'branches'));
+                        for (const branchDoc of branchesSnap.docs) {
+                            const memberRef = doc(branchDoc.ref, 'members', authorId);
+                            const memberSnap = await getDoc(memberRef);
+                            if (memberSnap.exists()) {
+                                authorRole = 'member';
+                                userFound = true;
+                                break;
+                            }
+                            const trainerRef = doc(branchDoc.ref, 'trainers', authorId);
+                            const trainerSnap = await getDoc(trainerRef);
+                            if (trainerSnap.exists()) {
+                                authorRole = 'trainer';
+                                userFound = true;
+                                break;
+                            }
                         }
+                        if (userFound) break;
                     }
                 }
                 
