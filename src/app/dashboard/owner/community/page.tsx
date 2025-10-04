@@ -778,7 +778,7 @@ export default function CommunityPage() {
             </Form>
         </DialogContent>
       </Dialog>
-      <Dialog open={isSearchDialogOpen} onOpenChange={setIsSearchDialogOpen}>
+       <Dialog open={isSearchDialogOpen} onOpenChange={setIsSearchDialogOpen}>
         <DialogContent>
             <DialogHeader>
                 <DialogTitle>Search Users</DialogTitle>
@@ -812,23 +812,23 @@ export default function CommunityPage() {
       </Dialog>
       <div className="flex-1 flex flex-col">
         <Tabs defaultValue="global" value={activeTab} onValueChange={setActiveTab}>
-            <header className="p-4 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-10">
-                <div className="flex items-center justify-between">
-                    <h1 className="text-2xl font-bold">Community</h1>
-                    <div className="flex items-center gap-4">
+          <header className="p-4 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-10">
+              <div className="flex items-center justify-between">
+                  <h1 className="text-2xl font-bold">Community</h1>
+                  <div className="flex items-center gap-4">
                       <TabsList className="bg-primary text-primary-foreground">
                           <TabsTrigger value="your_gym">Your Gym</TabsTrigger>
                           <TabsTrigger value="global">Global</TabsTrigger>
                       </TabsList>
                       <DialogTrigger asChild>
-                        <Button onClick={() => setIsPostDialogOpen(true)}>
-                            <Plus className="h-4 w-4 mr-2" />
-                            Create Post
-                        </Button>
+                      <Button onClick={() => setIsPostDialogOpen(true)}>
+                          <Plus className="h-4 w-4 mr-2" />
+                          Create Post
+                      </Button>
                       </DialogTrigger>
-                    </div>
-                </div>
-            </header>
+                  </div>
+              </div>
+          </header>
             
             <main className="flex-1 overflow-y-auto p-4 pb-20 space-y-4">
                 <div className="max-w-2xl mx-auto w-full">

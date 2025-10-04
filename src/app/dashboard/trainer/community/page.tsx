@@ -778,7 +778,7 @@ export default function CommunityPage() {
             </Form>
         </DialogContent>
       </Dialog>
-      <Dialog open={isSearchDialogOpen} onOpenChange={setIsSearchDialogOpen}>
+       <Dialog open={isSearchDialogOpen} onOpenChange={setIsSearchDialogOpen}>
         <DialogContent>
             <DialogHeader>
                 <DialogTitle>Search Users</DialogTitle>
