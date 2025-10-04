@@ -10,6 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Loader2, IndianRupee, Users } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
+import { startOfMonth } from 'date-fns';
 
 interface GymCustomer {
   id: string;
@@ -41,6 +42,7 @@ export default function SuperAdminDashboard() {
   const [customers, setCustomers] = useState<GymCustomer[]>([]);
   const [platformPayments, setPlatformPayments] = useState<PlatformPayment[]>([]);
   const [totalRevenue, setTotalRevenue] = useState(0);
+  const [thisMonthsRevenue, setThisMonthsRevenue] = useState(0);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
   const { toast } = useToast();
@@ -88,18 +90,30 @@ export default function SuperAdminDashboard() {
             const paymentsCollection = collection(db, 'platform_payments');
             const paymentsQuery = query(paymentsCollection, orderBy('paymentDate', 'desc'));
             const paymentsSnap = await getDocs(paymentsQuery);
+            const startOfThisMonth = startOfMonth(now);
+            let monthlyRevenue = 0;
+            let allTimeRevenue = 0;
+
             const paymentsList = paymentsSnap.docs.map(doc => {
                 const data = doc.data();
+                const paymentDate = (data.paymentDate as Timestamp).toDate();
+
+                allTimeRevenue += data.amount;
+                if (paymentDate >= startOfThisMonth) {
+                    monthlyRevenue += data.amount;
+                }
+
                 return {
                     id: doc.id,
                     gymName: data.gymName,
                     planName: data.planName,
                     amount: data.amount,
-                    paymentDate: (data.paymentDate as Timestamp).toDate().toLocaleDateString(),
+                    paymentDate: paymentDate.toLocaleDateString(),
                 }
             });
             setPlatformPayments(paymentsList);
-            setTotalRevenue(paymentsList.reduce((sum, p) => sum + p.amount, 0));
+            setTotalRevenue(allTimeRevenue);
+            setThisMonthsRevenue(monthlyRevenue);
 
         } catch (error) {
             console.error("Error fetching data:", error);
@@ -137,9 +151,17 @@ export default function SuperAdminDashboard() {
                     <p className="text-4xl font-bold">{customers.length}</p>
                 </CardContent>
             </Card>
-            <Card className="md:col-span-2">
+            <Card>
                 <CardHeader>
-                    <CardTitle className="flex items-center gap-2"><IndianRupee/> Total Platform Revenue</CardTitle>
+                    <CardTitle className="flex items-center gap-2"><IndianRupee/> This Month's Revenue</CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <p className="text-4xl font-bold">₹{thisMonthsRevenue.toLocaleString()}</p>
+                </CardContent>
+            </Card>
+            <Card>
+                <CardHeader>
+                    <CardTitle className="flex items-center gap-2"><IndianRupee/> All-Time Revenue</CardTitle>
                 </CardHeader>
                 <CardContent>
                     <p className="text-4xl font-bold">₹{totalRevenue.toLocaleString()}</p>
