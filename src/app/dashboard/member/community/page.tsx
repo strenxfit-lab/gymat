@@ -8,7 +8,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Loader2, Send, Plus, Image as ImageIcon, Video, X, ThumbsUp, MessageSquare, MoreVertical, Flag, Repeat } from "lucide-react";
+import { Loader2, Send, Plus, Image as ImageIcon, Video, X, ThumbsUp, MessageSquare, MoreVertical, Flag, Repeat, Share2 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { formatDistanceToNow } from 'date-fns';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -411,6 +411,24 @@ export default function CommunityPage() {
     }
   }
 
+  const handleShare = async (post: Post) => {
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: `Check out this post from ${post.authorName} in the Strenx community!`,
+          text: post.text,
+          url: window.location.href, // ideally a direct link to the post
+        });
+        toast({ title: "Post shared successfully!"});
+      } catch (error) {
+        console.error('Error sharing:', error);
+        toast({ title: "Could not share post", variant: "destructive" });
+      }
+    } else {
+      toast({ title: "Share not supported", description: "Your browser does not support the Web Share API." });
+    }
+  };
+
 
   const renderFeed = () => {
     if (isLoading) {
@@ -512,6 +530,9 @@ export default function CommunityPage() {
                     </Button>
                      <Button variant="ghost" size="sm" onClick={() => { setRepostingPost(post); setIsRepostDialogOpen(true); }}>
                         <Repeat className="mr-2 h-4 w-4"/> Repost
+                    </Button>
+                    <Button variant="ghost" size="sm" onClick={() => handleShare(post)}>
+                        <Share2 className="mr-2 h-4 w-4" /> Share
                     </Button>
                 </div>
                  {openComments[post.id] && (
