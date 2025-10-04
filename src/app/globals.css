@@ -4,30 +4,26 @@
 
 @layer base {
   :root {
-    --background: 0 0% 96.1%;
-    --foreground: 222.2 84% 4.9%;
+    --background: 220 13% 97%; /* #F7F8FA */
+    --foreground: 222 39% 20%; /* #1F2A44 */
     --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
+    --card-foreground: 222 39% 20%;
     --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
-    --primary: 262.1 83.3% 57.8%; /* Indigo 500 */
+    --popover-foreground: 222 39% 20%;
+    --primary: 11 100% 62%; /* #FF5A3C */
     --primary-foreground: 0 0% 98%;
-    --secondary: 142.1 76.2% 36.3%; /* Emerald 500 */
+    --secondary: 222 39% 20%; /* #1F2A44 */
     --secondary-foreground: 0 0% 98%;
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
+    --muted: 215 9% 47%; /* #6B7280 */
+    --muted-foreground: 215 9% 47%;
     --accent: 210 40% 96.1%;
     --accent-foreground: 222.2 47.4% 11.2%;
-    --destructive: 0 84.2% 60.2%; /* Red 500 */
+    --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 0 0% 98%;
     --border: 0 0% 89.8%;
     --input: 0 0% 89.8%;
-    --ring: 262.1 83.3% 57.8%;
-    --radius: 1rem; /* rounded-2xl */
-    
-    /* Custom colors */
-    --color-purple: 259 92% 67%; /* purple-500 */
-    --color-red: 0 84% 60%; /* red-500 */
+    --ring: 11 100% 62%;
+    --radius: 1rem;
     
     --sidebar-background: 0 0% 100%;
     --sidebar-foreground: 222.2 84% 4.9%;
@@ -39,29 +35,25 @@
     --sidebar-ring: 262.1 83.3% 57.8%;
   }
   .dark {
-    --background: 220 10% 10%;
+    --background: 222 39% 12%; /* Darker version of secondary */
     --foreground: 0 0% 98%;
-    --card: 220 10% 12%;
+    --card: 222 39% 16%; /* Slightly lighter than background */
     --card-foreground: 0 0% 98%;
-    --popover: 220 10% 10%;
+    --popover: 222 39% 12%;
     --popover-foreground: 0 0% 98%;
-    --primary: 263.4 92% 70.2%; /* Indigo 500 */
+    --primary: 11 100% 62%; /* #FF5A3C */
     --primary-foreground: 0 0% 98%;
-    --secondary: 142.1 70.6% 45.3%; /* Emerald 500 */
+    --secondary: 222 39% 20%; /* #1F2A44 */
     --secondary-foreground: 0 0% 98%;
-    --muted: 0 0% 14.9%;
-    --muted-foreground: 0 0% 63.9%;
-    --accent: 0 0% 14.9%;
+    --muted: 215 9% 47%; /* #6B7280 */
+    --muted-foreground: 215 9% 47%;
+    --accent: 222 39% 16%;
     --accent-foreground: 0 0% 98%;
     --destructive: 0 62.8% 30.6%;
     --destructive-foreground: 0 0% 98%;
-    --border: 0 0% 20%;
-    --input: 0 0% 20%;
-    --ring: 263.4 92% 70.2%;
-    
-    /* Custom colors */
-    --color-purple: 259 92% 77%; /* purple-500 */
-    --color-red: 0 74% 50%; /* red-500 */
+    --border: 222 39% 25%;
+    --input: 222 39% 25%;
+    --ring: 11 100% 62%;
     
     --sidebar-background: 220 10% 10%;
     --sidebar-foreground: 0 0% 98%;
@@ -80,9 +72,5 @@
   }
   body {
     @apply bg-background text-foreground;
-  }
-  
-  .recharts-bar-rectangle path.hover\\:fill-purple-400:hover {
-      fill: var(--color-purple-400) !important;
   }
 }
