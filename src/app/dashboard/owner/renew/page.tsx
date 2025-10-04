@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect } from 'react';
@@ -32,9 +33,15 @@ export default function RenewPage() {
   const [plans, setPlans] = useState<SubscriptionPlan[]>([]);
   const [loading, setLoading] = useState(true);
   const [processingPaymentFor, setProcessingPaymentFor] = useState<string | null>(null);
+  const [gymId, setGymId] = useState<string | null>(null);
   const { toast } = useToast();
   const searchParams = useSearchParams();
-  const gymId = searchParams.get('gymId') || localStorage.getItem('userDocId');
+
+  useEffect(() => {
+    const idFromParams = searchParams.get('gymId');
+    const idFromStorage = localStorage.getItem('userDocId');
+    setGymId(idFromParams || idFromStorage);
+  }, [searchParams]);
 
   useEffect(() => {
     const fetchPlans = async () => {
@@ -130,13 +137,18 @@ export default function RenewPage() {
         },
     };
     
-    const rzp = new window.Razorpay(options);
-    rzp.on('payment.failed', function (response: any){
-        console.error(response);
-        toast({title: "Payment Failed", description: response.error.description, variant: "destructive"});
+    if (window.Razorpay) {
+        const rzp = new window.Razorpay(options);
+        rzp.on('payment.failed', function (response: any){
+            console.error(response);
+            toast({title: "Payment Failed", description: response.error.description, variant: "destructive"});
+            setProcessingPaymentFor(null);
+        });
+        rzp.open();
+    } else {
+        toast({ title: "Error", description: "Payment gateway is not available.", variant: "destructive" });
         setProcessingPaymentFor(null);
-    });
-    rzp.open();
+    }
   }
 
   if (loading) {
