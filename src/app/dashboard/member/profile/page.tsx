@@ -3,12 +3,12 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { doc, getDoc, collection, query, where, getDocs, Timestamp } from 'firebase/firestore';
+import { doc, getDoc, collection, query, where, getDocs, Timestamp, orderBy } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Loader2, User, Edit, Rss } from 'lucide-react';
+import { Loader2, User, Edit, Rss, Image as ImageIcon, Video } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -27,9 +27,15 @@ interface CommunityProfile {
     photoUrl?: string;
 }
 
+interface Post {
+    id: string;
+    mediaUrls?: { url: string, type: 'image' | 'video' }[];
+}
+
 export default function MemberCommunityProfilePage() {
   const [profile, setProfile] = useState<CommunityProfile | null>(null);
   const [stats, setStats] = useState<ProfileStats>({ posts: 0, followers: 0, following: 0 });
+  const [posts, setPosts] = useState<Post[]>([]);
   const [username, setUsername] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
@@ -55,9 +61,10 @@ export default function MemberCommunityProfilePage() {
           setProfile(profileSnap.data() as CommunityProfile);
         }
 
-        const postsQuery = query(collection(db, 'gymRats'), where('authorId', '==', userId));
+        const postsQuery = query(collection(db, 'gymRats'), where('authorId', '==', userId), orderBy('createdAt', 'desc'));
         const postsSnap = await getDocs(postsQuery);
         setStats(prev => ({ ...prev, posts: postsSnap.size }));
+        setPosts(postsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Post)));
         
       } catch (error) {
         console.error("Error fetching profile data:", error);
@@ -101,12 +108,26 @@ export default function MemberCommunityProfilePage() {
             </div>
         </div>
         
-        {/* Placeholder for posts grid */}
         <div className="border-t pt-6">
-            <h2 className="text-xl font-bold text-center">Posts</h2>
-            <div className="text-center text-muted-foreground mt-8">
-                <p>Your posts will appear here.</p>
-            </div>
+            <h2 className="text-xl font-bold text-center mb-4">Posts</h2>
+            {posts.length > 0 ? (
+                <div className="grid grid-cols-3 gap-1">
+                    {posts.map(post => (
+                        <div key={post.id} className="relative aspect-square bg-muted">
+                            {post.mediaUrls && post.mediaUrls.length > 0 ? (
+                                <Image src={post.mediaUrls[0].url} alt="Post" layout="fill" className="object-cover"/>
+                            ) : (
+                                <div className="flex items-center justify-center h-full"><ImageIcon className="h-8 w-8 text-muted-foreground"/></div>
+                            )}
+                            {post.mediaUrls && post.mediaUrls[0].type === 'video' && <Video className="absolute bottom-2 right-2 h-5 w-5 text-white"/>}
+                        </div>
+                    ))}
+                </div>
+            ) : (
+                <div className="text-center text-muted-foreground mt-8">
+                    <p>Your posts will appear here.</p>
+                </div>
+            )}
         </div>
 
       </main>
