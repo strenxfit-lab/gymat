@@ -48,7 +48,24 @@ export default function LoginForm({ onExpired }: LoginFormProps) {
     setIsLoading(true);
     
     try {
-      // 1. Check if it's an owner
+      // 1. Check if it's a superadmin
+      const superadminsCollection = collection(db, 'superadmins');
+      const superadminQuery = query(superadminsCollection, where('email', '==', values.email));
+      const superadminSnapshot = await getDocs(superadminQuery);
+
+      if (!superadminSnapshot.empty) {
+        const userDoc = superadminSnapshot.docs[0];
+        const userData = userDoc.data();
+        if (userData.password === values.password) {
+          localStorage.setItem('userDocId', userDoc.id);
+          localStorage.setItem('userRole', 'superadmin');
+          toast({ title: 'Welcome Superadmin!', description: "Redirecting to your dashboard." });
+          router.push('/dashboard/superadmin');
+          return;
+        }
+      }
+        
+      // 2. Check if it's an owner
       const gymsCollection = collection(db, 'gyms');
       const ownerQuery = query(gymsCollection, where('email', '==', values.email));
       const ownerSnapshot = await getDocs(ownerQuery);
@@ -73,7 +90,7 @@ export default function LoginForm({ onExpired }: LoginFormProps) {
         }
       }
 
-      // 2. If not an owner, search for members/trainers across all gyms and branches
+      // 3. If not an owner, search for members/trainers across all gyms and branches
       const allGymsSnapshot = await getDocs(collection(db, 'gyms'));
       const potentialUsers: FoundUser[] = [];
 
@@ -115,6 +132,8 @@ export default function LoginForm({ onExpired }: LoginFormProps) {
           localStorage.setItem('activeBranch', branchId);
           localStorage.setItem(`${userRole}Id`, userId);
           localStorage.setItem('userRole', userRole);
+          localStorage.setItem('userName', userData.fullName);
+          localStorage.setItem('userPhone', userData.phone);
           
           toast({ title: 'Welcome!', description: "You have been successfully logged in." });
           
@@ -126,8 +145,7 @@ export default function LoginForm({ onExpired }: LoginFormProps) {
           return;
       }
 
-      // 3. If no standard user, check for trial key login.
-      // We assume if password is 'trial', user might be trying to log in with a key.
+      // 4. If no standard user, check for trial key login.
       if(values.password.toLowerCase() === 'trial') {
           const trialKeysRef = collection(db, 'trialKeys');
           const trialQuery = query(trialKeysRef, where("key", "==", values.email));
