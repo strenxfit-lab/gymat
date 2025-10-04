@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Loader2, ArrowLeft, Search, Check, User } from 'lucide-react';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { cn } from '@/lib/utils';
+import { Input } from '@/components/ui/input';
 
 interface UserOption {
   id: string;
