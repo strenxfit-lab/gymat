@@ -2,16 +2,19 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-  
-    // Allow any authenticated user to create posts
-    // Allow any authenticated user to read any post
-    match /posts/{postId} {
+    // Note: This rule allows anyone with your project ID to read and write
+    // to the entire database. This is NOT secure and should be replaced
+    // with more granular rules.
+    match /{document=**} {
+      allow read, write: if true;
+    }
+     match /posts/{postId} {
       allow read, create: if request.auth != null;
       allow update, delete: if request.auth != null && request.auth.uid == resource.data.authorId;
     }
-
-    match /{document=**} {
-      allow read, write: if false;
+     match /gymRats/{postId} {
+      allow read, create: if request.auth != null;
+      allow update, delete: if request.auth != null && request.auth.uid == resource.data.authorId;
     }
   }
 }
