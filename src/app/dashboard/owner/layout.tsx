@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect } from 'react';
@@ -120,8 +121,10 @@ export default function OwnerDashboardLayout({
             
             let expirationDate: Date | null = null;
             let planTier: string | null = null;
+            let isValidSession = false;
 
-            if (gymData.isTrial && gymData.trialKey) {
+            if (gymData.isTrial) {
+                isValidSession = true;
                 const trialKeysRef = collection(db, 'trialKeys');
                 const q = query(trialKeysRef, where("key", "==", gymData.trialKey));
                 const trialKeySnap = await getDocs(q);
@@ -135,6 +138,7 @@ export default function OwnerDashboardLayout({
             } else if (gymData.expiry_at) {
                 expirationDate = (gymData.expiry_at as Timestamp).toDate();
                 planTier = gymData.membershipType;
+                isValidSession = true;
             } else if (gymData.tier && gymData.createdAt) {
                 const createdAt = (gymData.createdAt as Timestamp).toDate();
                 if (gymData.tier.toLowerCase() === 'monthly') {
@@ -143,8 +147,14 @@ export default function OwnerDashboardLayout({
                     expirationDate = addYears(createdAt, 1);
                 }
                 planTier = gymData.tier;
+                isValidSession = true;
             }
 
+            if (!isValidSession) {
+                handleLogout();
+                return;
+            }
+            
             if (expirationDate) {
                  if (expirationDate < new Date()) {
                     handleLogout();
