@@ -2,7 +2,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { collection, addDoc, query, orderBy, onSnapshot, serverTimestamp, Timestamp, where } from "firebase/firestore";
+import { collection, addDoc, query, onSnapshot, serverTimestamp, Timestamp, where } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -70,6 +70,7 @@ export default function CommunityPage() {
   });
 
   useEffect(() => {
+    setIsLoading(true);
     const gymId = localStorage.getItem('userDocId');
     if (!gymId) {
         setIsLoading(false);
@@ -78,9 +79,9 @@ export default function CommunityPage() {
 
     let q;
     if (activeTab === 'global') {
-        q = query(collection(db, "gymRats"), where("visibility", "==", "global"), orderBy("createdAt", "desc"));
+        q = query(collection(db, "gymRats"), where("visibility", "==", "global"));
     } else { // 'your_gym'
-        q = query(collection(db, "gymRats"), where("gymId", "==", gymId), orderBy("createdAt", "desc"));
+        q = query(collection(db, "gymRats"), where("gymId", "==", gymId));
     }
 
     const unsubscribe = onSnapshot(q, (querySnapshot) => {
@@ -93,6 +94,8 @@ export default function CommunityPage() {
           createdAt: (data.createdAt as Timestamp)?.toDate(),
         } as Post);
       });
+      // Sort posts on the client-side
+      postsData.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
       setPosts(postsData);
       setIsLoading(false);
     }, (error) => {
@@ -120,19 +123,23 @@ export default function CommunityPage() {
         reader.readAsDataURL(file);
     } else { // image
         const imageFiles = Array.from(files);
-        if (mediaPreviews.length + imageFiles.length > 3) {
+        const currentImageCount = mediaPreviews.filter(m => m.type === 'image').length;
+
+        if (currentImageCount + imageFiles.length > 3) {
             toast({ title: "Limit Exceeded", description: "You can upload a maximum of 3 photos.", variant: "destructive" });
             return;
         }
 
         const newPreviews = [...mediaPreviews.filter(m => m.type === 'image')];
 
+        let filesProcessed = 0;
         imageFiles.forEach(file => {
             const reader = new FileReader();
             reader.onloadend = () => {
                 const result = reader.result as string;
                 newPreviews.push({ url: result, type: 'image' });
-                if(newPreviews.length === mediaPreviews.length + imageFiles.length) {
+                filesProcessed++;
+                if(filesProcessed === imageFiles.length) {
                     setMediaPreviews(newPreviews);
                     form.setValue('mediaUrls', newPreviews);
                 }
@@ -311,7 +318,7 @@ export default function CommunityPage() {
                         </div>
 
                         <div className="flex gap-2">
-                             <Button type="button" variant="outline" onClick={() => imageInputRef.current?.click()} disabled={mediaPreviews.some(m => m.type === 'video') || mediaPreviews.length >= 3}>
+                             <Button type="button" variant="outline" onClick={() => imageInputRef.current?.click()} disabled={mediaPreviews.some(m => m.type === 'video') || mediaPreviews.filter(m => m.type === 'image').length >= 3}>
                                 <ImageIcon className="mr-2 h-4 w-4"/> Add Photo(s)
                             </Button>
                             <input type="file" ref={imageInputRef} multiple accept="image/*" className="hidden" onChange={(e) => handleFileChange(e, 'image')} />
