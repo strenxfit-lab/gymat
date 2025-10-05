@@ -26,6 +26,7 @@ import { BottomNavbar } from "@/components/ui/bottom-navbar";
 import { UserSearch } from "@/components/user-search";
 import { useRouter } from "next/navigation";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+import Link from "next/link";
 
 
 interface Comment {
@@ -503,7 +504,9 @@ export default function CommunityPage() {
                 <div className="flex-1">
                     <div className="flex justify-between items-start">
                         <div>
-                            <CardTitle className="text-base">{post.authorName}</CardTitle>
+                            <Link href={`/profile/${post.authorName}`} className="hover:underline">
+                                <CardTitle className="text-base">{post.authorName}</CardTitle>
+                            </Link>
                             <p className="text-xs text-muted-foreground">
                                 {post.createdAt ? `${formatDistanceToNow(post.createdAt)} ago` : 'just now'}
                             </p>
