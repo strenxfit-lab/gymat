@@ -470,7 +470,7 @@ export default function CommunityPage() {
         toast({ title: "Post shared successfully!"});
       } catch (error) {
         console.error('Error sharing:', error);
-        toast({ title: "Could not share post", variant: "destructive" });
+        // Do not show a toast for this, as the user might have just cancelled the share sheet.
       }
     } else {
       toast({ title: "Share not supported", description: "Your browser does not support the Web Share API." });
@@ -579,7 +579,7 @@ export default function CommunityPage() {
                     </div>
                 ) : (
                     post.mediaUrls && post.mediaUrls.length > 0 && (
-                        <div className={cn("grid gap-2", post.mediaUrls.length > 1 ? "grid-cols-2" : "grid-cols-1")}>
+                        <div className={cn("grid grid-cols-1 sm:grid-cols-2 gap-2", post.mediaUrls.length === 1 ? "sm:grid-cols-1" : "")}>
                             {post.mediaUrls.map((media, index) => (
                                 <div key={index} className="rounded-lg overflow-hidden border">
                                     {media.type === 'image' ? (

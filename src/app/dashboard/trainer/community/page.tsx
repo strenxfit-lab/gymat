@@ -624,7 +624,7 @@ export default function CommunityPage() {
                     </div>
                 ) : (
                     post.mediaUrls && post.mediaUrls.length > 0 && (
-                        <div className={cn("grid gap-2", post.mediaUrls.length > 1 ? "grid-cols-2" : "grid-cols-1")}>
+                        <div className={cn("grid grid-cols-1 sm:grid-cols-2 gap-2", post.mediaUrls.length === 1 ? "sm:grid-cols-1" : "")}>
                             {post.mediaUrls.map((media, index) => (
                                 <div key={index} className="rounded-lg overflow-hidden border">
                                     {media.type === 'image' ? (
