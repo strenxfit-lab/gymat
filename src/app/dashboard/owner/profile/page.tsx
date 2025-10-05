@@ -7,7 +7,7 @@ import { doc, getDoc, collection, query, where, getDocs, Timestamp } from 'fireb
 import { db } from '@/lib/firebase';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from "@/components/ui/button";
-import { Loader2, User, Edit, Rss, Image as ImageIcon, Video, Settings } from 'lucide-react';
+import { Loader2, User, Edit, Rss, Image as ImageIcon, Video, Settings, Lock } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -50,6 +50,7 @@ export default function OwnerCommunityProfilePage() {
   const [loading, setLoading] = useState(true);
   const router = useRouter();
   const { toast } = useToast();
+  const [isOwnProfile, setIsOwnProfile] = useState(false);
 
   useEffect(() => {
     const fetchProfileData = async () => {
@@ -68,7 +69,11 @@ export default function OwnerCommunityProfilePage() {
         const profileSnap = await getDoc(profileRef);
 
         if (profileSnap.exists()) {
-          setProfile(profileSnap.data() as CommunityProfile);
+          const profileData = profileSnap.data() as CommunityProfile;
+          setProfile(profileData);
+          if (profileData.privacy === 'private' && profileSnap.data().userId === userId) {
+            setIsOwnProfile(true);
+          }
         }
 
         const postsQuery = query(collection(db, 'gymRats'), where('authorId', '==', userId));
@@ -95,6 +100,7 @@ export default function OwnerCommunityProfilePage() {
   }
   
   const isPrivate = profile?.privacy === 'private';
+  const canViewContent = !isPrivate || isOwnProfile;
 
   return (
       <div className="flex flex-col min-h-screen">
@@ -130,9 +136,11 @@ export default function OwnerCommunityProfilePage() {
           
           <div className="border-t pt-6">
               <h2 className="text-xl font-bold text-center mb-4">Posts</h2>
-              {isPrivate ? (
-                   <div className="text-center text-muted-foreground mt-8">
-                      <p>This account is private. Follow them to see their posts.</p>
+              {!canViewContent ? (
+                   <div className="text-center text-muted-foreground mt-8 p-8 border-2 border-dashed rounded-lg">
+                      <Lock className="mx-auto h-8 w-8 mb-2"/>
+                      <p className="font-semibold">This account is private.</p>
+                      <p className="text-sm">Follow this account to see their posts.</p>
                   </div>
               ) : posts.length > 0 ? (
                   <div className="grid grid-cols-3 gap-1">
