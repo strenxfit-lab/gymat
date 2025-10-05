@@ -34,7 +34,7 @@ export default function MessagesPage() {
     }
 
     const chatsRef = collection(db, 'chats');
-    const q = query(chatsRef, where('participants', 'array-contains', loggedInUsername), orderBy('lastMessageTimestamp', 'desc'));
+    const q = query(chatsRef, where('participants', 'array-contains', loggedInUsername));
     
     const unsubscribe = onSnapshot(q, (querySnapshot) => {
         const chatsData = querySnapshot.docs.map(doc => {
@@ -47,6 +47,13 @@ export default function MessagesPage() {
             } as Chat
         });
         
+        // Sort on the client-side
+        chatsData.sort((a, b) => {
+            const timeA = a.lastMessageTimestamp?.toDate() || new Date(0);
+            const timeB = b.lastMessageTimestamp?.toDate() || new Date(0);
+            return timeB.getTime() - timeA.getTime();
+        });
+
         setChats(chatsData);
         setLoading(false);
     }, (error) => {
