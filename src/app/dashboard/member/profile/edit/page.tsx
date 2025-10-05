@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { doc, getDoc, setDoc, deleteDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc, deleteDoc, collection, query, where, getDocs, writeBatch } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useToast } from '@/hooks/use-toast';
 import { Button, buttonVariants } from '@/components/ui/button';
@@ -109,15 +109,15 @@ export default function EditMemberCommunityProfilePage() {
         return;
     }
     
-    // Sanitize data to remove undefined fields
     const sanitizedData = Object.fromEntries(
-        Object.entries(data).filter(([_, v]) => v !== undefined)
+        Object.entries(data).filter(([, v]) => v !== undefined)
     );
     
     const newUsername = data.username.toLowerCase();
 
     try {
-        // If username has changed, check for availability and migrate document
+        const batch = writeBatch(db);
+
         if (newUsername !== oldUsername) {
             const newUsernameRef = doc(db, 'userCommunity', newUsername);
             const newUsernameSnap = await getDoc(newUsernameRef);
@@ -126,16 +126,27 @@ export default function EditMemberCommunityProfilePage() {
                 setIsLoading(false);
                 return;
             }
-            // Create new doc and delete old one
             const oldUsernameRef = doc(db, 'userCommunity', oldUsername);
-            await setDoc(newUsernameRef, { ...sanitizedData, userId });
-            await deleteDoc(oldUsernameRef);
+            batch.set(newUsernameRef, { ...sanitizedData, userId });
+            batch.delete(oldUsernameRef);
             localStorage.setItem('communityUsername', newUsername);
         } else {
-            // Just update the existing document
             const profileRef = doc(db, 'userCommunity', oldUsername);
-            await setDoc(profileRef, { ...sanitizedData, userId }, { merge: true });
+            batch.set(profileRef, { ...sanitizedData, userId }, { merge: true });
         }
+
+        // Fan-out update to posts
+        const postsQuery = query(collection(db, 'gymRats'), where('authorId', '==', userId));
+        const postsSnapshot = await getDocs(postsQuery);
+        postsSnapshot.forEach(postDoc => {
+            const postRef = doc(db, 'gymRats', postDoc.id);
+            batch.update(postRef, {
+                authorName: newUsername,
+                authorPhotoUrl: data.photoUrl || null,
+            });
+        });
+
+        await batch.commit();
 
       toast({
         title: 'Success!',
@@ -221,3 +232,5 @@ export default function EditMemberCommunityProfilePage() {
     </div>
   );
 }
+
+    
