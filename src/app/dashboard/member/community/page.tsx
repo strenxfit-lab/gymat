@@ -727,6 +727,30 @@ export default function CommunityPage() {
 
   return (
     <div className="h-screen w-screen flex flex-col">
+      <Dialog open={isShareDialogOpen} onOpenChange={setIsShareDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Share Post</DialogTitle>
+            <DialogDescription>Select a chat to share this post with.</DialogDescription>
+          </DialogHeader>
+          <div className="max-h-80 overflow-y-auto space-y-2 py-4">
+            {isFetchingChats ? (
+              <div className="flex justify-center"><Loader2 className="animate-spin" /></div>
+            ) : userChats.length > 0 ? (
+              userChats.map(chat => (
+                <div key={chat.id} onClick={() => handleShareToChat(chat.id)} className="flex items-center gap-3 p-2 rounded-md hover:bg-accent cursor-pointer">
+                  <Avatar>
+                    <AvatarFallback>{chat.otherParticipant?.charAt(0).toUpperCase()}</AvatarFallback>
+                  </Avatar>
+                  <p className="font-semibold">{chat.otherParticipant}</p>
+                </div>
+              ))
+            ) : (
+              <p className="text-center text-muted-foreground">You have no active chats.</p>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
       <Dialog open={isRepostDialogOpen} onOpenChange={setIsRepostDialogOpen}>
         <DialogContent>
             <DialogHeader>
@@ -780,14 +804,13 @@ export default function CommunityPage() {
         </DialogContent>
       </Dialog>
       
-      <div className="flex-1 flex flex-col">
-        <Dialog open={isPostDialogOpen} onOpenChange={(open) => {
+      <Dialog open={isPostDialogOpen} onOpenChange={(open) => {
             if (!open) {
                 setEditingPost(null);
             }
             setIsPostDialogOpen(open);
         }}>
-          <Tabs defaultValue="global" value={activeTab} onValueChange={setActiveTab} className="flex flex-col flex-1">
+          <Tabs defaultValue="global" value={activeTab} onValueChange={setActiveTab} className="h-full flex flex-col">
             <header className="p-4 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-10">
               <div className="flex items-center justify-between">
                   <h1 className="text-2xl font-bold">Community</h1>
@@ -816,7 +839,7 @@ export default function CommunityPage() {
                     {renderFeed()}
                 </div>
             </main>
-          </Tabs>
+          
           <DialogContent>
                <DialogHeader>
                   <DialogTitle>{editingPost ? "Edit Post" : "Create a New Post"}</DialogTitle>
@@ -894,8 +917,8 @@ export default function CommunityPage() {
                   </form>
               </Form>
           </DialogContent>
+          </Tabs>
         </Dialog>
-      </div>
       
       <BottomNavbar
         navItems={[
