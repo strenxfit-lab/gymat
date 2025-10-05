@@ -640,7 +640,7 @@ export default function CommunityPage() {
                 )}
             </CardContent>
             <CardFooter className="flex flex-col items-start gap-4">
-                 <div className="flex gap-4">
+                 <div className="flex flex-wrap gap-4">
                     <Button variant="ghost" size="sm" onClick={() => handleLike(post.id)}>
                         <ThumbsUp className={cn("mr-2 h-4 w-4", post.likes?.includes(userId!) && "fill-primary text-primary")}/> 
                         {post.likes?.length || 0} Likes
