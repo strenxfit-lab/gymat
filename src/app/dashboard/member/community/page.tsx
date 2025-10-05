@@ -812,7 +812,7 @@ export default function CommunityPage() {
         }}>
           <Tabs defaultValue="global" value={activeTab} onValueChange={setActiveTab} className="h-full flex flex-col">
             <header className="p-4 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-10">
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between flex-wrap gap-4">
                   <h1 className="text-2xl font-bold">Community</h1>
                   <div className="flex items-center gap-2">
                       <TabsList className="bg-orange-500/20 text-orange-700 dark:text-orange-300">
