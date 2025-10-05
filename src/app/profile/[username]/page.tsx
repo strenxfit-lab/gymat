@@ -3,7 +3,7 @@
 
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { doc, getDoc, collection, query, where, getDocs, Timestamp, updateDoc, arrayUnion, arrayRemove, addDoc, serverTimestamp, deleteDoc } from 'firebase/firestore';
+import { doc, getDoc, collection, query, where, getDocs, Timestamp, updateDoc, arrayUnion, arrayRemove, addDoc, serverTimestamp, deleteDoc, writeBatch } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from "@/components/ui/button";
@@ -152,16 +152,20 @@ export default function UserProfilePage() {
               setFollowStatus('requested');
               toast({ title: "Request Sent" });
           } else {
-              await updateDoc(targetUserRef, { followers: arrayUnion(loggedInUsername) });
-              await updateDoc(currentUserRef, { following: arrayUnion(username) });
+              const batch = writeBatch(db);
+              batch.update(targetUserRef, { followers: arrayUnion(loggedInUsername) });
+              batch.update(currentUserRef, { following: arrayUnion(username) });
               
               const notificationsRef = collection(targetUserRef, 'notifications');
-              await addDoc(notificationsRef, {
+              const newNotifRef = doc(notificationsRef);
+              batch.set(newNotifRef, {
                   type: 'follow',
                   fromUsername: loggedInUsername,
                   message: `${loggedInUsername} started following you.`,
                   createdAt: serverTimestamp(),
               });
+              
+              await batch.commit();
 
               setFollowStatus('following');
               setStats(prev => ({...prev, followers: prev.followers + 1}));
@@ -186,8 +190,11 @@ export default function UserProfilePage() {
               const requestRef = doc(collection(targetUserRef, 'followRequests'), loggedInUsername);
               await deleteDoc(requestRef);
           } else { // following
-              await updateDoc(targetUserRef, { followers: arrayRemove(loggedInUsername) });
-              await updateDoc(currentUserRef, { following: arrayRemove(username) });
+              const batch = writeBatch(db);
+              batch.update(targetUserRef, { followers: arrayRemove(loggedInUsername) });
+              batch.update(currentUserRef, { following: arrayRemove(username) });
+              await batch.commit();
+              
               setStats(prev => ({...prev, followers: prev.followers - 1}));
           }
           setFollowStatus('not_following');
@@ -341,4 +348,3 @@ export default function UserProfilePage() {
       </div>
   );
 }
-
