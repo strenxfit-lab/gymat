@@ -53,12 +53,19 @@ export default function UserProfilePage() {
   const router = useRouter();
   const { toast } = useToast();
   const [isOwnProfile, setIsOwnProfile] = useState(false);
+  const [backLink, setBackLink] = useState('/dashboard/owner/community');
 
   useEffect(() => {
     const fetchProfileData = async () => {
       if (!username) return;
 
-      const loggedInUserId = localStorage.getItem('userDocId') || localStorage.getItem('memberId') || localStorage.getItem('trainerId');
+      const loggedInUserRole = localStorage.getItem('userRole');
+      const loggedInUserId = loggedInUserRole === 'owner' ? localStorage.getItem('userDocId') : (loggedInUserRole === 'member' ? localStorage.getItem('memberId') : localStorage.getItem('trainerId'));
+      
+      if(loggedInUserRole === 'owner') setBackLink('/dashboard/owner/community');
+      else if(loggedInUserRole === 'member') setBackLink('/dashboard/member/community');
+      else if(loggedInUserRole === 'trainer') setBackLink('/dashboard/trainer/community');
+
 
       try {
         const profileRef = doc(db, 'userCommunity', username);
@@ -110,9 +117,11 @@ export default function UserProfilePage() {
   return (
       <div className="flex flex-col min-h-screen">
         <header className="p-4 border-b">
-            <Button variant="outline" onClick={() => router.back()}>
-                <ArrowLeft className="mr-2 h-4 w-4" /> Go Back
-            </Button>
+            <Link href={backLink} passHref>
+                <Button variant="outline">
+                    <ArrowLeft className="mr-2 h-4 w-4" /> Go Back
+                </Button>
+            </Link>
         </header>
         <main className="flex-1 container mx-auto py-10 space-y-6">
           <div className="flex items-start gap-4 md:gap-8">
