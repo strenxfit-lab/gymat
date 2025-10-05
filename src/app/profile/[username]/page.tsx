@@ -1,17 +1,15 @@
-
 "use client";
 
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { doc, getDoc, collection, query, where, getDocs, Timestamp } from 'firebase/firestore';
+import { doc, getDoc, collection, query, where, getDocs, Timestamp, updateDoc, arrayUnion, arrayRemove, addDoc, serverTimestamp, deleteDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from "@/components/ui/button";
-import { Loader2, User, ArrowLeft, Rss, Image as ImageIcon, Video, Settings, Lock, Edit } from 'lucide-react';
+import { Loader2, User, ArrowLeft, Rss, Image as ImageIcon, Video, Settings, Lock, Edit, UserPlus, UserCheck } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { BottomNavbar } from '@/components/ui/bottom-navbar';
 import { LayoutDashboard, Search } from 'lucide-react';
 
 interface ProfileStats {
@@ -26,6 +24,8 @@ interface CommunityProfile {
     photoUrl?: string;
     privacy?: 'public' | 'private';
     userId: string;
+    followers?: string[];
+    following?: string[];
 }
 
 interface Post {
@@ -54,54 +54,133 @@ export default function UserProfilePage() {
   const { toast } = useToast();
   const [isOwnProfile, setIsOwnProfile] = useState(false);
   const [backLink, setBackLink] = useState('/dashboard/owner/community');
+  const [followStatus, setFollowStatus] = useState<'not_following' | 'following' | 'requested'>('not_following');
+  const [isUpdatingFollow, setIsUpdatingFollow] = useState(false);
+
+  const loggedInUsername = typeof window !== 'undefined' ? localStorage.getItem('communityUsername') : null;
+
+  const fetchProfileData = async () => {
+    if (!username) return;
+
+    const loggedInUserRole = localStorage.getItem('userRole');
+    const loggedInUserId = loggedInUserRole === 'owner' ? localStorage.getItem('userDocId') : (loggedInUserRole === 'member' ? localStorage.getItem('memberId') : localStorage.getItem('trainerId'));
+    
+    if(loggedInUserRole === 'owner') setBackLink('/dashboard/owner/community');
+    else if(loggedInUserRole === 'member') setBackLink('/dashboard/member/community');
+    else if(loggedInUserRole === 'trainer') setBackLink('/dashboard/trainer/community');
+
+
+    try {
+      const profileRef = doc(db, 'userCommunity', username);
+      const profileSnap = await getDoc(profileRef);
+
+      if (profileSnap.exists()) {
+        const profileData = profileSnap.data() as CommunityProfile;
+        setProfile(profileData);
+        
+        const ownProfile = profileData.userId === loggedInUserId;
+        setIsOwnProfile(ownProfile);
+
+        if (!ownProfile && loggedInUsername) {
+            if (profileData.followers?.includes(loggedInUsername)) {
+                setFollowStatus('following');
+            } else {
+                const requestQuery = query(collection(profileRef, 'followRequests'), where('username', '==', loggedInUsername));
+                const requestSnap = await getDocs(requestQuery);
+                if (!requestSnap.empty) {
+                    setFollowStatus('requested');
+                } else {
+                    setFollowStatus('not_following');
+                }
+            }
+        }
+        
+        setStats(prev => ({ 
+            ...prev, 
+            followers: profileData.followers?.length || 0,
+            following: profileData.following?.length || 0,
+        }));
+
+        const postsQuery = query(collection(db, 'gymRats'), where('authorId', '==', profileData.userId));
+        const postsSnap = await getDocs(postsQuery);
+        const userPosts = postsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Post))
+            .sort((a, b) => b.createdAt.toDate().getTime() - a.createdAt.toDate().getTime());
+        
+        setStats(prev => ({ ...prev, posts: userPosts.length }));
+        setPosts(userPosts);
+      
+      } else {
+          toast({ title: 'Not Found', description: 'This user profile does not exist.', variant: 'destructive'});
+          router.back();
+      }
+
+    } catch (error) {
+      console.error("Error fetching profile data:", error);
+      toast({ title: 'Error', description: 'Failed to fetch profile details.', variant: 'destructive' });
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const fetchProfileData = async () => {
-      if (!username) return;
-
-      const loggedInUserRole = localStorage.getItem('userRole');
-      const loggedInUserId = loggedInUserRole === 'owner' ? localStorage.getItem('userDocId') : (loggedInUserRole === 'member' ? localStorage.getItem('memberId') : localStorage.getItem('trainerId'));
-      
-      if(loggedInUserRole === 'owner') setBackLink('/dashboard/owner/community');
-      else if(loggedInUserRole === 'member') setBackLink('/dashboard/member/community');
-      else if(loggedInUserRole === 'trainer') setBackLink('/dashboard/trainer/community');
-
-
-      try {
-        const profileRef = doc(db, 'userCommunity', username);
-        const profileSnap = await getDoc(profileRef);
-
-        if (profileSnap.exists()) {
-          const profileData = profileSnap.data() as CommunityProfile;
-          setProfile(profileData);
-          
-          if(profileData.userId === loggedInUserId){
-              setIsOwnProfile(true);
-          }
-
-          const postsQuery = query(collection(db, 'gymRats'), where('authorId', '==', profileData.userId));
-          const postsSnap = await getDocs(postsQuery);
-          const userPosts = postsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Post))
-              .sort((a, b) => b.createdAt.toDate().getTime() - a.createdAt.toDate().getTime());
-          
-          setStats(prev => ({ ...prev, posts: userPosts.length }));
-          setPosts(userPosts);
-        
-        } else {
-            toast({ title: 'Not Found', description: 'This user profile does not exist.', variant: 'destructive'});
-            router.back();
-        }
-
-      } catch (error) {
-        console.error("Error fetching profile data:", error);
-        toast({ title: 'Error', description: 'Failed to fetch profile details.', variant: 'destructive' });
-      } finally {
-        setLoading(false);
-      }
-    };
-
     fetchProfileData();
   }, [username, router, toast]);
+
+  const handleFollow = async () => {
+      if (!profile || !loggedInUsername || isOwnProfile) return;
+      setIsUpdatingFollow(true);
+
+      const targetUserRef = doc(db, 'userCommunity', username);
+      const currentUserRef = doc(db, 'userCommunity', loggedInUsername);
+
+      try {
+          if (profile.privacy === 'private') {
+              const requestRef = doc(collection(targetUserRef, 'followRequests'), loggedInUsername);
+              await setDoc(requestRef, {
+                  username: loggedInUsername,
+                  requestedAt: serverTimestamp(),
+              });
+              setFollowStatus('requested');
+              toast({ title: "Request Sent" });
+          } else {
+              await updateDoc(targetUserRef, { followers: arrayUnion(loggedInUsername) });
+              await updateDoc(currentUserRef, { following: arrayUnion(username) });
+              setFollowStatus('following');
+              setStats(prev => ({...prev, followers: prev.followers + 1}));
+          }
+      } catch (error) {
+          console.error("Error following user: ", error);
+          toast({ title: "Error", description: "Could not complete action.", variant: "destructive" });
+      } finally {
+          setIsUpdatingFollow(false);
+      }
+  }
+
+  const handleUnfollow = async () => {
+      if (!profile || !loggedInUsername || isOwnProfile) return;
+      setIsUpdatingFollow(true);
+
+      const targetUserRef = doc(db, 'userCommunity', username);
+      const currentUserRef = doc(db, 'userCommunity', loggedInUsername);
+
+      try {
+          if (followStatus === 'requested') {
+              const requestRef = doc(collection(targetUserRef, 'followRequests'), loggedInUsername);
+              await deleteDoc(requestRef);
+              setFollowStatus('not_following');
+          } else { // following
+              await updateDoc(targetUserRef, { followers: arrayRemove(loggedInUsername) });
+              await updateDoc(currentUserRef, { following: arrayRemove(username) });
+              setFollowStatus('not_following');
+              setStats(prev => ({...prev, followers: prev.followers - 1}));
+          }
+      } catch (error) {
+          console.error("Error unfollowing user: ", error);
+          toast({ title: "Error", description: "Could not complete action.", variant: "destructive" });
+      } finally {
+          setIsUpdatingFollow(false);
+      }
+  }
   
   if (loading) {
     return <div className="flex min-h-screen items-center justify-center bg-background"><Loader2 className="h-8 w-8 animate-spin" /></div>;
@@ -112,7 +191,19 @@ export default function UserProfilePage() {
   }
 
   const isPrivate = profile?.privacy === 'private';
-  const canViewContent = !isPrivate || isOwnProfile;
+  const canViewContent = !isPrivate || isOwnProfile || followStatus === 'following';
+
+  const renderFollowButton = () => {
+    if (isOwnProfile) return null;
+
+    if (followStatus === 'following') {
+      return <Button variant="outline" onClick={handleUnfollow} disabled={isUpdatingFollow}>Unfollow</Button>;
+    }
+    if (followStatus === 'requested') {
+      return <Button variant="outline" onClick={handleUnfollow} disabled={isUpdatingFollow}>Requested</Button>;
+    }
+    return <Button onClick={handleFollow} disabled={isUpdatingFollow}><UserPlus className="mr-2 h-4 w-4"/>Follow</Button>;
+  };
 
   return (
       <div className="flex flex-col min-h-screen">
@@ -132,7 +223,7 @@ export default function UserProfilePage() {
               <div className="flex-1">
                   <div className="flex items-center gap-4 mb-2 flex-wrap">
                       <h1 className="text-2xl font-bold">{username}</h1>
-                      {isOwnProfile && (
+                      {isOwnProfile ? (
                         <div className="flex items-center gap-2">
                             <Link href="/dashboard/owner/profile/edit" passHref>
                                 <Button variant="outline" size="sm"><Edit className="mr-2 h-4 w-4"/>Edit Profile</Button>
@@ -141,6 +232,8 @@ export default function UserProfilePage() {
                                 <Button variant="outline" size="icon"><Settings className="h-4 w-4"/></Button>
                             </Link>
                         </div>
+                      ) : (
+                          renderFollowButton()
                       )}
                   </div>
                   <div className="flex space-x-6">
@@ -184,7 +277,6 @@ export default function UserProfilePage() {
                   </div>
               )}
           </div>
-
         </main>
       </div>
   );

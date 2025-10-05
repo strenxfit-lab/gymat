@@ -1,5 +1,4 @@
 
-
 "use client";
 
 import { useState, useEffect } from 'react';
@@ -14,7 +13,7 @@ import {
   SidebarFooter,
   SidebarProvider,
 } from '@/components/ui/sidebar';
-import { Dumbbell, Users, CreditCard, ClipboardList, BarChart3, Megaphone, Boxes, Info, Mail, Phone, Building, UserCheck, LogOut, MessageSquare, CalendarCheck, CheckSquare, Clock, KeyRound, ChevronDown, IndianRupee, LifeBuoy, Fingerprint } from 'lucide-react';
+import { Dumbbell, Users, CreditCard, ClipboardList, BarChart3, Megaphone, Boxes, Info, Mail, Phone, Building, UserCheck, LogOut, MessageSquare, CalendarCheck, CheckSquare, Clock, KeyRound, ChevronDown, IndianRupee, LifeBuoy, Fingerprint, Activity } from 'lucide-react';
 import { doc, getDoc, collection, getDocs, Timestamp, query, where } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -57,7 +56,7 @@ const SubMenu = ({ children, title, icon, isOpen, onToggle }: { children: React.
   )
 }
 
-const MenuItem = ({ href, children, icon }: { href: string, children: React.ReactNode, icon?: React.ReactNode }) => {
+const MenuItem = ({ href, children, icon, notificationCount }: { href: string, children: React.ReactNode, icon?: React.ReactNode, notificationCount?: number }) => {
   const pathname = usePathname();
   const isActive = pathname === href;
   return (
@@ -65,12 +64,17 @@ const MenuItem = ({ href, children, icon }: { href: string, children: React.Reac
       <Button
         variant="ghost"
         className={cn(
-          "w-full justify-start gap-2 transition-colors duration-300 ease-in-out",
+          "w-full justify-start gap-2 transition-colors duration-300 ease-in-out relative",
           isActive ? "bg-indigo-100 text-indigo-600 font-semibold rounded-xl" : "hover:bg-gray-100 dark:hover:bg-gray-800"
         )}
       >
         {icon}
         {children}
+        {notificationCount && notificationCount > 0 && (
+            <span className="absolute top-1 right-1 h-5 w-5 rounded-full bg-destructive text-destructive-foreground flex items-center justify-center text-xs">
+                {notificationCount}
+            </span>
+        )}
       </Button>
     </Link>
   )
@@ -106,6 +110,7 @@ export default function OwnerDashboardLayout({
   const [activeBranchName, setActiveBranchName] = useState<string | null>(null);
   const [tierInfo, setTierInfo] = useState<{ expiresAt: Date | null, tier: string | null }>({ expiresAt: null, tier: null });
   const [timeLeft, setTimeLeft] = useState('');
+  const [notificationCount, setNotificationCount] = useState(0);
   const [isMounted, setIsMounted] = useState(false);
   const router = useRouter();
   const pathname = usePathname();
@@ -211,7 +216,19 @@ export default function OwnerDashboardLayout({
           handleLogout(); // No userDocId, log out
       }
     };
+    
+    const fetchNotifications = async () => {
+        const username = localStorage.getItem('communityUsername');
+        if (username) {
+            const userCommunityRef = doc(db, 'userCommunity', username);
+            const requestsQuery = query(collection(userCommunityRef, 'followRequests'));
+            const requestsSnap = await getDocs(requestsQuery);
+            setNotificationCount(requestsSnap.size);
+        }
+    };
+    
     fetchGymData();
+    fetchNotifications();
   }, [pathname, router]);
 
   useEffect(() => {
@@ -320,6 +337,7 @@ export default function OwnerDashboardLayout({
           <SidebarMenu>
             <MenuItem href="/dashboard/owner" icon={<BarChart3 />}>Dashboard</MenuItem>
             <MenuItem href="/dashboard/owner/community" icon={<Users />}>Community</MenuItem>
+            <MenuItem href="/dashboard/owner/activity" icon={<Activity />} notificationCount={notificationCount}>Activity</MenuItem>
             
             <SubMenu title="Gym Info" icon={<Info />} isOpen={openSubMenu === 'gym-info'} onToggle={() => toggleSubMenu('gym-info')}>
                 <SubMenuItem href="/dashboard/owner/gym-info/basic">Basic Information</SubMenuItem>
