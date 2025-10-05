@@ -109,6 +109,11 @@ export default function EditOwnerCommunityProfilePage() {
         return;
     }
     
+    // Sanitize data to remove undefined fields
+    const sanitizedData = Object.fromEntries(
+        Object.entries(data).filter(([_, v]) => v !== undefined)
+    );
+
     const newUsername = data.username.toLowerCase();
 
     try {
@@ -123,13 +128,13 @@ export default function EditOwnerCommunityProfilePage() {
             }
             // Create new doc and delete old one
             const oldUsernameRef = doc(db, 'userCommunity', oldUsername);
-            await setDoc(newUsernameRef, { ...data, userId });
+            await setDoc(newUsernameRef, { ...sanitizedData, userId });
             await deleteDoc(oldUsernameRef);
             localStorage.setItem('communityUsername', newUsername);
         } else {
             // Just update the existing document
             const profileRef = doc(db, 'userCommunity', oldUsername);
-            await setDoc(profileRef, { ...data, userId }, { merge: true });
+            await setDoc(profileRef, { ...sanitizedData, userId }, { merge: true });
         }
 
       toast({
