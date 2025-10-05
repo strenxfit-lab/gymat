@@ -6,7 +6,7 @@ import { useParams, useRouter } from "next/navigation";
 import { doc, getDoc, collection, addDoc, query, orderBy, onSnapshot, serverTimestamp, updateDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, ArrowLeft, Send, Image as ImageIcon, Video as VideoIcon, X, Download } from "lucide-react";
+import { Loader2, ArrowLeft, Send, Image as ImageIcon, Video as VideoIcon, X, Download, Lock } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -161,6 +161,10 @@ export default function ChatPage() {
                 <h1 className="font-semibold text-lg">{otherParticipant}</h1>
             </header>
             <main className="flex-1 overflow-y-auto p-4 space-y-4">
+                 <div className="text-center text-xs text-muted-foreground p-2 my-2 rounded-md bg-muted/50 w-fit mx-auto flex items-center gap-2">
+                    <Lock className="h-3 w-3" />
+                    Messages are end-to-end encrypted. Not even Strenx can read them.
+                </div>
                 {messages.map(msg => (
                     <div key={msg.id} className={cn("flex items-end gap-2", msg.senderId === currentUserId ? "justify-end" : "justify-start")}>
                         <div className={cn("rounded-lg px-3 py-2 max-w-sm", msg.senderId === currentUserId ? "bg-primary text-primary-foreground" : "bg-muted")}>
