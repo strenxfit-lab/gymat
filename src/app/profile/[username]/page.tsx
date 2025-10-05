@@ -7,7 +7,7 @@ import { doc, getDoc, collection, query, where, getDocs, Timestamp } from 'fireb
 import { db } from '@/lib/firebase';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from "@/components/ui/button";
-import { Loader2, User, ArrowLeft, Rss, Image as ImageIcon, Video, Settings, Lock } from 'lucide-react';
+import { Loader2, User, ArrowLeft, Rss, Image as ImageIcon, Video, Settings, Lock, Edit } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
