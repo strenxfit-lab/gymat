@@ -7,7 +7,7 @@ import { doc, getDoc, collection, query, where, getDocs, Timestamp, updateDoc, a
 import { db } from '@/lib/firebase';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from "@/components/ui/button";
-import { Loader2, User, ArrowLeft, Rss, Image as ImageIcon, Video, Settings, Lock, Edit, UserPlus, UserCheck } from 'lucide-react';
+import { Loader2, User, ArrowLeft, Rss, Image as ImageIcon, Video, Settings, Lock, Edit, UserPlus, UserCheck, MessageCircle } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -215,10 +215,17 @@ export default function UserProfilePage() {
     if (isOwnProfile) return null;
 
     if (followStatus === 'following') {
-      return <Button variant="outline" onClick={handleUnfollow} disabled={isUpdatingFollow}>Unfollow</Button>;
+      return (
+        <div className="flex items-center gap-2">
+            <Button variant="secondary" onClick={handleUnfollow} disabled={isUpdatingFollow}>Following</Button>
+            <Button variant="outline" onClick={() => toast({ title: "Coming Soon!", description: "Direct messaging will be available in a future update."})}>
+                <MessageCircle className="mr-2 h-4 w-4"/> Message
+            </Button>
+        </div>
+      );
     }
     if (followStatus === 'requested') {
-      return <Button variant="outline" onClick={handleUnfollow} disabled={isUpdatingFollow}>Requested</Button>;
+      return <Button variant="secondary" onClick={handleUnfollow} disabled={isUpdatingFollow}>Requested</Button>;
     }
     return <Button onClick={handleFollow} disabled={isUpdatingFollow}><UserPlus className="mr-2 h-4 w-4"/>Follow</Button>;
   };
@@ -261,7 +268,20 @@ export default function UserProfilePage() {
               <div className="flex-1">
                   <div className="flex items-center gap-4 mb-2 flex-wrap">
                       <h1 className="text-2xl font-bold">{username}</h1>
-                      {renderFollowButton()}
+                        <div className="flex items-center gap-2">
+                        {isOwnProfile ? (
+                            <>
+                                <Link href="/dashboard/owner/profile/edit" passHref>
+                                    <Button variant="outline" size="sm"><Edit className="mr-2 h-4 w-4"/>Edit Profile</Button>
+                                </Link>
+                                <Link href="/dashboard/owner/profile/settings" passHref>
+                                    <Button variant="outline" size="icon"><Settings className="h-4 w-4"/></Button>
+                                </Link>
+                            </>
+                        ) : (
+                            renderFollowButton()
+                        )}
+                        </div>
                   </div>
                   <div className="flex space-x-6">
                       <button className="text-left" disabled={!canViewFollowLists} onClick={() => canViewFollowLists && setIsFollowersOpen(true)}>
@@ -321,3 +341,4 @@ export default function UserProfilePage() {
       </div>
   );
 }
+
