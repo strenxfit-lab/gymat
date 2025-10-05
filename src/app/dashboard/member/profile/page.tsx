@@ -6,9 +6,8 @@ import { useRouter } from 'next/navigation';
 import { doc, getDoc, collection, query, where, getDocs, Timestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useToast } from '@/hooks/use-toast';
-import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Loader2, User, Edit, Rss, Image as ImageIcon, Video } from 'lucide-react';
+import { Loader2, User, Edit, Rss, Image as ImageIcon, Video, Settings } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -25,6 +24,7 @@ interface CommunityProfile {
     bio?: string;
     gender?: string;
     photoUrl?: string;
+    privacy?: 'public' | 'private';
 }
 
 interface Post {
@@ -94,20 +94,27 @@ export default function MemberCommunityProfilePage() {
     return <div className="flex min-h-screen items-center justify-center bg-background"><Loader2 className="h-8 w-8 animate-spin" /></div>;
   }
 
+  const isPrivate = profile?.privacy === 'private';
+
   return (
       <div className="flex flex-col min-h-screen">
         <main className="flex-1 container mx-auto py-10 space-y-6">
-          <div className="flex items-center gap-8">
-              <Avatar className="h-24 w-24 border-4 border-primary">
+          <div className="flex items-start gap-4 md:gap-8">
+              <Avatar className="h-20 w-20 md:h-24 md:w-24 border-4 border-primary">
                   <AvatarImage src={profile?.photoUrl} alt={username || 'User'}/>
                   <AvatarFallback className="text-3xl">{username?.charAt(0).toUpperCase()}</AvatarFallback>
               </Avatar>
               <div className="flex-1">
-                  <div className="flex items-center gap-4 mb-2">
+                  <div className="flex items-center gap-4 mb-2 flex-wrap">
                       <h1 className="text-2xl font-bold">{username}</h1>
-                      <Link href="/dashboard/member/profile/edit" passHref>
-                          <Button variant="outline" size="sm"><Edit className="mr-2 h-4 w-4"/>Edit Profile</Button>
-                      </Link>
+                      <div className="flex items-center gap-2">
+                        <Link href="/dashboard/member/profile/edit" passHref>
+                            <Button variant="outline" size="sm"><Edit className="mr-2 h-4 w-4"/>Edit Profile</Button>
+                        </Link>
+                         <Link href="/dashboard/member/profile/settings" passHref>
+                            <Button variant="outline" size="icon"><Settings className="h-4 w-4"/></Button>
+                        </Link>
+                      </div>
                   </div>
                   <div className="flex space-x-6">
                       <div><span className="font-bold">{stats.posts}</span> posts</div>
@@ -123,7 +130,11 @@ export default function MemberCommunityProfilePage() {
           
           <div className="border-t pt-6">
               <h2 className="text-xl font-bold text-center mb-4">Posts</h2>
-              {posts.length > 0 ? (
+              {isPrivate ? (
+                   <div className="text-center text-muted-foreground mt-8">
+                      <p>This account is private. Follow them to see their posts.</p>
+                  </div>
+              ) : posts.length > 0 ? (
                   <div className="grid grid-cols-3 gap-1">
                       {posts.map(post => (
                           <Link href={`/posts/${post.id}`} key={post.id}>
