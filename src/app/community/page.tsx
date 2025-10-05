@@ -744,9 +744,11 @@ export default function CommunityPage() {
                           <TabsTrigger value="your_gym">Your Gym</TabsTrigger>
                           <TabsTrigger value="global">Global</TabsTrigger>
                       </TabsList>
-                      <Button variant="ghost" size="icon" onClick={() => toast({ title: "Coming Soon!", description: "Direct messaging will be available in a future update."})}>
-                           <MessageSquare className="h-6 w-6"/>
-                       </Button>
+                      <Link href="/dashboard/messages" passHref>
+                           <Button variant="ghost" size="icon">
+                               <MessageSquare className="h-6 w-6"/>
+                           </Button>
+                       </Link>
                       <DialogTrigger asChild>
                       <Button>
                           <Plus className="h-4 w-4 mr-2" />

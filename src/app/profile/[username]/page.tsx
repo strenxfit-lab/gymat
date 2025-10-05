@@ -7,12 +7,15 @@ import { doc, getDoc, collection, query, where, getDocs, Timestamp, updateDoc, a
 import { db } from '@/lib/firebase';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from "@/components/ui/button";
-import { Loader2, User, ArrowLeft, Rss, Image as ImageIcon, Video, Settings, Lock, Edit, UserPlus, UserCheck, MessageCircle } from 'lucide-react';
+import { Loader2, User, ArrowLeft, Rss, Image as ImageIcon, Video, Settings, Lock, Edit, UserPlus, UserCheck, MessageCircle, Ban } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { LayoutDashboard, Search } from 'lucide-react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
+import { MoreVertical } from "lucide-react";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 
 
 interface ProfileStats {
@@ -29,6 +32,7 @@ interface CommunityProfile {
     userId: string;
     followers?: string[];
     following?: string[];
+    blockedUsers?: string[];
 }
 
 interface Post {
@@ -64,11 +68,12 @@ export default function UserProfilePage() {
   const [isFollowersOpen, setIsFollowersOpen] = useState(false);
   const [isFollowingOpen, setIsFollowingOpen] = useState(false);
   const [isStartingChat, setIsStartingChat] = useState(false);
+  const [isBlocked, setIsBlocked] = useState(false);
 
   const loggedInUsername = typeof window !== 'undefined' ? localStorage.getItem('communityUsername') : null;
 
   const fetchProfileData = async () => {
-    if (!username) return;
+    if (!username || !loggedInUsername) return;
 
     const loggedInUserRole = localStorage.getItem('userRole');
     const loggedInUserId = loggedInUserRole === 'owner' ? localStorage.getItem('userDocId') : (loggedInUserRole === 'member' ? localStorage.getItem('memberId') : localStorage.getItem('trainerId'));
@@ -77,19 +82,30 @@ export default function UserProfilePage() {
     else if(loggedInUserRole === 'member') setBackLink('/dashboard/member/community');
     else if(loggedInUserRole === 'trainer') setBackLink('/dashboard/trainer/community');
 
-
     try {
       const profileRef = doc(db, 'userCommunity', username);
       const profileSnap = await getDoc(profileRef);
 
+      const currentUserRef = doc(db, 'userCommunity', loggedInUsername);
+      const currentUserSnap = await getDoc(currentUserRef);
+      const currentUserData = currentUserSnap.data() as CommunityProfile;
+
       if (profileSnap.exists()) {
         const profileData = profileSnap.data() as CommunityProfile;
+
+        // Check if current user is blocked by or has blocked the viewed profile
+        if (profileData.blockedUsers?.includes(loggedInUsername) || currentUserData.blockedUsers?.includes(username)) {
+            setIsBlocked(true);
+            setLoading(false);
+            return;
+        }
+
         setProfile(profileData);
         
         const ownProfile = profileData.userId === loggedInUserId;
         setIsOwnProfile(ownProfile);
 
-        if (!ownProfile && loggedInUsername) {
+        if (!ownProfile) {
             if (profileData.followers?.includes(loggedInUsername)) {
                 setFollowStatus('following');
             } else {
@@ -231,11 +247,47 @@ export default function UserProfilePage() {
         setIsStartingChat(false);
     }
   };
+
+  const handleBlock = async () => {
+    if (!loggedInUsername || !username || isOwnProfile) return;
+
+    const currentUserRef = doc(db, 'userCommunity', loggedInUsername);
+    const targetUserRef = doc(db, 'userCommunity', username);
+    
+    try {
+        const batch = writeBatch(db);
+        // Add to current user's blocked list
+        batch.update(currentUserRef, { blockedUsers: arrayUnion(username) });
+        // Force unfollow
+        batch.update(currentUserRef, { following: arrayRemove(username) });
+        batch.update(targetUserRef, { followers: arrayRemove(loggedInUsername) });
+
+        await batch.commit();
+        toast({ title: 'User Blocked', description: `${username} has been blocked.` });
+        setIsBlocked(true); // Visually update the page immediately
+    } catch (error) {
+        console.error("Error blocking user: ", error);
+        toast({ title: "Error", description: "Could not block user.", variant: "destructive" });
+    }
+  }
   
   if (loading) {
     return <div className="flex min-h-screen items-center justify-center bg-background"><Loader2 className="h-8 w-8 animate-spin" /></div>;
   }
   
+  if (isBlocked) {
+    return (
+        <div className="flex min-h-screen items-center justify-center bg-background">
+            <div className="text-center">
+                <Ban className="mx-auto h-12 w-12 text-muted-foreground" />
+                <h2 className="mt-4 text-xl font-semibold">Profile Unavailable</h2>
+                <p className="mt-2 text-muted-foreground">You can't view this profile.</p>
+                <Button onClick={() => router.back()} className="mt-4">Go Back</Button>
+            </div>
+        </div>
+    );
+  }
+
   if (!profile) {
       return <div className="flex min-h-screen items-center justify-center bg-background">Profile not found.</div>
   }
@@ -312,7 +364,35 @@ export default function UserProfilePage() {
                                 </Link>
                             </>
                         ) : (
-                            renderFollowButton()
+                          <>
+                            {renderFollowButton()}
+                             <AlertDialog>
+                                <DropdownMenu>
+                                    <DropdownMenuTrigger asChild>
+                                        <Button variant="ghost" size="icon" className="h-8 w-8">
+                                            <MoreVertical className="h-4 w-4"/>
+                                        </Button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent>
+                                        <AlertDialogTrigger asChild>
+                                            <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="text-destructive focus:text-destructive">
+                                                <Ban className="mr-2 h-4 w-4" /> Block
+                                            </DropdownMenuItem>
+                                        </AlertDialogTrigger>
+                                    </DropdownMenuContent>
+                                </DropdownMenu>
+                                <AlertDialogContent>
+                                    <AlertDialogHeader>
+                                        <AlertDialogTitle>Block {username}?</AlertDialogTitle>
+                                        <AlertDialogDescription>They will not be able to find your profile, posts or story on Strenx. Strenx will not let them know you have blocked them.</AlertDialogDescription>
+                                    </AlertDialogHeader>
+                                    <AlertDialogFooter>
+                                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                        <AlertDialogAction onClick={handleBlock} className="bg-destructive hover:bg-destructive/80">Block</AlertDialogAction>
+                                    </AlertDialogFooter>
+                                </AlertDialogContent>
+                            </AlertDialog>
+                          </>
                         )}
                         </div>
                   </div>
