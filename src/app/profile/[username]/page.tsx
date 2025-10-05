@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect } from 'react';
@@ -11,6 +12,8 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { LayoutDashboard, Search } from 'lucide-react';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+
 
 interface ProfileStats {
   posts: number;
@@ -56,6 +59,10 @@ export default function UserProfilePage() {
   const [backLink, setBackLink] = useState('/dashboard/owner/community');
   const [followStatus, setFollowStatus] = useState<'not_following' | 'following' | 'requested'>('not_following');
   const [isUpdatingFollow, setIsUpdatingFollow] = useState(false);
+  const [followersList, setFollowersList] = useState<string[]>([]);
+  const [followingList, setFollowingList] = useState<string[]>([]);
+  const [isFollowersOpen, setIsFollowersOpen] = useState(false);
+  const [isFollowingOpen, setIsFollowingOpen] = useState(false);
 
   const loggedInUsername = typeof window !== 'undefined' ? localStorage.getItem('communityUsername') : null;
 
@@ -100,6 +107,8 @@ export default function UserProfilePage() {
             followers: profileData.followers?.length || 0,
             following: profileData.following?.length || 0,
         }));
+        setFollowersList(profileData.followers || []);
+        setFollowingList(profileData.following || []);
 
         const postsQuery = query(collection(db, 'gymRats'), where('authorId', '==', profileData.userId));
         const postsSnap = await getDocs(postsQuery);
@@ -145,6 +154,15 @@ export default function UserProfilePage() {
           } else {
               await updateDoc(targetUserRef, { followers: arrayUnion(loggedInUsername) });
               await updateDoc(currentUserRef, { following: arrayUnion(username) });
+              
+              const notificationsRef = collection(targetUserRef, 'notifications');
+              await addDoc(notificationsRef, {
+                  type: 'follow',
+                  fromUsername: loggedInUsername,
+                  message: `${loggedInUsername} started following you.`,
+                  createdAt: serverTimestamp(),
+              });
+
               setFollowStatus('following');
               setStats(prev => ({...prev, followers: prev.followers + 1}));
           }
@@ -167,13 +185,12 @@ export default function UserProfilePage() {
           if (followStatus === 'requested') {
               const requestRef = doc(collection(targetUserRef, 'followRequests'), loggedInUsername);
               await deleteDoc(requestRef);
-              setFollowStatus('not_following');
           } else { // following
               await updateDoc(targetUserRef, { followers: arrayRemove(loggedInUsername) });
               await updateDoc(currentUserRef, { following: arrayRemove(username) });
-              setFollowStatus('not_following');
               setStats(prev => ({...prev, followers: prev.followers - 1}));
           }
+          setFollowStatus('not_following');
       } catch (error) {
           console.error("Error unfollowing user: ", error);
           toast({ title: "Error", description: "Could not complete action.", variant: "destructive" });
@@ -192,6 +209,7 @@ export default function UserProfilePage() {
 
   const isPrivate = profile?.privacy === 'private';
   const canViewContent = !isPrivate || isOwnProfile || followStatus === 'following';
+  const canViewFollowLists = !isPrivate || isOwnProfile || followStatus === 'following';
 
   const renderFollowButton = () => {
     if (isOwnProfile) return null;
@@ -204,6 +222,26 @@ export default function UserProfilePage() {
     }
     return <Button onClick={handleFollow} disabled={isUpdatingFollow}><UserPlus className="mr-2 h-4 w-4"/>Follow</Button>;
   };
+  
+    const FollowerListDialog = ({ list, title, isOpen, onOpenChange }: { list: string[], title: string, isOpen: boolean, onOpenChange: (open: boolean) => void }) => (
+        <Dialog open={isOpen} onOpenChange={onOpenChange}>
+            <DialogContent>
+                <DialogHeader>
+                    <DialogTitle>{title}</DialogTitle>
+                </DialogHeader>
+                <div className="space-y-3 max-h-80 overflow-y-auto">
+                    {list.map(user => (
+                        <Link href={`/profile/${user}`} key={user} className="flex items-center gap-3 p-2 rounded-md hover:bg-accent" onClick={() => onOpenChange(false)}>
+                            <Avatar className="h-8 w-8">
+                                <AvatarFallback>{user.charAt(0).toUpperCase()}</AvatarFallback>
+                            </Avatar>
+                            <span className="font-semibold">{user}</span>
+                        </Link>
+                    ))}
+                </div>
+            </DialogContent>
+        </Dialog>
+    );
 
   return (
       <div className="flex flex-col min-h-screen">
@@ -223,23 +261,18 @@ export default function UserProfilePage() {
               <div className="flex-1">
                   <div className="flex items-center gap-4 mb-2 flex-wrap">
                       <h1 className="text-2xl font-bold">{username}</h1>
-                      {isOwnProfile ? (
-                        <div className="flex items-center gap-2">
-                            <Link href="/dashboard/owner/profile/edit" passHref>
-                                <Button variant="outline" size="sm"><Edit className="mr-2 h-4 w-4"/>Edit Profile</Button>
-                            </Link>
-                            <Link href="/dashboard/owner/profile/settings" passHref>
-                                <Button variant="outline" size="icon"><Settings className="h-4 w-4"/></Button>
-                            </Link>
-                        </div>
-                      ) : (
-                          renderFollowButton()
-                      )}
+                      {renderFollowButton()}
                   </div>
                   <div className="flex space-x-6">
-                      <div><span className="font-bold">{stats.posts}</span> posts</div>
-                      <div><span className="font-bold">{stats.followers}</span> followers</div>
-                      <div><span className="font-bold">{stats.following}</span> following</div>
+                      <button className="text-left" disabled={!canViewFollowLists} onClick={() => canViewFollowLists && setIsFollowersOpen(true)}>
+                          <span className="font-bold">{stats.posts}</span> posts
+                      </button>
+                      <button className="text-left" disabled={!canViewFollowLists} onClick={() => canViewFollowLists && setIsFollowersOpen(true)}>
+                           <span className="font-bold">{stats.followers}</span> followers
+                      </button>
+                       <button className="text-left" disabled={!canViewFollowLists} onClick={() => canViewFollowLists && setIsFollowingOpen(true)}>
+                          <span className="font-bold">{stats.following}</span> following
+                      </button>
                   </div>
                   <div className="mt-2">
                       <p className="text-sm">{profile?.bio || 'No bio yet.'}</p>
@@ -278,6 +311,13 @@ export default function UserProfilePage() {
               )}
           </div>
         </main>
+        
+        {canViewFollowLists && (
+            <>
+                <FollowerListDialog title="Followers" list={followersList} isOpen={isFollowersOpen} onOpenChange={setIsFollowersOpen} />
+                <FollowerListDialog title="Following" list={followingList} isOpen={isFollowingOpen} onOpenChange={setIsFollowingOpen} />
+            </>
+        )}
       </div>
   );
 }
