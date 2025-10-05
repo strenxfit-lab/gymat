@@ -12,7 +12,7 @@ import { Loader2, ArrowLeft, ThumbsUp, MessageSquare, Send, MoreVertical, Edit, 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { formatDistanceToNow } from 'date-fns';
 import Image from 'next/image';
-import { cn } from '@/lib/utils';
+import { cn } from "@/lib/utils";
 import { Input } from '@/components/ui/input';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { useForm } from 'react-hook-form';
@@ -463,3 +463,5 @@ export default function PostPage() {
         </Dialog>
     );
 }
+
+    
