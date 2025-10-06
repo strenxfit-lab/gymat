@@ -1,5 +1,4 @@
 
-
 "use client";
 
 import { useState, useEffect } from 'react';
@@ -14,14 +13,16 @@ import {
   SidebarFooter,
   SidebarProvider,
 } from '@/components/ui/sidebar';
-import { Dumbbell, Users, CreditCard, ClipboardList, BarChart3, Megaphone, Boxes, Info, Mail, Phone, Building, UserCheck, LogOut, MessageSquare, CalendarCheck, CheckSquare, Clock, KeyRound, ChevronDown, IndianRupee, LifeBuoy, Utensils, LayoutDashboard, QrCode, Wrench } from 'lucide-react';
+import { Dumbbell, Users, CreditCard, ClipboardList, BarChart3, Megaphone, Boxes, Info, Mail, Phone, Building, UserCheck, LogOut, MessageSquare, CalendarCheck, CheckSquare, Clock, KeyRound, ChevronDown, IndianRupee, LifeBuoy, Utensils, LayoutDashboard, QrCode, Wrench, Activity } from 'lucide-react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { ThemeToggle } from '@/components/theme-toggle';
 import * as React from 'react';
+import { doc, onSnapshot, collection, query } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
 
-const MenuItem = ({ href, children, icon, isExternal = false }: { href: string, children: React.ReactNode, icon?: React.ReactNode, isExternal?: boolean }) => {
+const MenuItem = ({ href, children, icon, isExternal = false, notificationCount }: { href: string, children: React.ReactNode, icon?: React.ReactNode, isExternal?: boolean, notificationCount?: number }) => {
   const pathname = usePathname();
   const isActive = pathname === href;
   const linkProps = isExternal ? { target: "_blank", rel: "noopener noreferrer" } : {};
@@ -31,12 +32,17 @@ const MenuItem = ({ href, children, icon, isExternal = false }: { href: string, 
       <Button
         variant="ghost"
         className={cn(
-          "w-full justify-start gap-2 transition-colors duration-300 ease-in-out",
+          "w-full justify-start gap-2 transition-colors duration-300 ease-in-out relative",
           isActive ? "bg-indigo-100 text-indigo-600 font-semibold rounded-xl" : "hover:bg-gray-100 dark:hover:bg-gray-800"
         )}
       >
         {icon}
         {children}
+        {notificationCount && notificationCount > 0 && (
+            <span className="absolute top-1 right-1 h-5 w-5 rounded-full bg-destructive text-destructive-foreground flex items-center justify-center text-xs">
+                {notificationCount}
+            </span>
+        )}
       </Button>
     </Link>
   )
@@ -49,6 +55,7 @@ export default function TrainerDashboardLayout({
 }) {
   const [trainerName, setTrainerName] = useState<string | null>(null);
   const [isMounted, setIsMounted] = useState(false);
+  const [notificationCount, setNotificationCount] = useState(0);
   const router = useRouter();
   const pathname = usePathname();
 
@@ -56,6 +63,18 @@ export default function TrainerDashboardLayout({
     setIsMounted(true);
     const name = localStorage.getItem('userName');
     setTrainerName(name);
+
+    const username = localStorage.getItem('communityUsername');
+    if (username) {
+        const userCommunityRef = doc(db, 'userCommunity', username);
+        const requestsQuery = query(collection(userCommunityRef, 'followRequests'));
+        
+        const unsubscribe = onSnapshot(requestsQuery, (snapshot) => {
+            setNotificationCount(snapshot.size);
+        });
+
+        return () => unsubscribe();
+    }
   }, []);
 
   const handleLogout = () => {
@@ -63,7 +82,7 @@ export default function TrainerDashboardLayout({
     router.push('/');
   };
   
-  const isCommunityPage = pathname.startsWith('/dashboard/trainer/community') || pathname.startsWith('/dashboard/trainer/profile');
+  const isCommunityPage = pathname.startsWith('/dashboard/trainer/community') || pathname.startsWith('/dashboard/trainer/profile') || pathname.startsWith('/dashboard/trainer/activity');
 
   if (isCommunityPage) {
     return <>{children}</>;
@@ -89,6 +108,7 @@ export default function TrainerDashboardLayout({
             <MenuItem href="/dashboard/trainer" icon={<LayoutDashboard />}>Dashboard</MenuItem>
             <MenuItem href="/dashboard/trainer/profile" icon={<UserCheck />}>My Profile</MenuItem>
             <MenuItem href="/dashboard/trainer/community" icon={<Users />}>Community</MenuItem>
+            <MenuItem href="/dashboard/trainer/activity" icon={<Activity />} notificationCount={notificationCount}>Activity</MenuItem>
             <MenuItem href="/dashboard/trainer/attendance" icon={<CheckSquare />}>My Attendance</MenuItem>
             <MenuItem href="/dashboard/trainer/maintenance" icon={<Wrench />}>Maintenance</MenuItem>
             <MenuItem href="/dashboard/trainer/payments" icon={<IndianRupee />}>My Payments</MenuItem>
