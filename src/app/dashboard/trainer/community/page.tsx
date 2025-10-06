@@ -1,8 +1,9 @@
 
+
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { collection, addDoc, query, onSnapshot, serverTimestamp, Timestamp, where, getDocs, doc, setDoc, updateDoc, arrayUnion, arrayRemove, limit, startAt, endAt, orderBy, deleteDoc, getDoc } from "firebase/firestore";
+import { collection, addDoc, query, onSnapshot, serverTimestamp, Timestamp, where, getDocs, doc, setDoc, updateDoc, arrayUnion, arrayRemove, limit, startAt, endAt, orderBy, deleteDoc, getDoc, writeBatch } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
@@ -356,6 +357,7 @@ export default function CommunityPage() {
         setIsSubmitting(false);
         return;
     }
+
     try {
         const usernameRef = doc(db, 'userCommunity', username);
         const usernameSnap = await getDoc(usernameRef);
@@ -365,11 +367,40 @@ export default function CommunityPage() {
             return;
         }
 
-        await setDoc(usernameRef, { userId: userId, createdAt: serverTimestamp() });
+        // Auto-follow superadmin
+        const superadminQuery = query(collection(db, 'superadmins'), limit(1));
+        const superadminSnap = await getDocs(superadminQuery);
+        let superadminUsername: string | null = null;
+        
+        if (!superadminSnap.empty) {
+            const superadminId = superadminSnap.docs[0].id;
+            const superadminCommunityQuery = query(collection(db, 'userCommunity'), where('userId', '==', superadminId), limit(1));
+            const superadminCommunitySnap = await getDocs(superadminCommunityQuery);
+            if (!superadminCommunitySnap.empty) {
+                superadminUsername = superadminCommunitySnap.docs[0].id;
+            }
+        }
+        
+        const batch = writeBatch(db);
+        const newUserCommunityData: { userId: string, createdAt: any, following?: any } = {
+            userId: userId,
+            createdAt: serverTimestamp(),
+        };
+
+        if (superadminUsername) {
+            newUserCommunityData.following = [superadminUsername];
+            const superadminRef = doc(db, 'userCommunity', superadminUsername);
+            batch.update(superadminRef, { followers: arrayUnion(username) });
+        }
+
+        batch.set(usernameRef, newUserCommunityData);
+        await batch.commit();
+
         localStorage.setItem('communityUsername', username);
         toast({ title: 'Welcome!', description: `Your username "${username}" has been set.`});
         setIsUsernameDialogOpen(false);
         setHasCommunityProfile(true);
+
     } catch (error) {
         console.error("Error setting username:", error);
         toast({ title: 'Error', description: 'Could not set username. Please try again.', variant: 'destructive'});
