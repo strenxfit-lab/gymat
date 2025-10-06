@@ -13,13 +13,13 @@ import {
   SidebarFooter,
   SidebarProvider,
 } from '@/components/ui/sidebar';
-import { Dumbbell, LogOut, LayoutDashboard, UserCog, IndianRupee, Flag } from 'lucide-react';
+import { Dumbbell, LogOut, LayoutDashboard, UserCog, IndianRupee, Flag, Users, Activity } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { ThemeToggle } from '@/components/theme-toggle';
 import * as React from 'react';
 
-const MenuItem = ({ href, children, icon }: { href: string, children: React.ReactNode, icon?: React.ReactNode }) => {
+const MenuItem = ({ href, children, icon, notificationCount }: { href: string, children: React.ReactNode, icon?: React.ReactNode, notificationCount?: number }) => {
   const pathname = usePathname();
   const isActive = pathname === href;
   return (
@@ -27,12 +27,17 @@ const MenuItem = ({ href, children, icon }: { href: string, children: React.Reac
       <Button
         variant="ghost"
         className={cn(
-          "w-full justify-start gap-2 transition-colors duration-300 ease-in-out",
+          "w-full justify-start gap-2 transition-colors duration-300 ease-in-out relative",
           isActive ? "bg-indigo-100 text-indigo-600 font-semibold rounded-xl" : "hover:bg-gray-100 dark:hover:bg-gray-800"
         )}
       >
         {icon}
         {children}
+        {notificationCount && notificationCount > 0 && (
+            <span className="absolute top-1 right-1 h-5 w-5 rounded-full bg-destructive text-destructive-foreground flex items-center justify-center text-xs">
+                {notificationCount}
+            </span>
+        )}
       </Button>
     </Link>
   )
@@ -46,6 +51,10 @@ export default function SuperAdminDashboardLayout({
   const [adminName, setAdminName] = useState<string | null>(null);
   const [isMounted, setIsMounted] = useState(false);
   const router = useRouter();
+  const pathname = usePathname();
+
+  const isCommunityPage = pathname.startsWith('/dashboard/superadmin/community') || pathname.startsWith('/dashboard/superadmin/profile') || pathname.startsWith('/dashboard/superadmin/activity');
+
 
   useEffect(() => {
     setIsMounted(true);
@@ -57,6 +66,14 @@ export default function SuperAdminDashboardLayout({
     localStorage.clear();
     router.push('/');
   };
+
+  if (isCommunityPage) {
+    if (pathname.startsWith('/dashboard/superadmin/profile')) {
+       return <>{children}</>;
+    }
+    return <>{children}</>;
+  }
+
 
   return (
     <SidebarProvider>
@@ -76,6 +93,8 @@ export default function SuperAdminDashboardLayout({
         <SidebarContent className="flex-1 overflow-y-auto">
           <SidebarMenu>
             <MenuItem href="/dashboard/superadmin" icon={<LayoutDashboard />}>Dashboard</MenuItem>
+            <MenuItem href="/dashboard/superadmin/community" icon={<Users />}>Community</MenuItem>
+            <MenuItem href="/dashboard/superadmin/activity" icon={<Activity />}>Activity</MenuItem>
             <MenuItem href="/dashboard/superadmin/settlements" icon={<IndianRupee />}>Settlements</MenuItem>
             <MenuItem href="/dashboard/superadmin/reports" icon={<Flag />}>Reports</MenuItem>
           </SidebarMenu>
