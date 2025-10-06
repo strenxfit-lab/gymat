@@ -8,7 +8,7 @@ import { db } from '@/lib/firebase';
 import { collection, addDoc, Timestamp, query, where, getDocs, doc, getDoc } from 'firebase/firestore';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Loader2, ArrowLeft, QrCode, Video, VideoOff, CheckCircle } from 'lucide-react';
+import { Loader2, ArrowLeft, QrCode, Video, VideoOff, CheckCircle, RefreshCw } from 'lucide-react';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import Webcam from 'react-webcam';
 import jsQR from 'jsqr';
@@ -19,6 +19,7 @@ export default function ScanAttendancePage() {
   const [hasCameraPermission, setHasCameraPermission] = useState(true);
   const [isExpired, setIsExpired] = useState(false);
   const [isScanned, setIsScanned] = useState(false);
+  const [facingMode, setFacingMode] = useState<'user' | 'environment'>('environment');
   const webcamRef = useRef<Webcam>(null);
   const router = useRouter();
   const { toast } = useToast();
@@ -69,6 +70,10 @@ export default function ScanAttendancePage() {
         };
       }
     }
+  };
+
+  const handleFlipCamera = () => {
+    setFacingMode(prev => (prev === 'user' ? 'environment' : 'user'));
   };
 
   const handleScan = async (data: string) => {
@@ -168,6 +173,10 @@ export default function ScanAttendancePage() {
     return '/';
   }
 
+  const videoConstraints = {
+    facingMode: facingMode
+  };
+
   return (
     <div className="container mx-auto py-10 flex justify-center">
       <Card className="w-full max-w-md">
@@ -189,6 +198,7 @@ export default function ScanAttendancePage() {
                     audio={false}
                     ref={webcamRef}
                     screenshotFormat="image/jpeg"
+                    videoConstraints={videoConstraints}
                     className="h-full w-full object-cover"
                 />
                 <div className="absolute inset-0 border-8 border-primary/50 rounded-lg" />
@@ -200,6 +210,10 @@ export default function ScanAttendancePage() {
                         <Loader2 className="mt-4 h-8 w-8 animate-spin" />
                     </div>
                 )}
+                 <Button onClick={handleFlipCamera} variant="outline" size="icon" className="absolute bottom-4 right-4 bg-background/50 backdrop-blur-sm">
+                    <RefreshCw className="h-5 w-5"/>
+                    <span className="sr-only">Flip camera</span>
+                 </Button>
               </div>
             ) : (
                 <Alert variant="destructive">
