@@ -57,6 +57,12 @@ interface Post {
     }
 }
 
+interface Chat {
+    id: string;
+    participants: string[];
+    otherParticipant?: string;
+}
+
 const postSchema = z.object({
   text: z.string().min(1, "Post content cannot be empty.").or(z.literal('')),
   visibility: z.enum(['local', 'global'], { required_error: "You must select a visibility option."}),
@@ -107,6 +113,11 @@ export default function CommunityPage() {
   const [isRepostDialogOpen, setIsRepostDialogOpen] = useState(false);
   const [editingPost, setEditingPost] = useState<Post | null>(null);
   const [isSearchDialogOpen, setIsSearchDialogOpen] = useState(false);
+  const [sharingPost, setSharingPost] = useState<Post | null>(null);
+  const [isShareDialogOpen, setIsShareDialogOpen] = useState(false);
+  const [userChats, setUserChats] = useState<Chat[]>([]);
+  const [isFetchingChats, setIsFetchingChats] = useState(false);
+  const [hasNewMessage, setHasNewMessage] = useState(false);
   const router = useRouter();
 
 
@@ -133,6 +144,19 @@ export default function CommunityPage() {
     resolver: zodResolver(repostSchema),
     defaultValues: { caption: '', visibility: "local" },
   });
+
+  useEffect(() => {
+    const checkNotification = async () => {
+        const username = localStorage.getItem('communityUsername');
+        if (!username) return;
+        const userCommunityRef = doc(db, 'userCommunity', username);
+        const docSnap = await getDoc(userCommunityRef);
+        if (docSnap.exists() && docSnap.data().hasNewMessage) {
+            setHasNewMessage(true);
+        }
+    };
+    checkNotification();
+  }, []);
 
   useEffect(() => {
     if (editingPost) {
@@ -460,21 +484,62 @@ export default function CommunityPage() {
   }
 
   const handleShare = async (post: Post) => {
-    if (navigator.share) {
-      try {
-        await navigator.share({
-          title: `Check out this post from ${post.authorName} in the Strenx community!`,
-          text: post.text,
-          url: window.location.href, // ideally a direct link to the post
-        });
-        toast({ title: "Post shared successfully!"});
-      } catch (error) {
-        console.error('Error sharing:', error);
-        // Do not show a toast for this, as the user might have just cancelled the share sheet.
-      }
-    } else {
-      toast({ title: "Share not supported", description: "Your browser does not support the Web Share API." });
+    setSharingPost(post);
+    setIsFetchingChats(true);
+    setIsShareDialogOpen(true);
+
+    const loggedInUsername = localStorage.getItem('communityUsername');
+    if (!loggedInUsername) {
+        setIsFetchingChats(false);
+        return;
     }
+
+    try {
+        const chatsRef = collection(db, 'chats');
+        const q = query(chatsRef, where('participants', 'array-contains', loggedInUsername));
+        const querySnapshot = await getDocs(q);
+        const chatsData = querySnapshot.docs.map(doc => {
+            const data = doc.data();
+            const otherParticipant = data.participants.find((p: string) => p !== loggedInUsername);
+            return {
+                id: doc.id,
+                ...data,
+                otherParticipant: otherParticipant || 'Unknown',
+            } as Chat;
+        });
+        setUserChats(chatsData);
+    } catch (error) {
+        console.error("Error fetching chats:", error);
+        toast({ title: "Error", description: "Could not fetch your chats.", variant: "destructive" });
+    } finally {
+        setIsFetchingChats(false);
+    }
+  };
+  
+  const handleShareToChat = async (chatId: string) => {
+      if (!sharingPost) return;
+
+      const message = {
+          text: `Check out this post from ${sharingPost.authorName}!`,
+          sharedPost: {
+              postId: sharingPost.id,
+              authorName: sharingPost.authorName,
+              textSnippet: sharingPost.text.substring(0, 100),
+          },
+          senderId: localStorage.getItem('userDocId'),
+          senderName: localStorage.getItem('communityUsername'),
+          timestamp: serverTimestamp(),
+      };
+
+      try {
+          const messagesRef = collection(db, 'chats', chatId, 'messages');
+          await addDoc(messagesRef, message);
+          toast({ title: "Post Shared!", description: "The post has been sent to your chat." });
+          setIsShareDialogOpen(false);
+      } catch (error) {
+          console.error("Error sharing post to chat:", error);
+          toast({ title: "Error", description: "Could not share post.", variant: "destructive" });
+      }
   };
 
 
@@ -681,6 +746,30 @@ export default function CommunityPage() {
 
   return (
     <div className="h-screen w-screen flex flex-col">
+       <Dialog open={isShareDialogOpen} onOpenChange={setIsShareDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Share Post</DialogTitle>
+            <DialogDescription>Select a chat to share this post with.</DialogDescription>
+          </DialogHeader>
+          <div className="max-h-80 overflow-y-auto space-y-2 py-4">
+            {isFetchingChats ? (
+              <div className="flex justify-center"><Loader2 className="animate-spin" /></div>
+            ) : userChats.length > 0 ? (
+              userChats.map(chat => (
+                <div key={chat.id} onClick={() => handleShareToChat(chat.id)} className="flex items-center gap-3 p-2 rounded-md hover:bg-accent cursor-pointer">
+                  <Avatar>
+                    <AvatarFallback>{chat.otherParticipant?.charAt(0).toUpperCase()}</AvatarFallback>
+                  </Avatar>
+                  <p className="font-semibold">{chat.otherParticipant}</p>
+                </div>
+              ))
+            ) : (
+              <p className="text-center text-muted-foreground">You have no active chats.</p>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
       <Dialog open={isRepostDialogOpen} onOpenChange={setIsRepostDialogOpen}>
         <DialogContent>
             <DialogHeader>
@@ -750,8 +839,9 @@ export default function CommunityPage() {
                           <TabsTrigger value="global">Global</TabsTrigger>
                       </TabsList>
                        <Link href="/dashboard/messages" passHref>
-                           <Button variant="ghost" size="icon">
+                           <Button variant="ghost" size="icon" className="relative">
                                <MessageSquare className="h-6 w-6"/>
+                               {hasNewMessage && <span className="absolute top-1 right-1 h-2.5 w-2.5 rounded-full bg-destructive" />}
                            </Button>
                        </Link>
                        <DialogTrigger asChild>

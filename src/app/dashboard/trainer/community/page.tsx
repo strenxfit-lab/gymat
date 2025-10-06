@@ -115,6 +115,8 @@ export default function CommunityPage() {
   const [isShareDialogOpen, setIsShareDialogOpen] = useState(false);
   const [userChats, setUserChats] = useState<Chat[]>([]);
   const [isFetchingChats, setIsFetchingChats] = useState(false);
+  const [hasNewMessage, setHasNewMessage] = useState(false);
+
 
   const postForm = useForm<PostFormData>({
     resolver: zodResolver(postSchema),
@@ -139,6 +141,19 @@ export default function CommunityPage() {
     resolver: zodResolver(repostSchema),
     defaultValues: { caption: '', visibility: "local" },
   });
+  
+  useEffect(() => {
+    const checkNotification = async () => {
+        const username = localStorage.getItem('communityUsername');
+        if (!username) return;
+        const userCommunityRef = doc(db, 'userCommunity', username);
+        const docSnap = await getDoc(userCommunityRef);
+        if (docSnap.exists() && docSnap.data().hasNewMessage) {
+            setHasNewMessage(true);
+        }
+    };
+    checkNotification();
+  }, []);
   
   useEffect(() => {
     if (editingPost) {
@@ -819,8 +834,9 @@ export default function CommunityPage() {
                           <TabsTrigger value="global">Global</TabsTrigger>
                       </TabsList>
                       <Link href="/dashboard/messages" passHref>
-                           <Button variant="ghost" size="icon">
+                           <Button variant="ghost" size="icon" className="relative">
                                <MessageSquare className="h-6 w-6"/>
+                                {hasNewMessage && <span className="absolute top-1 right-1 h-2.5 w-2.5 rounded-full bg-destructive" />}
                            </Button>
                        </Link>
                       <DialogTrigger asChild>

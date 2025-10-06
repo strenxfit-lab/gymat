@@ -56,6 +56,8 @@ export default function ChatPage() {
     
     const role = typeof window !== 'undefined' ? localStorage.getItem('userRole') : null;
     const currentUserId = role === 'owner' ? localStorage.getItem('userDocId') : (role === 'member' ? localStorage.getItem('memberId') : localStorage.getItem('trainerId'));
+    const currentUsername = typeof window !== 'undefined' ? localStorage.getItem('communityUsername') : null;
+
 
     useEffect(() => {
         if (!chatId) return;
@@ -66,7 +68,7 @@ export default function ChatPage() {
             if (docSnap.exists()) {
                 const chatData = { id: docSnap.id, ...docSnap.data() } as Chat;
                 setChat(chatData);
-                const other = chatData.participants.find(p => p !== localStorage.getItem('communityUsername'));
+                const other = chatData.participants.find(p => p !== currentUsername);
                 setOtherParticipant(other || "User");
                 
                 const messagesRef = collection(chatRef, 'messages');
@@ -86,7 +88,7 @@ export default function ChatPage() {
 
         return () => unsubscribeChat();
 
-    }, [chatId, router, toast]);
+    }, [chatId, router, toast, currentUsername]);
 
     useEffect(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -112,7 +114,8 @@ export default function ChatPage() {
         const messagesRef = collection(db, 'chats', chatId, 'messages');
         const chatRef = doc(db, 'chats', chatId);
 
-        const senderName = localStorage.getItem('communityUsername') || 'User';
+        const senderName = currentUsername || 'User';
+        const recipientUsername = chat.participants.find(p => p !== currentUsername);
 
         try {
             await addDoc(messagesRef, {
@@ -128,6 +131,12 @@ export default function ChatPage() {
                 lastMessage: lastMessageText,
                 lastMessageTimestamp: serverTimestamp(),
             });
+
+            // Set notification for recipient
+            if (recipientUsername) {
+                const recipientRef = doc(db, 'userCommunity', recipientUsername);
+                await updateDoc(recipientRef, { hasNewMessage: true });
+            }
 
             setNewMessage("");
             setMediaPreview(null);
@@ -241,5 +250,3 @@ export default function ChatPage() {
         </div>
     );
 }
-
-    
