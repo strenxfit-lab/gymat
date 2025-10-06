@@ -24,24 +24,9 @@ export default function ScanAttendancePage() {
   const router = useRouter();
   const { toast } = useToast();
 
-   useEffect(() => {
-    const getCameraPermission = async () => {
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-        setHasCameraPermission(true);
-        if (webcamRef.current && webcamRef.current.video) {
-            webcamRef.current.video.srcObject = stream;
-        }
-      } catch (err) {
-        console.error("Camera access denied:", err);
-        setHasCameraPermission(false);
-      }
-    };
-
-    getCameraPermission();
-  }, [facingMode]);
-
   useEffect(() => {
+    // This effect now only handles the QR code scanning interval.
+    // Camera permissions are handled by the Webcam component itself.
     if (!hasCameraPermission || isScanned) return;
 
     const intervalId = setInterval(() => {
@@ -177,8 +162,15 @@ export default function ScanAttendancePage() {
   }
 
   const videoConstraints = {
+    width: 1280,
+    height: 720,
     facingMode: facingMode
   };
+
+  const handleUserMediaError = () => {
+    console.error("Camera access denied or error starting video source.");
+    setHasCameraPermission(false);
+  }
 
   return (
     <div className="container mx-auto py-10 flex justify-center">
@@ -197,13 +189,21 @@ export default function ScanAttendancePage() {
               </Alert>
            ) : (
               <div className="relative aspect-square w-full bg-muted rounded-lg overflow-hidden">
-                <Webcam
-                    audio={false}
-                    ref={webcamRef}
-                    screenshotFormat="image/jpeg"
-                    videoConstraints={videoConstraints}
-                    className="h-full w-full object-cover"
-                />
+                {hasCameraPermission ? (
+                    <Webcam
+                        audio={false}
+                        ref={webcamRef}
+                        screenshotFormat="image/jpeg"
+                        videoConstraints={videoConstraints}
+                        className="h-full w-full object-cover"
+                        onUserMediaError={handleUserMediaError}
+                    />
+                ) : (
+                    <div className="flex flex-col items-center justify-center h-full">
+                        <VideoOff className="h-12 w-12 text-muted-foreground" />
+                        <p className="mt-2 text-muted-foreground">Camera is off or unavailable.</p>
+                    </div>
+                )}
                 <div className="absolute inset-0 border-8 border-primary/50 rounded-lg" />
                  {loading && !isExpired && (
                     <div className="absolute inset-0 bg-black/50 flex flex-col items-center justify-center text-white">
