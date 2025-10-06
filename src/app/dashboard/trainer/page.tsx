@@ -71,6 +71,12 @@ const dietFormSchema = z.object({
 });
 type DietFormData = z.infer<typeof dietFormSchema>;
 
+const broadcastSchema = z.object({
+    message: z.string().min(1, 'Message cannot be empty.'),
+});
+type BroadcastFormData = z.infer<typeof broadcastSchema>;
+
+
 export default function TrainerDashboardPage() {
   const [assignedClasses, setAssignedClasses] = useState<AssignedClass[]>([]);
   const [pastClasses, setPastClasses] = useState<AssignedClass[]>([]);
@@ -83,12 +89,18 @@ export default function TrainerDashboardPage() {
   const [isDietDialogOpen, setIsDietDialogOpen] = useState(false);
   const [selectedMemberForDiet, setSelectedMemberForDiet] = useState<AssignedMember | null>(null);
   const [isStartingChat, setIsStartingChat] = useState(false);
+  const [isBroadcastDialogOpen, setIsBroadcastDialogOpen] = useState(false);
   const router = useRouter();
   const { toast } = useToast();
 
   const dietForm = useForm<DietFormData>({
     resolver: zodResolver(dietFormSchema),
     defaultValues: { breakfast: '', lunch: '', dinner: '', snacks: '' },
+  });
+
+  const broadcastForm = useForm<BroadcastFormData>({
+    resolver: zodResolver(broadcastSchema),
+    defaultValues: { message: '' },
   });
 
 
@@ -282,6 +294,52 @@ export default function TrainerDashboardPage() {
         setIsStartingChat(false);
     }
   };
+  
+  const handleBroadcast = async (data: BroadcastFormData) => {
+    const trainerUsername = localStorage.getItem('communityUsername');
+    if (!trainerUsername) {
+        toast({ title: 'Profile Not Found', description: 'You need a community profile to send messages.', variant: 'destructive'});
+        return;
+    }
+
+    const membersToMessage = assignedMembers.filter(m => m.communityUsername);
+    if (membersToMessage.length === 0) {
+        toast({ title: 'No Recipients', description: 'None of your assigned members have community profiles.', variant: 'destructive'});
+        return;
+    }
+
+    try {
+        let count = 0;
+        for (const member of membersToMessage) {
+            const participants = [trainerUsername, member.communityUsername!].sort();
+            const chatId = participants.join('_');
+            const chatRef = doc(db, 'chats', chatId);
+            
+            const chatSnap = await getDoc(chatRef);
+            if (!chatSnap.exists()) {
+                await setDoc(chatRef, {
+                    participants: participants,
+                    createdAt: serverTimestamp(),
+                });
+            }
+
+            const messagesRef = collection(chatRef, 'messages');
+            await addDoc(messagesRef, {
+                text: data.message,
+                senderId: localStorage.getItem('trainerId'),
+                senderName: trainerUsername,
+                timestamp: serverTimestamp(),
+            });
+            count++;
+        }
+        toast({ title: 'Broadcast Sent!', description: `Your message was sent to ${count} members.`});
+        setIsBroadcastDialogOpen(false);
+        broadcastForm.reset();
+    } catch (error) {
+        console.error("Error sending broadcast:", error);
+        toast({ title: 'Error', description: 'An error occurred while sending the broadcast.', variant: 'destructive' });
+    }
+  }
 
 
   if (loading) {
@@ -289,7 +347,65 @@ export default function TrainerDashboardPage() {
   }
 
   return (
+    <>
     <Dialog open={isDietDialogOpen} onOpenChange={setIsDietDialogOpen}>
+        <DialogContent className="max-w-lg">
+            <DialogHeader>
+                <DialogTitle>Send Diet Plan to {selectedMemberForDiet?.fullName}</DialogTitle>
+                <DialogDescription>Create a diet plan for your student. They will be notified.</DialogDescription>
+            </DialogHeader>
+            <Form {...dietForm}>
+                <form onSubmit={dietForm.handleSubmit(onDietSubmit)} className="space-y-4 py-4 max-h-[70vh] overflow-y-auto pr-4">
+                    <FormField control={dietForm.control} name="breakfast" render={({ field }) => (<FormItem><FormLabel>Breakfast</FormLabel><FormControl><Textarea placeholder="e.g., Oats with fruits and nuts" {...field} /></FormControl><FormMessage /></FormItem>)} />
+                    <FormField control={dietForm.control} name="lunch" render={({ field }) => (<FormItem><FormLabel>Lunch</FormLabel><FormControl><Textarea placeholder="e.g., Grilled chicken with brown rice and salad" {...field} /></FormControl><FormMessage /></FormItem>)} />
+                    <FormField control={dietForm.control} name="dinner" render={({ field }) => (<FormItem><FormLabel>Dinner</FormLabel><FormControl><Textarea placeholder="e.g., Paneer stir-fry with vegetables" {...field} /></FormControl><FormMessage /></FormItem>)} />
+                    <FormField control={dietForm.control} name="snacks" render={({ field }) => (<FormItem><FormLabel>Snacks (Optional)</FormLabel><FormControl><Textarea placeholder="e.g., Greek yogurt, a handful of almonds" {...field} /></FormControl><FormMessage /></FormItem>)} />
+                    <DialogFooter>
+                        <Button type="button" variant="outline" onClick={() => setIsDietDialogOpen(false)}>Cancel</Button>
+                        <Button type="submit" disabled={dietForm.formState.isSubmitting}>
+                            {dietForm.formState.isSubmitting ? <Loader2 className="animate-spin" /> : 'Send Diet Plan'}
+                        </Button>
+                    </DialogFooter>
+                </form>
+            </Form>
+        </DialogContent>
+    </Dialog>
+    
+    <Dialog open={isBroadcastDialogOpen} onOpenChange={setIsBroadcastDialogOpen}>
+      <DialogContent>
+          <DialogHeader>
+              <DialogTitle>Broadcast to All Assigned Members</DialogTitle>
+              <DialogDescription>
+                  This message will be sent individually to all your assigned members who have a community profile.
+              </DialogDescription>
+          </DialogHeader>
+          <Form {...broadcastForm}>
+              <form onSubmit={broadcastForm.handleSubmit(handleBroadcast)} className="space-y-4 py-4">
+                  <FormField
+                      control={broadcastForm.control}
+                      name="message"
+                      render={({ field }) => (
+                          <FormItem>
+                              <FormLabel>Message</FormLabel>
+                              <FormControl>
+                                  <Textarea placeholder="Type your message here..." className="min-h-[120px]" {...field} />
+                              </FormControl>
+                              <FormMessage />
+                          </FormItem>
+                      )}
+                  />
+                  <DialogFooter>
+                      <Button type="button" variant="outline" onClick={() => setIsBroadcastDialogOpen(false)}>Cancel</Button>
+                      <Button type="submit" disabled={broadcastForm.formState.isSubmitting}>
+                          {broadcastForm.formState.isSubmitting ? <Loader2 className="animate-spin" /> : 'Send Broadcast'}
+                      </Button>
+                  </DialogFooter>
+              </form>
+          </Form>
+      </DialogContent>
+    </Dialog>
+
+
     <div className="container mx-auto py-10">
         {announcements.length > 0 && (
              <Alert className="mb-6">
@@ -391,9 +507,14 @@ export default function TrainerDashboardPage() {
                     </CardContent>
                 </Card>
                 <Card>
-                    <CardHeader>
-                        <CardTitle>Assigned Students</CardTitle>
-                        <CardDescription>Members you are currently training.</CardDescription>
+                    <CardHeader className="flex flex-row justify-between items-center">
+                        <div>
+                            <CardTitle>Assigned Students</CardTitle>
+                            <CardDescription>Members you are currently training.</CardDescription>
+                        </div>
+                        <Button variant="outline" onClick={() => setIsBroadcastDialogOpen(true)}>
+                            <MessageSquare className="h-4 w-4 mr-2" /> Message All Members
+                        </Button>
                     </CardHeader>
                     <CardContent>
                         <Table>
@@ -412,12 +533,10 @@ export default function TrainerDashboardPage() {
                                         <TableCell>{member.age} yrs</TableCell>
                                         <TableCell>{member.fitnessGoal || "N/A"}</TableCell>
                                         <TableCell className="space-x-2">
-                                            <DialogTrigger asChild>
-                                                <Button variant="outline" size="sm" onClick={() => setSelectedMemberForDiet(member)}>
-                                                    <Utensils className="h-4 w-4 mr-2"/>
-                                                    Send Diet
-                                                </Button>
-                                            </DialogTrigger>
+                                            <Button variant="outline" size="sm" onClick={() => {setSelectedMemberForDiet(member); setIsDietDialogOpen(true);}}>
+                                                <Utensils className="h-4 w-4 mr-2"/>
+                                                Send Diet
+                                            </Button>
                                             <Button variant="outline" size="sm" onClick={() => handleStartChat(member)} disabled={isStartingChat}>
                                                {isStartingChat ? <Loader2 className="animate-spin h-4 w-4 mr-2"/> : <MessageSquare className="h-4 w-4 mr-2"/>}
                                                 Chat
@@ -512,27 +631,6 @@ export default function TrainerDashboardPage() {
             </div>
         </div>
     </div>
-    
-    <DialogContent className="max-w-lg">
-        <DialogHeader>
-            <DialogTitle>Send Diet Plan to {selectedMemberForDiet?.fullName}</DialogTitle>
-            <DialogDescription>Create a diet plan for your student. They will be notified.</DialogDescription>
-        </DialogHeader>
-        <Form {...dietForm}>
-            <form onSubmit={dietForm.handleSubmit(onDietSubmit)} className="space-y-4 py-4 max-h-[70vh] overflow-y-auto pr-4">
-                <FormField control={dietForm.control} name="breakfast" render={({ field }) => (<FormItem><FormLabel>Breakfast</FormLabel><FormControl><Textarea placeholder="e.g., Oats with fruits and nuts" {...field} /></FormControl><FormMessage /></FormItem>)} />
-                <FormField control={dietForm.control} name="lunch" render={({ field }) => (<FormItem><FormLabel>Lunch</FormLabel><FormControl><Textarea placeholder="e.g., Grilled chicken with brown rice and salad" {...field} /></FormControl><FormMessage /></FormItem>)} />
-                <FormField control={dietForm.control} name="dinner" render={({ field }) => (<FormItem><FormLabel>Dinner</FormLabel><FormControl><Textarea placeholder="e.g., Paneer stir-fry with vegetables" {...field} /></FormControl><FormMessage /></FormItem>)} />
-                <FormField control={dietForm.control} name="snacks" render={({ field }) => (<FormItem><FormLabel>Snacks (Optional)</FormLabel><FormControl><Textarea placeholder="e.g., Greek yogurt, a handful of almonds" {...field} /></FormControl><FormMessage /></FormItem>)} />
-                <DialogFooter>
-                    <Button type="button" variant="outline" onClick={() => setIsDietDialogOpen(false)}>Cancel</Button>
-                    <Button type="submit" disabled={dietForm.formState.isSubmitting}>
-                        {dietForm.formState.isSubmitting ? <Loader2 className="animate-spin" /> : 'Send Diet Plan'}
-                    </Button>
-                </DialogFooter>
-            </form>
-        </Form>
-    </DialogContent>
-    </Dialog>
+    </>
   );
 }
