@@ -14,7 +14,7 @@ import {
   SidebarProvider,
 } from '@/components/ui/sidebar';
 import { Dumbbell, Users, CreditCard, ClipboardList, BarChart3, Megaphone, Boxes, Info, Mail, Phone, Building, UserCheck, LogOut, MessageSquare, CalendarCheck, CheckSquare, Clock, KeyRound, ChevronDown, IndianRupee, LifeBuoy, Fingerprint, Activity } from 'lucide-react';
-import { doc, getDoc, collection, getDocs, Timestamp, query, where } from 'firebase/firestore';
+import { doc, getDoc, collection, getDocs, Timestamp, query, where, onSnapshot } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -115,7 +115,7 @@ export default function OwnerDashboardLayout({
   const router = useRouter();
   const pathname = usePathname();
 
-  const isCommunityPage = pathname.startsWith('/dashboard/owner/community') || pathname.startsWith('/dashboard/owner/profile');
+  const isCommunityPage = pathname.startsWith('/dashboard/owner/community') || pathname.startsWith('/dashboard/owner/profile') || pathname.startsWith('/dashboard/owner/activity');
 
   useEffect(() => {
     setIsMounted(true);
@@ -217,18 +217,19 @@ export default function OwnerDashboardLayout({
       }
     };
     
-    const fetchNotifications = async () => {
-        const username = localStorage.getItem('communityUsername');
-        if (username) {
-            const userCommunityRef = doc(db, 'userCommunity', username);
-            const requestsQuery = query(collection(userCommunityRef, 'followRequests'));
-            const requestsSnap = await getDocs(requestsQuery);
-            setNotificationCount(requestsSnap.size);
-        }
-    };
-    
     fetchGymData();
-    fetchNotifications();
+
+    const username = localStorage.getItem('communityUsername');
+    if (username) {
+        const userCommunityRef = doc(db, 'userCommunity', username);
+        const requestsQuery = query(collection(userCommunityRef, 'followRequests'));
+        
+        const unsubscribe = onSnapshot(requestsQuery, (snapshot) => {
+            setNotificationCount(snapshot.size);
+        });
+
+        return () => unsubscribe();
+    }
   }, [pathname, router]);
 
   useEffect(() => {

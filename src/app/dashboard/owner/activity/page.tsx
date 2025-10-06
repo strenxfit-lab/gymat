@@ -2,7 +2,7 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { collection, query, where, getDocs, doc, writeBatch, serverTimestamp, orderBy, arrayUnion, updateDoc } from 'firebase/firestore';
+import { collection, query, where, getDocs, doc, writeBatch, serverTimestamp, orderBy, arrayUnion, updateDoc, onSnapshot, collectionGroup } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -11,6 +11,7 @@ import { Loader2, ArrowLeft, Check, X, UserPlus, MessageCircle, Bell } from 'luc
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import Link from 'next/link';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { formatDistanceToNow } from 'date-fns';
 
 interface FollowRequest {
     id: string;
@@ -23,7 +24,7 @@ interface Notification {
     type: 'follow' | 'request_accepted';
     fromUsername: string;
     isFollowingBack?: boolean;
-    createdAt: string;
+    createdAt: Date;
 }
 
 export default function ActivityPage() {
@@ -44,15 +45,14 @@ export default function ActivityPage() {
         
         try {
             const userCommunityRef = doc(db, 'userCommunity', username);
+            
             const userCommunitySnap = await getDoc(userCommunityRef);
             const currentUserFollowing = userCommunitySnap.exists() ? userCommunitySnap.data().following || [] : [];
             
-            // Fetch Follow Requests
             const requestsQuery = query(collection(userCommunityRef, 'followRequests'), orderBy('requestedAt', 'desc'));
             const requestsSnap = await getDocs(requestsQuery);
             setRequests(requestsSnap.docs.map(d => ({ id: d.id, username: d.id } as FollowRequest)));
 
-            // Fetch Notifications
             const notificationsQuery = query(collection(userCommunityRef, 'notifications'), orderBy('createdAt', 'desc'));
             const notificationsSnap = await getDocs(notificationsQuery);
             const notifList = notificationsSnap.docs.map(d => {
@@ -61,7 +61,7 @@ export default function ActivityPage() {
                     id: d.id,
                     ...data,
                     isFollowingBack: currentUserFollowing.includes(data.fromUsername),
-                    createdAt: d.data().createdAt?.toDate().toLocaleString() || ''
+                    createdAt: data.createdAt?.toDate()
                 } as Notification;
             });
             setNotifications(notifList);
@@ -104,7 +104,7 @@ export default function ActivityPage() {
             await batch.commit();
 
             toast({ title: "Success", description: `Request has been ${accept ? 'accepted' : 'declined'}.`});
-            fetchAllData();
+            await fetchAllData();
 
         } catch (error) {
             console.error("Error handling request:", error);
@@ -196,7 +196,7 @@ export default function ActivityPage() {
                                                 {notif.type === 'follow' ? <UserPlus className="h-5 w-5 text-primary" /> : <Check className="h-5 w-5 text-green-500" />}
                                                 <div>
                                                     <p>{notif.message}</p>
-                                                    <p className="text-xs text-muted-foreground">{notif.createdAt}</p>
+                                                    <p className="text-xs text-muted-foreground">{formatDistanceToNow(notif.createdAt, { addSuffix: true })}</p>
                                                 </div>
                                             </div>
                                             {notif.type === 'follow' && !notif.isFollowingBack && (
