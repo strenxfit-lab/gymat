@@ -86,8 +86,14 @@ export default function MemberDashboardLayout({
   const isCommunityPage = pathname.startsWith('/dashboard/member/community') || pathname.startsWith('/dashboard/member/profile') || pathname.startsWith('/dashboard/member/activity');
 
   if (isCommunityPage) {
+    // The profile page is a special case that does not use the community layout with bottom navbar
+    if (pathname.startsWith('/dashboard/member/profile')) {
+       return <>{children}</>;
+    }
+    // All other community-related pages get the special layout
     return <>{children}</>;
   }
+
 
   return (
     <SidebarProvider>

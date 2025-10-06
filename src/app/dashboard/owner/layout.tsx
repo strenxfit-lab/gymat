@@ -275,6 +275,9 @@ export default function OwnerDashboardLayout({
   };
 
   if (isCommunityPage) {
+    if (pathname.startsWith('/dashboard/owner/profile')) {
+       return <>{children}</>;
+    }
     return <>{children}</>;
   }
 

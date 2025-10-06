@@ -85,8 +85,13 @@ export default function TrainerDashboardLayout({
   const isCommunityPage = pathname.startsWith('/dashboard/trainer/community') || pathname.startsWith('/dashboard/trainer/profile') || pathname.startsWith('/dashboard/trainer/activity');
 
   if (isCommunityPage) {
+    // The profile page is a special case that does not use the community layout with bottom navbar
+    if (pathname.startsWith('/dashboard/trainer/profile')) {
+        return <>{children}</>;
+    }
     return <>{children}</>;
   }
+
 
   return (
     <SidebarProvider>
