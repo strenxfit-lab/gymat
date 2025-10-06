@@ -24,19 +24,22 @@ export default function ScanAttendancePage() {
   const router = useRouter();
   const { toast } = useToast();
 
-  useEffect(() => {
-    const requestCamera = async () => {
+   useEffect(() => {
+    const getCameraPermission = async () => {
       try {
         const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-        stream.getTracks().forEach(track => track.stop());
         setHasCameraPermission(true);
+        if (webcamRef.current && webcamRef.current.video) {
+            webcamRef.current.video.srcObject = stream;
+        }
       } catch (err) {
         console.error("Camera access denied:", err);
         setHasCameraPermission(false);
       }
     };
-    requestCamera();
-  }, []);
+
+    getCameraPermission();
+  }, [facingMode]);
 
   useEffect(() => {
     if (!hasCameraPermission || isScanned) return;
@@ -192,7 +195,7 @@ export default function ScanAttendancePage() {
                   Your membership has expired. Please renew your plan to check in.
                 </AlertDescription>
               </Alert>
-           ) : hasCameraPermission ? (
+           ) : (
               <div className="relative aspect-square w-full bg-muted rounded-lg overflow-hidden">
                 <Webcam
                     audio={false}
@@ -215,8 +218,9 @@ export default function ScanAttendancePage() {
                     <span className="sr-only">Flip camera</span>
                  </Button>
               </div>
-            ) : (
-                <Alert variant="destructive">
+            )}
+            {!hasCameraPermission && (
+                 <Alert variant="destructive">
                     <VideoOff className="h-4 w-4" />
                     <AlertTitle>Camera Access Denied</AlertTitle>
                     <AlertDescription>Please enable camera permissions in your browser to scan the QR code.</AlertDescription>
