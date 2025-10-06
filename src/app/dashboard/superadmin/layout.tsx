@@ -13,7 +13,7 @@ import {
   SidebarFooter,
   SidebarProvider,
 } from '@/components/ui/sidebar';
-import { Dumbbell, LogOut, LayoutDashboard, UserCog, IndianRupee } from 'lucide-react';
+import { Dumbbell, LogOut, LayoutDashboard, UserCog, IndianRupee, Flag } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { ThemeToggle } from '@/components/theme-toggle';
@@ -77,6 +77,7 @@ export default function SuperAdminDashboardLayout({
           <SidebarMenu>
             <MenuItem href="/dashboard/superadmin" icon={<LayoutDashboard />}>Dashboard</MenuItem>
             <MenuItem href="/dashboard/superadmin/settlements" icon={<IndianRupee />}>Settlements</MenuItem>
+            <MenuItem href="/dashboard/superadmin/reports" icon={<Flag />}>Reports</MenuItem>
           </SidebarMenu>
         </SidebarContent>
         <SidebarFooter className="p-4 space-y-4">
