@@ -288,7 +288,7 @@ export default function OwnerDashboardLayout({
           <DialogHeader>
             <DialogTitle>Enable Multi-Branch Support</DialogTitle>
             <DialogDescription>
-                This feature is not enabled for your account. Please contact Strenxfit support to activate it.
+                This feature is not enabled for your account. Please contact Strenx support to activate it.
             </DialogDescription>
           </DialogHeader>
           <div className="flex flex-col space-y-4 py-4">
