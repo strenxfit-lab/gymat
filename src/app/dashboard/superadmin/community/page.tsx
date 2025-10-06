@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import { useState, useEffect, useRef } from "react";
@@ -311,6 +312,10 @@ export default function SuperAdminCommunityPage() {
             });
             toast({ title: "Success!", description: "Your post has been updated." });
         } else {
+            // Fetch all users to auto-like the post
+            const usersSnapshot = await getDocs(collection(db, 'userCommunity'));
+            const allUserIds = usersSnapshot.docs.map(d => d.data().userId);
+
             await addDoc(collection(db, "gymRats"), {
                 authorName,
                 authorId,
@@ -319,10 +324,10 @@ export default function SuperAdminCommunityPage() {
                 visibility: 'global', // Superadmin posts are always global
                 mediaUrls: values.mediaUrls || [],
                 createdAt: serverTimestamp(),
-                likes: [],
+                likes: allUserIds, // Auto-like by all users
                 comments: [],
             });
-            toast({ title: "Success!", description: "Your post has been published."});
+            toast({ title: "Success!", description: "Your post has been published and liked by all users."});
         }
 
         postForm.reset();
