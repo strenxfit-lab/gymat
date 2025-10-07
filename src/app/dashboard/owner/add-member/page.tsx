@@ -9,7 +9,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { addDays, format } from 'date-fns';
 import { Loader2, User, Calendar as CalendarIcon, Dumbbell, HeartPulse, ChevronLeft, ChevronRight, Building, KeyRound, ClipboardCopy, IndianRupee, LayoutDashboard, Phone, Mail } from 'lucide-react';
-import { collection, addDoc, getDocs, doc, Timestamp, getDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, addDoc, getDocs, doc, Timestamp, getDoc, serverTimestamp, setDoc, query, where, deleteDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useToast } from '@/hooks/use-toast';
 
@@ -139,7 +139,7 @@ export default function AddMemberPage() {
   const { toast } = useToast();
   const router = useRouter();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [newMember, setNewMember] = useState<{ id: string; name: string; loginId?: string; password?: string; } | null>(null);
+  const [newMember, setNewMember] = useState<{ id: string; name: string; loginId?: string; password?: string; existing: boolean; } | null>(null);
   const [activeBranchId, setActiveBranchId] = useState<string | null>(null);
   const [activeBranchName, setActiveBranchName] = useState<string | null>(null);
   const [isTrial, setIsTrial] = useState(false);
@@ -245,53 +245,76 @@ export default function AddMemberPage() {
     setIsLoading(true);
 
     try {
-      const membersCollection = collection(db, 'gyms', userDocId, 'branches', activeBranchId, 'members');
+      const removedUserRef = doc(db, 'removedUsers', data.phone);
+      const removedUserSnap = await getDoc(removedUserRef);
       
-      let endDate;
-      const { membershipType, startDate } = data;
-      if (membershipType && startDate) {
-        let date = new Date(startDate);
-        switch (membershipType) {
-          case 'monthly': endDate = addDays(date, 30); break;
-          case 'quarterly': endDate = addDays(date, 90); break;
-          case 'half-yearly': endDate = addDays(date, 180); break;
-          case 'yearly': endDate = addDays(date, 365); break;
-          case 'trial': endDate = addDays(date, 7); break;
-          default: endDate = addDays(date, 30);
-        }
+      let memberData: any;
+      let newDocRefId: string;
+      let existingUser = false;
+
+      const endDate = data.membershipType && data.startDate ? addDays(new Date(data.startDate), {
+          'monthly': 30, 'quarterly': 90, 'half-yearly': 180, 'yearly': 365, 'trial': 7
+      }[data.membershipType] || 30) : undefined;
+
+      if (removedUserSnap.exists()) {
+          // Re-activate existing user
+          const existingData = removedUserSnap.data();
+          memberData = {
+              ...existingData, // Keep original credentials and some details
+              ...data, // Overwrite with new gym-specific data
+              totalFee: data.totalFee ? parseFloat(data.totalFee) : 0,
+              dob: data.dob ? Timestamp.fromDate(data.dob) : existingData.dob || null,
+              startDate: data.startDate ? Timestamp.fromDate(data.startDate) : null,
+              endDate: endDate ? Timestamp.fromDate(endDate) : null,
+              createdAt: serverTimestamp(),
+              status: 'Active',
+              role: 'member'
+          };
+          
+          const newMemberRef = doc(collection(db, 'gyms', userDocId, 'branches', activeBranchId, 'members'));
+          await setDoc(newMemberRef, memberData);
+          await deleteDoc(removedUserRef); // Remove from removedUsers
+          newDocRefId = newMemberRef.id;
+          existingUser = true;
+
+          setNewMember({ id: newDocRefId, name: data.fullName, loginId: data.phone, existing: true });
+
+      } else {
+          // Add new user
+          const loginId = data.phone;
+          const password = Math.random().toString(36).slice(-8);
+
+          memberData = {
+            ...data,
+            totalFee: data.totalFee ? parseFloat(data.totalFee) : 0,
+            dob: data.dob ? Timestamp.fromDate(data.dob) : null,
+            startDate: data.startDate ? Timestamp.fromDate(data.startDate) : null,
+            endDate: endDate ? Timestamp.fromDate(endDate) : null,
+            createdAt: serverTimestamp(),
+            loginId: loginId,
+            password: password,
+            role: 'member',
+            passwordChanged: false,
+            status: 'Active',
+          };
+           if (data.membershipType === 'trial') {
+               memberData.isTrial = true;
+           }
+
+          const membersCollection = collection(db, 'gyms', userDocId, 'branches', activeBranchId, 'members');
+          const newDocRef = await addDoc(membersCollection, memberData);
+          newDocRefId = newDocRef.id;
+
+          setNewMember({ id: newDocRefId, name: data.fullName, loginId, password, existing: false });
       }
-      
-      const loginId = data.phone; // Use phone number as login ID
-      const password = Math.random().toString(36).slice(-8);
 
-      const memberData: any = {
-        ...data,
-        totalFee: data.totalFee ? parseFloat(data.totalFee) : 0,
-        dob: data.dob ? Timestamp.fromDate(data.dob) : null,
-        startDate: data.startDate ? Timestamp.fromDate(data.startDate) : null,
-        endDate: endDate ? Timestamp.fromDate(endDate) : null,
-        createdAt: serverTimestamp(),
-        loginId: loginId,
-        password: password,
-        role: 'member',
-        passwordChanged: false,
-        status: 'Active',
-      };
-
-      if (data.membershipType === 'trial') {
-        memberData.isTrial = true;
-      }
-
-      const newDocRef = await addDoc(membersCollection, memberData);
-
-      setNewMember({ id: newDocRef.id, name: data.fullName, loginId, password });
       setIsDialogOpen(true);
 
     } catch (error) {
-      console.error("Error adding member:", error);
+      console.error("Error adding/re-activating member:", error);
       toast({
         title: 'Error',
-        description: 'Could not add member. Please try again.',
+        description: 'Could not process member. Please try again.',
         variant: 'destructive',
       });
     } finally {
@@ -336,14 +359,17 @@ export default function AddMemberPage() {
       <AlertDialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Member Added Successfully!</AlertDialogTitle>
+            <AlertDialogTitle>{newMember?.existing ? 'Member Re-activated!' : 'Member Added Successfully!'}</AlertDialogTitle>
             <AlertDialogDescription>
-              Login credentials for {newMember?.name} have been created.
+              {newMember?.existing 
+                ? `${newMember.name} already has an account. They can use their existing credentials to log in.`
+                : `Login credentials for ${newMember?.name} have been created.`
+              }
             </AlertDialogDescription>
           </AlertDialogHeader>
             <div className="space-y-4 my-4">
                 <div className="space-y-2">
-                    <Label htmlFor="loginId">Login ID (Member No.)</Label>
+                    <Label htmlFor="loginId">Login ID (Phone No.)</Label>
                     <div className="flex items-center gap-2">
                         <Input id="loginId" value={newMember?.loginId || ''} readOnly />
                          <Button variant="outline" size="icon" onClick={() => copyToClipboard(newMember?.loginId || '')}><ClipboardCopy className="h-4 w-4" /></Button>
@@ -352,8 +378,8 @@ export default function AddMemberPage() {
                  <div className="space-y-2">
                     <Label htmlFor="password">Password</Label>
                      <div className="flex items-center gap-2">
-                        <Input id="password" value={newMember?.password || ''} readOnly />
-                        <Button variant="outline" size="icon" onClick={() => copyToClipboard(newMember?.password || '')}><ClipboardCopy className="h-4 w-4" /></Button>
+                        <Input id="password" value={newMember?.existing ? 'Account Already Created' : newMember?.password || ''} readOnly disabled={newMember?.existing} />
+                        {!newMember?.existing && <Button variant="outline" size="icon" onClick={() => copyToClipboard(newMember?.password || '')}><ClipboardCopy className="h-4 w-4" /></Button>}
                     </div>
                 </div>
             </div>
