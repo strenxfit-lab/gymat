@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, useRef } from "react";
@@ -116,6 +117,8 @@ export default function CommunityPage() {
   const [userChats, setUserChats] = useState<Chat[]>([]);
   const [isFetchingChats, setIsFetchingChats] = useState(false);
   const [hasNewMessage, setHasNewMessage] = useState(false);
+  const [isGymMember, setIsGymMember] = useState(true);
+  const [isMembershipDialog, setIsMembershipDialog] = useState(false);
 
 
   const postForm = useForm<PostFormData>({
@@ -143,6 +146,9 @@ export default function CommunityPage() {
   });
 
   useEffect(() => {
+    const gymId = localStorage.getItem('userDocId');
+    setIsGymMember(!!gymId);
+    
     const checkNotification = async () => {
         const username = localStorage.getItem('communityUsername');
         if (!username) return;
@@ -205,15 +211,16 @@ export default function CommunityPage() {
 
     setIsLoading(true);
     const gymId = localStorage.getItem('userDocId');
-    if (!gymId) {
-        setIsLoading(false);
-        return;
-    }
 
     let q;
     if (activeTab === 'global') {
         q = query(collection(db, "gymRats"), where("visibility", "==", "global"));
     } else { // 'your_gym'
+        if (!isGymMember) {
+            setIsLoading(false);
+            setPosts([]);
+            return;
+        }
         q = query(collection(db, "gymRats"), where("gymId", "==", gymId));
     }
 
@@ -243,7 +250,7 @@ export default function CommunityPage() {
     });
 
     return () => unsubscribe();
-  }, [activeTab, toast, hasCommunityProfile]);
+  }, [activeTab, toast, hasCommunityProfile, isGymMember]);
   
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>, type: 'image' | 'video') => {
@@ -307,7 +314,13 @@ export default function CommunityPage() {
     const authorName = localStorage.getItem('communityUsername') || localStorage.getItem('userName');
     const authorId = localStorage.getItem('memberId');
 
-    if (!gymId || !authorId || !authorName) {
+    if (values.visibility === 'local' && !isGymMember) {
+        toast({ title: "Cannot Post", description: "You must be a member of a gym to post locally.", variant: "destructive" });
+        setIsSubmitting(false);
+        return;
+    }
+
+    if (!authorId || !authorName) {
         toast({ title: "Error", description: "You must be logged in to post.", variant: "destructive" });
         setIsSubmitting(false);
         return;
@@ -326,7 +339,7 @@ export default function CommunityPage() {
         await addDoc(collection(db, "gymRats"), {
             authorName,
             authorId,
-            gymId,
+            gymId: gymId || 'global_user',
             text: values.text,
             visibility: values.visibility,
             mediaUrls: values.mediaUrls || [],
@@ -528,7 +541,7 @@ export default function CommunityPage() {
     const gymId = localStorage.getItem('userDocId');
     const authorName = localStorage.getItem('communityUsername') || localStorage.getItem('userName');
     const authorId = localStorage.getItem('memberId');
-    if (!gymId || !authorId || !authorName) {
+    if (!authorId || !authorName) {
       toast({ title: "Error", description: "You must be logged in to repost.", variant: "destructive" });
       setIsSubmitting(false);
       return;
@@ -538,7 +551,7 @@ export default function CommunityPage() {
       await addDoc(collection(db, "gymRats"), {
         authorName,
         authorId,
-        gymId,
+        gymId: gymId || 'global_user',
         text: values.caption || '',
         visibility: values.visibility,
         createdAt: serverTimestamp(),
@@ -621,6 +634,14 @@ export default function CommunityPage() {
           toast({ title: "Error", description: "Could not share post.", variant: "destructive" });
       }
   };
+  
+  const handleTabClick = (value: string) => {
+      if (value === 'your_gym' && !isGymMember) {
+          setIsMembershipDialog(true);
+      } else {
+          setActiveTab(value);
+      }
+  }
 
 
   const renderFeed = () => {
@@ -826,6 +847,17 @@ export default function CommunityPage() {
 
   return (
     <div className="h-screen w-screen flex flex-col">
+       <Dialog open={isMembershipDialog} onOpenChange={setIsMembershipDialog}>
+        <DialogContent>
+            <DialogHeader>
+                <DialogTitle>No Active Membership</DialogTitle>
+                <DialogDescription>You don't have an active gym membership, so you can't view local gym posts.</DialogDescription>
+            </DialogHeader>
+            <DialogFooter>
+                <Button onClick={() => setIsMembershipDialog(false)}>OK</Button>
+            </DialogFooter>
+        </DialogContent>
+       </Dialog>
        <Dialog open={isShareDialogOpen} onOpenChange={setIsShareDialogOpen}>
         <DialogContent>
           <DialogHeader>
@@ -885,7 +917,7 @@ export default function CommunityPage() {
                             <FormLabel>Share To</FormLabel>
                             <FormControl>
                                 <RadioGroup onValueChange={field.onChange} value={field.value} className="flex gap-4">
-                                    <FormItem className="flex items-center space-x-3 space-y-0"><FormControl><RadioGroupItem value="local" /></FormControl><FormLabel className="font-normal">Your Gym</FormLabel></FormItem>
+                                    <FormItem className="flex items-center space-x-3 space-y-0"><FormControl><RadioGroupItem value="local" disabled={!isGymMember} /></FormControl><FormLabel className="font-normal">Your Gym</FormLabel></FormItem>
                                     <FormItem className="flex items-center space-x-3 space-y-0"><FormControl><RadioGroupItem value="global" /></FormControl><FormLabel className="font-normal">Global</FormLabel></FormItem>
                                 </RadioGroup>
                             </FormControl>
@@ -909,7 +941,7 @@ export default function CommunityPage() {
             }
             setIsPostDialogOpen(open);
         }}>
-          <Tabs defaultValue="global" value={activeTab} onValueChange={setActiveTab} className="h-full flex flex-col">
+          <Tabs defaultValue="global" value={activeTab} onValueChange={handleTabClick} className="h-full flex flex-col">
             <header className="p-4 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-10">
               <div className="flex items-center justify-between">
                   <h1 className="text-2xl font-bold">Community</h1>
@@ -1002,7 +1034,7 @@ export default function CommunityPage() {
                               <FormLabel>Visibility</FormLabel>
                               <FormControl>
                                   <RadioGroup onValueChange={field.onChange} value={field.value} className="flex gap-4">
-                                      <FormItem className="flex items-center space-x-3 space-y-0"><FormControl><RadioGroupItem value="local" /></FormControl><FormLabel className="font-normal">Your Gym</FormLabel></FormItem>
+                                      <FormItem className="flex items-center space-x-3 space-y-0"><FormControl><RadioGroupItem value="local" disabled={!isGymMember} /></FormControl><FormLabel className="font-normal">Your Gym</FormLabel></FormItem>
                                       <FormItem className="flex items-center space-x-3 space-y-0"><FormControl><RadioGroupItem value="global" /></FormControl><FormLabel className="font-normal">Global</FormLabel></FormItem>
                                   </RadioGroup>
                               </FormControl>

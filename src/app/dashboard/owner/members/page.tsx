@@ -4,23 +4,26 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { collection, getDocs, Timestamp, query, where } from 'firebase/firestore';
+import { collection, getDocs, Timestamp, query, where, deleteDoc, doc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { MoreHorizontal, ArrowLeft } from "lucide-react";
+import { MoreHorizontal, ArrowLeft, Trash2 } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuTrigger,
+  DropdownMenuSeparator
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+
 
 type MemberStatus = 'Active' | 'Expired' | 'Pending' | 'Frozen' | 'Stopped';
 
@@ -66,70 +69,88 @@ export default function MembersListPage() {
   const router = useRouter();
   const { toast } = useToast();
 
-  useEffect(() => {
+  const fetchData = async () => {
+    setLoading(true);
+    const userDocId = localStorage.getItem('userDocId');
     const branch = localStorage.getItem('activeBranch');
     setActiveBranch(branch);
 
-    const userDocId = localStorage.getItem('userDocId');
     if (!userDocId || !branch) {
       if (!userDocId) router.push('/');
       setLoading(false);
       return;
     }
 
-    const fetchData = async () => {
-      try {
-        const membersCollection = collection(db, 'gyms', userDocId, 'branches', branch, 'members');
-        const membersSnapshot = await getDocs(membersCollection);
-        const now = new Date();
+    try {
+      const membersCollection = collection(db, 'gyms', userDocId, 'branches', branch, 'members');
+      const membersSnapshot = await getDocs(membersCollection);
+      const now = new Date();
 
-        const membersList = membersSnapshot.docs.map(doc => {
-          const data = doc.data();
-          const endDate = (data.endDate as Timestamp)?.toDate();
-          
-          let status: MemberStatus = data.status || 'Pending';
-           if (status === 'Active' && endDate && endDate < now) {
-                status = 'Expired';
-           }
-
-          return {
-            id: doc.id,
-            fullName: data.fullName,
-            email: data.email,
-            phone: data.phone,
-            membershipType: data.membershipType,
-            startDate: (data.startDate as Timestamp)?.toDate(),
-            endDate: endDate,
-            status: status,
-          } as Member;
-        });
-        setMembers(membersList);
+      const membersList = membersSnapshot.docs.map(doc => {
+        const data = doc.data();
+        const endDate = (data.endDate as Timestamp)?.toDate();
         
-        const trainersCollection = collection(db, 'gyms', userDocId, 'branches', branch, 'trainers');
-        const trainersSnapshot = await getDocs(trainersCollection);
-        const trainersList = trainersSnapshot.docs.map(doc => {
-          const data = doc.data();
-          return {
-            id: doc.id,
-            fullName: data.fullName,
-            email: data.email,
-            phone: data.phone,
-            specialization: data.specialization,
-            shiftTiming: data.shiftTiming,
-          } as Trainer;
-        });
-        setTrainers(trainersList);
+        let status: MemberStatus = data.status || 'Pending';
+         if (status === 'Active' && endDate && endDate < now) {
+              status = 'Expired';
+         }
 
-      } catch (error) {
-        console.error("Error fetching data:", error);
-        toast({ title: "Error", description: "Failed to fetch lists.", variant: "destructive" });
-      } finally {
-        setLoading(false);
-      }
-    };
+        return {
+          id: doc.id,
+          fullName: data.fullName,
+          email: data.email,
+          phone: data.phone,
+          membershipType: data.membershipType,
+          startDate: (data.startDate as Timestamp)?.toDate(),
+          endDate: endDate,
+          status: status,
+        } as Member;
+      });
+      setMembers(membersList);
+      
+      const trainersCollection = collection(db, 'gyms', userDocId, 'branches', branch, 'trainers');
+      const trainersSnapshot = await getDocs(trainersCollection);
+      const trainersList = trainersSnapshot.docs.map(doc => {
+        const data = doc.data();
+        return {
+          id: doc.id,
+          fullName: data.fullName,
+          email: data.email,
+          phone: data.phone,
+          specialization: data.specialization,
+          shiftTiming: data.shiftTiming,
+        } as Trainer;
+      });
+      setTrainers(trainersList);
 
+    } catch (error) {
+      console.error("Error fetching data:", error);
+      toast({ title: "Error", description: "Failed to fetch lists.", variant: "destructive" });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
     fetchData();
   }, [router, toast]);
+  
+  const handleRemoveMember = async (memberId: string) => {
+    const userDocId = localStorage.getItem('userDocId');
+    const branch = localStorage.getItem('activeBranch');
+    if (!userDocId || !branch) return;
+
+    try {
+        const memberRef = doc(db, 'gyms', userDocId, 'branches', branch, 'members', memberId);
+        await deleteDoc(memberRef);
+        toast({ title: 'Member Removed', description: 'The member has been removed from your gym.' });
+        fetchData(); // Refresh the list
+    } catch (error) {
+        console.error("Error removing member: ", error);
+        toast({ title: 'Error', description: 'Could not remove member.', variant: 'destructive'});
+    }
+  };
+
 
   const filteredMembers = members.filter(member =>
     member.fullName.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -204,20 +225,40 @@ export default function MembersListPage() {
                                 </Badge>
                                 </TableCell>
                                 <TableCell>
-                                <DropdownMenu>
-                                    <DropdownMenuTrigger asChild>
-                                    <Button aria-haspopup="true" size="icon" variant="ghost">
-                                        <MoreHorizontal className="h-4 w-4" />
-                                        <span className="sr-only">Toggle menu</span>
-                                    </Button>
-                                    </DropdownMenuTrigger>
-                                    <DropdownMenuContent align="end">
-                                    <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                                    <DropdownMenuItem onSelect={() => router.push(`/dashboard/owner/members/${member.id}`)}>View Profile</DropdownMenuItem>
-                                    <DropdownMenuItem onSelect={() => router.push(`/dashboard/owner/members/${member.id}/edit`)}>Edit Profile</DropdownMenuItem>
-                                    <DropdownMenuItem onSelect={() => router.push(`/dashboard/owner/add-payment?memberId=${member.id}`)}>Collect Payment</DropdownMenuItem>
-                                    </DropdownMenuContent>
-                                </DropdownMenu>
+                                <AlertDialog>
+                                    <DropdownMenu>
+                                        <DropdownMenuTrigger asChild>
+                                        <Button aria-haspopup="true" size="icon" variant="ghost">
+                                            <MoreHorizontal className="h-4 w-4" />
+                                            <span className="sr-only">Toggle menu</span>
+                                        </Button>
+                                        </DropdownMenuTrigger>
+                                        <DropdownMenuContent align="end">
+                                            <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                                            <DropdownMenuItem onSelect={() => router.push(`/dashboard/owner/members/${member.id}`)}>View Profile</DropdownMenuItem>
+                                            <DropdownMenuItem onSelect={() => router.push(`/dashboard/owner/members/${member.id}/edit`)}>Edit Profile</DropdownMenuItem>
+                                            <DropdownMenuItem onSelect={() => router.push(`/dashboard/owner/add-payment?memberId=${member.id}`)}>Collect Payment</DropdownMenuItem>
+                                            <DropdownMenuSeparator/>
+                                            <AlertDialogTrigger asChild>
+                                                <DropdownMenuItem className="text-destructive focus:text-destructive">
+                                                    <Trash2 className="mr-2 h-4 w-4" /> Not in My Gym
+                                                </DropdownMenuItem>
+                                            </AlertDialogTrigger>
+                                        </DropdownMenuContent>
+                                    </DropdownMenu>
+                                    <AlertDialogContent>
+                                        <AlertDialogHeader>
+                                            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                                            <AlertDialogDescription>
+                                                This action will permanently remove {member.fullName} from your gym. Their data will be deleted and they will lose access.
+                                            </AlertDialogDescription>
+                                        </AlertDialogHeader>
+                                        <AlertDialogFooter>
+                                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                            <AlertDialogAction onClick={() => handleRemoveMember(member.id)}>Confirm</AlertDialogAction>
+                                        </AlertDialogFooter>
+                                    </AlertDialogContent>
+                                </AlertDialog>
                                 </TableCell>
                             </TableRow>
                             ))
