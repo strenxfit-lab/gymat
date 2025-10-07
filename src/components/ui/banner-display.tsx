@@ -2,7 +2,7 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { collection, query, where, getDocs, orderBy, Timestamp } from 'firebase/firestore';
+import { collection, query, where, getDocs, Timestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import Image from 'next/image';
 import Link from 'next/link';
@@ -37,14 +37,16 @@ export function BannerDisplay({ location }: BannerDisplayProps) {
         const q = query(
           bannersRef,
           where('status', '==', 'active'),
-          where('targetRoles', 'array-contains', userRole),
-          orderBy('createdAt', 'desc')
+          where('targetRoles', 'array-contains', userRole)
         );
 
         const querySnapshot = await getDocs(q);
         const bannersList = querySnapshot.docs
           .map(doc => ({ id: doc.id, ...doc.data() } as Banner))
-          .filter(banner => banner.displayLocations.includes(location)); // Filter display location on client-side
+          .filter(banner => banner.displayLocations.includes(location));
+          
+        // Sort on the client side
+        bannersList.sort((a, b) => b.createdAt.toDate().getTime() - a.createdAt.toDate().getTime());
 
         setBanners(bannersList);
       } catch (error) {
