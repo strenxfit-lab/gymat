@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button";
 import { CalendarCheck, Tags, IndianRupee, Percent, ShieldCheck, User, LogOut, Bell, Building, Cake, Clock, Loader2, MessageSquare, Utensils, Users as UsersIcon, Megaphone, QrCode, CreditCard, AlertCircle } from "lucide-react";
 import Link from 'next/link';
-import { collection, getDocs, query, where, Timestamp, doc, getDoc, collectionGroup, orderBy, setDoc } from 'firebase/firestore';
+import { collection, getDocs, query, where, Timestamp, doc, getDoc, collectionGroup, orderBy, setDoc, limit } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useToast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge';
@@ -528,3 +528,5 @@ export default function MemberDashboard() {
     </div>
   );
 }
+
+    
