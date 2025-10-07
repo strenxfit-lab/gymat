@@ -40,6 +40,7 @@ export default function RootLayout({
             `,
           }}
         />
+        <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-XXXXXXXXXXXXXXXX" crossOrigin="anonymous"></script>
       </head>
       <body className={cn("font-body antialiased", inter.variable)}>
         <ThemeProvider

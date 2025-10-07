@@ -1,5 +1,4 @@
 
-
 "use client";
 
 import { useState, useEffect, useRef } from "react";
@@ -28,6 +27,7 @@ import { UserSearch } from "@/components/user-search";
 import { useRouter } from "next/navigation";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import Link from "next/link";
+import AdsenseDisplay from "@/components/ui/adsense-display";
 
 
 interface Comment {
@@ -558,160 +558,169 @@ export default function SuperAdminCommunityPage() {
 
   const renderFeed = () => {
     if (isLoading) {
-        return <div className="flex justify-center p-8"><Loader2 className="h-8 w-8 animate-spin"/></div>;
+      return <div className="flex justify-center p-8"><Loader2 className="h-8 w-8 animate-spin"/></div>;
     }
-
+  
     if (posts.length === 0) {
-        return (
-            <div className="text-center py-12 border-2 border-dashed rounded-lg">
-                <p className="text-muted-foreground">No posts yet.</p>
-                <p className="text-sm text-muted-foreground">Be the first to start a conversation!</p>
-            </div>
-        );
+      return (
+        <div className="text-center py-12 border-2 border-dashed rounded-lg">
+          <p className="text-muted-foreground">No posts yet.</p>
+          <p className="text-sm text-muted-foreground">Be the first to start a conversation!</p>
+        </div>
+      );
     }
-
+  
     const userId = localStorage.getItem('userDocId');
-
-    return posts.map(post => (
-        <Card key={post.id} className="mb-4">
-            <CardHeader className="flex flex-row items-start gap-4">
-                <Avatar>
-                    <AvatarImage src={post.authorPhotoUrl} />
-                    <AvatarFallback>{post.authorName?.charAt(0).toUpperCase() || 'U'}</AvatarFallback>
-                </Avatar>
-                <div className="flex-1">
-                    <div className="flex justify-between items-start">
-                        <div>
-                            <Link href={`/profile/${post.authorName}`} className="hover:underline">
-                                <CardTitle className="text-base">{post.authorName}</CardTitle>
-                            </Link>
-                            <p className="text-xs text-muted-foreground">
-                                {post.createdAt ? `${formatDistanceToNow(post.createdAt)} ago` : 'just now'}
-                            </p>
-                        </div>
-                        <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" size="icon" className="h-8 w-8">
-                                    <MoreVertical className="h-4 w-4"/>
-                                </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent>
-                                {post.authorId === userId && (
-                                    <>
-                                        <DropdownMenuItem onSelect={() => setEditingPost(post)}>
-                                            <Edit className="mr-2 h-4 w-4" /> Edit
-                                        </DropdownMenuItem>
-                                        <AlertDialog>
-                                            <AlertDialogTrigger asChild>
-                                                <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="text-destructive focus:text-destructive">
-                                                    <Trash className="mr-2 h-4 w-4" /> Delete
-                                                </DropdownMenuItem>
-                                            </AlertDialogTrigger>
-                                            <AlertDialogContent>
-                                                <AlertDialogHeader>
-                                                    <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                                                    <AlertDialogDescription>This action cannot be undone. This will permanently delete your post.</AlertDialogDescription>
-                                                </AlertDialogHeader>
-                                                <AlertDialogFooter>
-                                                    <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                                    <AlertDialogAction onClick={() => handleDeletePost(post.id)}>Delete</AlertDialogAction>
-                                                </AlertDialogFooter>
-                                            </AlertDialogContent>
-                                        </AlertDialog>
-                                        <DropdownMenuSeparator />
-                                    </>
-                                )}
-                                <DropdownMenuItem onSelect={() => handleReportPost(post.id)}>
-                                    <Flag className="mr-2"/> Report Post
-                                </DropdownMenuItem>
-                            </DropdownMenuContent>
-                        </DropdownMenu>
-                    </div>
-                </div>
-            </CardHeader>
-            <CardContent>
-                {post.text && <p className="whitespace-pre-wrap mb-4">{post.text}</p>}
-                
-                {post.repost ? (
-                    <div className="border rounded-md p-4 mt-2">
-                         <div className="flex items-center gap-2 mb-2">
-                             <Avatar className="h-6 w-6">
-                                <AvatarFallback>{post.repost.originalAuthorName?.charAt(0).toUpperCase() || 'U'}</AvatarFallback>
-                            </Avatar>
-                            <span className="text-sm font-semibold">{post.repost.originalAuthorName}</span>
-                         </div>
-                         {post.repost.originalText && <p className="whitespace-pre-wrap text-sm text-muted-foreground">{post.repost.originalText}</p>}
-                         {post.repost.originalMediaUrls && post.repost.originalMediaUrls.length > 0 && (
-                            <div className={cn("grid gap-2 mt-2", post.repost.originalMediaUrls.length > 1 ? "grid-cols-2" : "grid-cols-1")}>
-                                {post.repost.originalMediaUrls.map((media, index) => (
-                                    <div key={index} className="rounded-lg overflow-hidden border">
-                                        {media.type === 'image' ? (
-                                            <Image src={media.url} alt={`Post media ${index + 1}`} width={300} height={300} className="w-full h-auto object-cover"/>
-                                        ) : (
-                                            <video src={media.url} controls className="w-full h-auto"/>
-                                        )}
-                                    </div>
-                                ))}
-                            </div>
-                        )}
-                    </div>
-                ) : (
-                    post.mediaUrls && post.mediaUrls.length > 0 && (
-                        <div className={cn("grid grid-cols-1 sm:grid-cols-2 gap-2", post.mediaUrls.length === 1 ? "sm:grid-cols-1" : "")}>
-                            {post.mediaUrls.map((media, index) => (
-                                <div key={index} className="rounded-lg overflow-hidden border">
-                                    {media.type === 'image' ? (
-                                        <Image src={media.url} alt={`Post media ${index + 1}`} width={500} height={500} className="w-full h-auto object-cover"/>
-                                    ) : (
-                                        <video src={media.url} controls className="w-full h-auto"/>
-                                    )}
-                                </div>
-                            ))}
-                        </div>
-                    )
-                )}
-            </CardContent>
-            <CardFooter className="flex flex-col items-start gap-4">
-                 <div className="flex flex-wrap gap-4">
-                    <Button variant="ghost" size="sm" onClick={() => handleLike(post.id)}>
-                        <ThumbsUp className={cn("mr-2 h-4 w-4", post.likes?.includes(userId!) && "fill-primary text-primary")}/> 
-                        {post.likes?.length || 0} Likes
-                    </Button>
-                     <Button variant="ghost" size="sm" onClick={() => setOpenComments(prev => ({...prev, [post.id]: !prev[post.id]}))}>
-                        <MessageSquare className="mr-2 h-4 w-4"/> 
-                        {post.comments?.length || 0} Comments
-                    </Button>
-                     <Button variant="ghost" size="sm" onClick={() => { setRepostingPost(post); setIsRepostDialogOpen(true); }}>
-                        <Repeat className="mr-2 h-4 w-4"/> Repost
-                    </Button>
-                    <Button variant="ghost" size="sm" onClick={() => handleShare(post)}>
-                        <Share2 className="mr-2 h-4 w-4" /> Share
-                    </Button>
-                </div>
-                 {openComments[post.id] && (
-                     <div className="w-full pl-4 border-l-2">
-                        <Form {...commentForm}>
-                            <form onSubmit={commentForm.handleSubmit((data) => handleCommentSubmit(post.id, data))} className="flex gap-2 mb-4">
-                                <FormField control={commentForm.control} name="text" render={({field}) => (
-                                    <FormItem className="flex-1">
-                                        <FormControl><Input placeholder="Write a comment..." {...field} /></FormControl>
-                                    </FormItem>
-                                )}/>
-                                <Button type="submit" size="icon"><Send className="h-4 w-4"/></Button>
-                            </form>
-                        </Form>
-                        <div className="space-y-4">
-                            {post.comments?.map(comment => (
-                                <div key={comment.id} className="text-sm">
-                                    <p><span className="font-semibold">{comment.authorName}</span>: {comment.text}</p>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-                 )}
-            </CardFooter>
+    const feedItems = [];
+  
+    for (let i = 0; i < posts.length; i++) {
+      feedItems.push(
+        <Card key={posts[i].id} className="mb-4">
+          <CardHeader className="flex flex-row items-start gap-4">
+              <Avatar>
+                  <AvatarImage src={posts[i].authorPhotoUrl} />
+                  <AvatarFallback>{posts[i].authorName?.charAt(0).toUpperCase() || 'U'}</AvatarFallback>
+              </Avatar>
+              <div className="flex-1">
+                  <div className="flex justify-between items-start">
+                      <div>
+                          <Link href={`/profile/${posts[i].authorName}`} className="hover:underline">
+                              <CardTitle className="text-base">{posts[i].authorName}</CardTitle>
+                          </Link>
+                          <p className="text-xs text-muted-foreground">
+                              {posts[i].createdAt ? `${formatDistanceToNow(posts[i].createdAt)} ago` : 'just now'}
+                          </p>
+                      </div>
+                      <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="icon" className="h-8 w-8">
+                                  <MoreVertical className="h-4 w-4"/>
+                              </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent>
+                              {posts[i].authorId === userId && (
+                                  <>
+                                      <DropdownMenuItem onSelect={() => setEditingPost(posts[i])}>
+                                          <Edit className="mr-2 h-4 w-4" /> Edit
+                                      </DropdownMenuItem>
+                                      <AlertDialog>
+                                          <AlertDialogTrigger asChild>
+                                              <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="text-destructive focus:text-destructive">
+                                                  <Trash className="mr-2 h-4 w-4" /> Delete
+                                              </DropdownMenuItem>
+                                          </AlertDialogTrigger>
+                                          <AlertDialogContent>
+                                              <AlertDialogHeader>
+                                                  <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                                                  <AlertDialogDescription>This action cannot be undone. This will permanently delete your post.</AlertDialogDescription>
+                                              </AlertDialogHeader>
+                                              <AlertDialogFooter>
+                                                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                                  <AlertDialogAction onClick={() => handleDeletePost(posts[i].id)}>Delete</AlertDialogAction>
+                                              </AlertDialogFooter>
+                                          </AlertDialogContent>
+                                      </AlertDialog>
+                                      <DropdownMenuSeparator />
+                                  </>
+                              )}
+                              <DropdownMenuItem onSelect={() => handleReportPost(posts[i].id)}>
+                                  <Flag className="mr-2"/> Report Post
+                              </DropdownMenuItem>
+                          </DropdownMenuContent>
+                      </DropdownMenu>
+                  </div>
+              </div>
+          </CardHeader>
+          <CardContent>
+              {posts[i].text && <p className="whitespace-pre-wrap mb-4">{posts[i].text}</p>}
+              
+              {posts[i].repost ? (
+                  <div className="border rounded-md p-4 mt-2">
+                       <div className="flex items-center gap-2 mb-2">
+                           <Avatar className="h-6 w-6">
+                              <AvatarFallback>{posts[i].repost.originalAuthorName?.charAt(0).toUpperCase() || 'U'}</AvatarFallback>
+                          </Avatar>
+                          <span className="text-sm font-semibold">{posts[i].repost.originalAuthorName}</span>
+                       </div>
+                       {posts[i].repost.originalText && <p className="whitespace-pre-wrap text-sm text-muted-foreground">{posts[i].repost.originalText}</p>}
+                       {posts[i].repost.originalMediaUrls && posts[i].repost.originalMediaUrls.length > 0 && (
+                          <div className={cn("grid gap-2 mt-2", posts[i].repost.originalMediaUrls.length > 1 ? "grid-cols-2" : "grid-cols-1")}>
+                              {posts[i].repost.originalMediaUrls.map((media, index) => (
+                                  <div key={index} className="rounded-lg overflow-hidden border">
+                                      {media.type === 'image' ? (
+                                          <Image src={media.url} alt={`Post media ${index + 1}`} width={300} height={300} className="w-full h-auto object-cover"/>
+                                      ) : (
+                                          <video src={media.url} controls className="w-full h-auto"/>
+                                      )}
+                                  </div>
+                              ))}
+                          </div>
+                      )}
+                  </div>
+              ) : (
+                  posts[i].mediaUrls && posts[i].mediaUrls.length > 0 && (
+                      <div className={cn("grid grid-cols-1 sm:grid-cols-2 gap-2", posts[i].mediaUrls.length === 1 ? "sm:grid-cols-1" : "")}>
+                          {posts[i].mediaUrls.map((media, index) => (
+                              <div key={index} className="rounded-lg overflow-hidden border">
+                                  {media.type === 'image' ? (
+                                      <Image src={media.url} alt={`Post media ${index + 1}`} width={500} height={500} className="w-full h-auto object-cover"/>
+                                  ) : (
+                                      <video src={media.url} controls className="w-full h-auto"/>
+                                  )}
+                              </div>
+                          ))}
+                      </div>
+                  )
+              )}
+          </CardContent>
+          <CardFooter className="flex flex-col items-start gap-4">
+               <div className="flex flex-wrap gap-4">
+                  <Button variant="ghost" size="sm" onClick={() => handleLike(posts[i].id)}>
+                      <ThumbsUp className={cn("mr-2 h-4 w-4", posts[i].likes?.includes(userId!) && "fill-primary text-primary")}/> 
+                      {posts[i].likes?.length || 0} Likes
+                  </Button>
+                   <Button variant="ghost" size="sm" onClick={() => setOpenComments(prev => ({...prev, [posts[i].id]: !prev[posts[i].id]}))}>
+                      <MessageSquare className="mr-2 h-4 w-4"/> 
+                      {posts[i].comments?.length || 0} Comments
+                  </Button>
+                   <Button variant="ghost" size="sm" onClick={() => { setRepostingPost(posts[i]); setIsRepostDialogOpen(true); }}>
+                      <Repeat className="mr-2 h-4 w-4"/> Repost
+                  </Button>
+                  <Button variant="ghost" size="sm" onClick={() => handleShare(posts[i])}>
+                      <Share2 className="mr-2 h-4 w-4" /> Share
+                  </Button>
+              </div>
+               {openComments[posts[i].id] && (
+                   <div className="w-full pl-4 border-l-2">
+                      <Form {...commentForm}>
+                          <form onSubmit={commentForm.handleSubmit((data) => handleCommentSubmit(posts[i].id, data))} className="flex gap-2 mb-4">
+                              <FormField control={commentForm.control} name="text" render={({field}) => (
+                                  <FormItem className="flex-1">
+                                      <FormControl><Input placeholder="Write a comment..." {...field} /></FormControl>
+                                  </FormItem>
+                              )}/>
+                              <Button type="submit" size="icon"><Send className="h-4 w-4"/></Button>
+                          </form>
+                      </Form>
+                      <div className="space-y-4">
+                          {posts[i].comments?.map(comment => (
+                              <div key={comment.id} className="text-sm">
+                                  <p><span className="font-semibold">{comment.authorName}</span>: {comment.text}</p>
+                              </div>
+                          ))}
+                      </div>
+                  </div>
+               )}
+          </CardFooter>
         </Card>
-    ));
+      );
+  
+      if ((i + 1) % 3 === 0 && i < posts.length - 1) {
+        feedItems.push(<AdsenseDisplay key={`ad-${i}`} />);
+      }
+    }
+  
+    return feedItems;
   };
   
   if (hasCommunityProfile === null) {
