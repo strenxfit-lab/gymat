@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect } from 'react';
@@ -15,6 +14,7 @@ import { format, parseISO, isBefore, isWithinInterval, addDays, isToday, differe
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { ThemeToggle } from '@/components/theme-toggle';
+import { BannerDisplay } from '@/components/ui/banner-display';
 
 
 interface Offer {
@@ -330,6 +330,8 @@ export default function MemberDashboard() {
             </DropdownMenu>
           </div>
         </div>
+
+        <BannerDisplay location="dashboard" />
         
         {hasNewDietPlan && (
             <Alert>

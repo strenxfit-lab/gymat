@@ -1,5 +1,3 @@
-
-
 "use client";
 
 import { useState, useEffect, useRef } from "react";
@@ -28,6 +26,7 @@ import { UserSearch } from "@/components/user-search";
 import { useRouter } from "next/navigation";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import Link from "next/link";
+import { BannerDisplay } from "@/components/ui/banner-display";
 
 
 interface Comment {
@@ -886,6 +885,7 @@ export default function CommunityPage() {
             </header>
           
             <main className="flex-1 overflow-y-auto p-4 pb-20 space-y-4">
+                <BannerDisplay location="community" />
                 <div className="max-w-2xl mx-auto w-full">
                     {renderFeed()}
                 </div>

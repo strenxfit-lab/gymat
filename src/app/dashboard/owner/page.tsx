@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect } from 'react';
@@ -25,6 +24,7 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import QRCode from 'qrcode.react';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { differenceInDays } from 'date-fns';
+import { BannerDisplay } from '@/components/ui/banner-display';
 
 
 interface Member {
@@ -418,6 +418,8 @@ export default function OwnerDashboardPage() {
             </DialogTrigger>
           </div>
         </div>
+        
+        <BannerDisplay location="dashboard" />
         
         {/* Quick Actions */}
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
