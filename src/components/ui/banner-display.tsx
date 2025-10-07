@@ -2,7 +2,7 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { collection, query, where, getDocs, orderBy } from 'firebase/firestore';
+import { collection, query, where, getDocs, orderBy, Timestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import Image from 'next/image';
 import Link from 'next/link';
@@ -13,6 +13,7 @@ interface Banner {
   linkUrl: string;
   targetRoles: string[];
   displayLocations: string[];
+  createdAt: Timestamp;
 }
 
 interface BannerDisplayProps {
@@ -37,12 +38,14 @@ export function BannerDisplay({ location }: BannerDisplayProps) {
           bannersRef,
           where('status', '==', 'active'),
           where('targetRoles', 'array-contains', userRole),
-          where('displayLocations', 'array-contains', location),
           orderBy('createdAt', 'desc')
         );
 
         const querySnapshot = await getDocs(q);
-        const bannersList = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Banner));
+        const bannersList = querySnapshot.docs
+          .map(doc => ({ id: doc.id, ...doc.data() } as Banner))
+          .filter(banner => banner.displayLocations.includes(location)); // Filter display location on client-side
+
         setBanners(bannersList);
       } catch (error) {
         console.error("Error fetching banners:", error);
