@@ -9,6 +9,7 @@ import { Loader2, Search } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Card, CardContent } from '@/components/ui/card';
+import Link from 'next/link';
 
 interface CommunityUser {
   id: string;
@@ -81,16 +82,16 @@ export function UserSearch() {
                 )}
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
                     {searchResults.map(user => (
-                        <div key={user.id} className="flex items-center gap-3 rounded-md border p-3 hover:bg-accent cursor-pointer"
-                        // onClick={() => router.push(`/profile/${user.id}`)}
-                        >
-                            <Avatar>
-                                <AvatarFallback>{user.id.charAt(0).toUpperCase()}</AvatarFallback>
-                            </Avatar>
-                            <div>
-                                <p className="font-semibold">{user.id}</p>
+                        <Link href={`/profile/${user.id}`} key={user.id}>
+                            <div className="flex items-center gap-3 rounded-md border p-3 hover:bg-accent cursor-pointer">
+                                <Avatar>
+                                    <AvatarFallback>{user.id.charAt(0).toUpperCase()}</AvatarFallback>
+                                </Avatar>
+                                <div>
+                                    <p className="font-semibold">{user.id}</p>
+                                </div>
                             </div>
-                        </div>
+                        </Link>
                     ))}
                 </div>
             </CardContent>
