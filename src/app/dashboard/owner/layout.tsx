@@ -5,28 +5,97 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import {
-  SidebarProvider,
   Sidebar,
-  SidebarTrigger,
   SidebarContent,
+  SidebarHeader,
   SidebarMenu,
   SidebarMenuItem,
-  SidebarMenuButton,
-  SidebarHeader,
+  SidebarTrigger,
   SidebarFooter,
-  SidebarMenuSub,
-  SidebarMenuSubButton,
+  useSidebar,
+  SidebarProvider,
   SidebarInset,
-  SidebarGroup,
-  SidebarGroupLabel,
 } from '@/components/ui/sidebar';
-import { Dumbbell, Users, CreditCard, ClipboardList, BarChart3, Megaphone, Boxes, ChevronDown, Info, Mail, Phone, Building, UserCheck, LogOut, MessageSquare, CalendarCheck, CheckSquare, Clock, KeyRound } from 'lucide-react';
+import { Dumbbell, Users, CreditCard, ClipboardList, BarChart3, Megaphone, Boxes, Info, Mail, Phone, Building, UserCheck, LogOut, MessageSquare, CalendarCheck, CheckSquare, Clock, KeyRound, ChevronDown } from 'lucide-react';
 import { doc, getDoc, collection, getDocs, Timestamp, query, where } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { addMonths, addYears } from 'date-fns';
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
+import { cn } from '@/lib/utils';
+import { ThemeToggle } from '@/components/theme-toggle';
+import * as React from 'react';
+
+
+const SubMenu = ({ children, title, icon, isOpen, onToggle }: { children: React.ReactNode, title: string, icon: React.ReactNode, isOpen: boolean, onToggle: () => void }) => {
+  const pathname = usePathname();
+  const isActive = React.Children.toArray(children).some(child => {
+      if (React.isValidElement(child) && child.props.href) {
+        // @ts-ignore
+        return pathname === child.props.href;
+      }
+      return false;
+  });
+
+  return (
+    <div className='w-full'>
+      <Button
+        variant="ghost"
+        className={cn(
+          "w-full justify-start gap-2 text-base transition-colors duration-300 ease-in-out",
+          isActive ? "bg-indigo-100 text-indigo-600 font-semibold" : "hover:bg-gray-100 dark:hover:bg-gray-800"
+        )}
+        onClick={onToggle}
+      >
+        {icon}
+        <span className="flex-grow text-left">{title}</span>
+        <ChevronDown className={cn("h-4 w-4 transition-transform", isOpen && "rotate-180")} />
+      </Button>
+      {isOpen && (
+        <div className="ml-4 mt-2 flex flex-col gap-1 border-l-2 border-gray-200 dark:border-gray-700 pl-4">
+          {children}
+        </div>
+      )}
+    </div>
+  )
+}
+
+const MenuItem = ({ href, children, icon }: { href: string, children: React.ReactNode, icon?: React.ReactNode }) => {
+  const pathname = usePathname();
+  const isActive = pathname === href;
+  return (
+    <Link href={href} passHref>
+      <Button
+        variant="ghost"
+        className={cn(
+          "w-full justify-start gap-2 transition-colors duration-300 ease-in-out",
+          isActive ? "bg-indigo-100 text-indigo-600 font-semibold rounded-xl" : "hover:bg-gray-100 dark:hover:bg-gray-800"
+        )}
+      >
+        {icon}
+        {children}
+      </Button>
+    </Link>
+  )
+}
+
+const SubMenuItem = ({ href, children }: { href: string, children: React.ReactNode }) => {
+    const pathname = usePathname();
+    const isActive = pathname === href;
+    return (
+        <Link href={href} passHref>
+        <Button
+            variant="ghost"
+            className={cn(
+            "w-full justify-start text-sm h-8",
+            isActive ? "text-indigo-600 font-semibold" : "text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-50"
+            )}
+        >
+            {children}
+        </Button>
+        </Link>
+    )
+}
 
 export default function OwnerDashboardLayout({
   children,
@@ -143,10 +212,10 @@ export default function OwnerDashboardLayout({
   };
   
   const handleMultiBranchClick = (e: React.MouseEvent) => {
+      e.preventDefault(); // Prevent link navigation
       if (hasMultiBranch) {
         router.push('/dashboard/owner/multi-branch');
       } else {
-        e.preventDefault();
         setIsSupportDialogOpen(true);
       }
   };
@@ -156,219 +225,110 @@ export default function OwnerDashboardLayout({
     router.push('/');
   };
 
-  const subMenuButtonClass = "text-muted-foreground hover:text-foreground font-normal";
-
   return (
-    <SidebarProvider defaultOpen={false}>
-       <Dialog open={isSupportDialogOpen} onOpenChange={setIsSupportDialogOpen}>
+    <SidebarProvider>
+      <Dialog open={isSupportDialogOpen} onOpenChange={setIsSupportDialogOpen}>
         <DialogContent>
-            <DialogHeader>
+          <DialogHeader>
             <DialogTitle>Enable Multi-Branch Support</DialogTitle>
             <DialogDescription>
                 This feature is not enabled for your account. Please contact Strenxfit support to activate it.
             </DialogDescription>
-            </DialogHeader>
-            <div className="flex flex-col space-y-4 py-4">
-                <a href="mailto:strenxfit@gmail.com" className="flex items-center gap-3 p-3 rounded-md hover:bg-accent transition-colors">
-                    <Mail className="h-5 w-5 text-muted-foreground" />
-                    <span>strenxfit@gmail.com</span>
-                </a>
-                <a href="https://wa.me/917988487892" target="_blank" rel="noopener noreferrer" className="flex items-center justify-center gap-3 p-3 rounded-md hover:bg-accent transition-colors">
-                    <Phone className="h-5 w-5 text-muted-foreground" />
-                    <span>+91 79884 87892</span>
-                </a>
-            </div>
+          </DialogHeader>
+          <div className="flex flex-col space-y-4 py-4">
+            <a href="mailto:strenxfit@gmail.com" className="flex items-center gap-3 p-3 rounded-md hover:bg-accent transition-colors">
+              <Mail className="h-5 w-5 text-muted-foreground" />
+              <span>strenxfit@gmail.com</span>
+            </a>
+            <a href="https://wa.me/917988487892" target="_blank" rel="noopener noreferrer" className="flex items-center justify-center gap-3 p-3 rounded-md hover:bg-accent transition-colors">
+              <Phone className="h-5 w-5 text-muted-foreground" />
+              <span>+91 79884 87892</span>
+            </a>
+          </div>
         </DialogContent>
-       </Dialog>
-      <Sidebar>
+      </Dialog>
+      <div className="flex min-h-screen">
+      <Sidebar className="flex flex-col shadow-md border-r border-gray-200 dark:border-gray-800 transition-all duration-300 ease-in-out">
         <SidebarHeader>
           <div className="flex items-center gap-2">
-            <Dumbbell className="w-6 h-6 text-primary" />
-            <h1 className="text-lg font-semibold">Strenx GymLogin</h1>
+            <Dumbbell className="w-8 h-8 text-indigo-500" />
+            <h1 className="text-xl font-bold text-gray-900 dark:text-gray-50">Strenx</h1>
           </div>
-           {activeBranchName && (
-            <div className="mt-2 text-xs text-center p-1 rounded-md bg-primary/10 text-primary-foreground flex items-center justify-center gap-2">
+          {activeBranchName && (
+            <div className="mt-2 text-xs text-center p-1 rounded-md bg-indigo-100 text-indigo-600 flex items-center justify-center gap-2">
               <Building className="h-4 w-4" />
               <span>{activeBranchName}</span>
             </div>
           )}
         </SidebarHeader>
-        <SidebarContent>
+        <SidebarContent className="flex-1 overflow-y-auto">
           <SidebarMenu>
-            <SidebarGroup>
-                <SidebarGroupLabel>Features</SidebarGroupLabel>
-                 <SidebarMenuItem>
-                    <SidebarMenuButton onClick={() => toggleSubMenu('gym-info')} className="justify-between">
-                        <div className="flex items-center gap-2"><Info /> Gym Info</div>
-                        <ChevronDown className={`transition-transform duration-200 ${openSubMenu === 'gym-info' ? 'rotate-180' : ''}`} />
-                    </SidebarMenuButton>
-                    {openSubMenu === 'gym-info' && (
-                        <SidebarMenuSub className="space-y-3">
-                            <Link href="/dashboard/owner/gym-info/basic" passHref>
-                                <SidebarMenuSubButton className={subMenuButtonClass}>Basic Gym Information</SidebarMenuSubButton>
-                            </Link>
-                            <Link href="/dashboard/owner/gym-info/owner" passHref>
-                                <SidebarMenuSubButton className={subMenuButtonClass}>Owner Information</SidebarMenuSubButton>
-                            </Link>
-                            <Link href="/dashboard/owner/gym-info/gym-capacity" passHref>
-                                <SidebarMenuSubButton className={subMenuButtonClass}>Gym Capacity</SidebarMenuSubButton>
-                            </Link>
-                            <Link href="/dashboard/owner/gym-info/membership-plans" passHref>
-                              <SidebarMenuSubButton className={subMenuButtonClass}>Membership &amp; Plans</SidebarMenuSubButton>
-                            </Link>
-                            <Link href="/dashboard/owner/gym-info/facilities" passHref>
-                                <SidebarMenuSubButton className={subMenuButtonClass}>Facilities &amp; Machines</SidebarMenuSubButton>
-                            </Link>
-                            <Link href="/dashboard/owner/gym-info/goals-and-insights" passHref>
-                                <SidebarMenuSubButton className={subMenuButtonClass}>Goals &amp; Insights</SidebarMenuSubButton>
-                            </Link>
-                        </SidebarMenuSub>
-                    )}
-                </SidebarMenuItem>
-                <SidebarMenuItem>
-                    <Link href="/dashboard/owner/change-password" passHref>
-                        <SidebarMenuButton>
-                            <div className="flex items-center gap-2"><KeyRound /> Change Password</div>
-                        </SidebarMenuButton>
-                    </Link>
-                </SidebarMenuItem>
-                <SidebarMenuItem>
-                    <SidebarMenuButton onClick={() => toggleSubMenu('member')} className="justify-between">
-                        <div className="flex items-center gap-2"><Users /> Member Management</div>
-                        <ChevronDown className={`transition-transform duration-200 ${openSubMenu === 'member' ? 'rotate-180' : ''}`} />
-                    </SidebarMenuButton>
-                    {openSubMenu === 'member' && (
-                        <SidebarMenuSub className="space-y-3">
-                            <SidebarMenuSubButton onClick={handleMultiBranchClick} className={subMenuButtonClass}>
-                                Multi-branch support
-                            </SidebarMenuSubButton>
-                             <Link href="/dashboard/owner/members">
-                                <SidebarMenuSubButton className={subMenuButtonClass}>Member list</SidebarMenuSubButton>
-                              </Link>
-                            <Link href="/dashboard/owner/member-status">
-                                <SidebarMenuSubButton className={subMenuButtonClass}>Membership pause/freeze</SidebarMenuSubButton>
-                            </Link>
-                            <Link href="/dashboard/owner/automated-messages">
-                                <SidebarMenuSubButton className={subMenuButtonClass}>Reminders</SidebarMenuSubButton>
-                            </Link>
-                            <Link href="/dashboard/owner/complaints">
-                                <SidebarMenuSubButton className={subMenuButtonClass}>Complaints</SidebarMenuSubButton>
-                            </Link>
-                        </SidebarMenuSub>
-                    )}
-                </SidebarMenuItem>
-                 <SidebarMenuItem>
-                    <SidebarMenuButton onClick={() => toggleSubMenu('attendance')} className="justify-between">
-                        <div className="flex items-center gap-2"><CheckSquare /> Attendance</div>
-                        <ChevronDown className={`transition-transform duration-200 ${openSubMenu === 'attendance' ? 'rotate-180' : ''}`} />
-                    </SidebarMenuButton>
-                    {openSubMenu === 'attendance' && (
-                        <SidebarMenuSub className="space-y-3">
-                             <Link href="/dashboard/owner/attendance/mark">
-                                <SidebarMenuSubButton className={subMenuButtonClass}>Mark Attendance</SidebarMenuSubButton>
-                              </Link>
-                            <Link href="/dashboard/owner/attendance/log">
-                                <SidebarMenuSubButton className={subMenuButtonClass}>Attendance Log</SidebarMenuSubButton>
-                            </Link>
-                        </SidebarMenuSub>
-                    )}
-                </SidebarMenuItem>
-                <SidebarMenuItem>
-                    <SidebarMenuButton onClick={() => toggleSubMenu('class')} className="justify-between">
-                        <div className="flex items-center gap-2"><ClipboardList /> Class &amp; Trainer Management</div>
-                        <ChevronDown className={`transition-transform duration-200 ${openSubMenu === 'class' ? 'rotate-180' : ''}`} />
-                    </SidebarMenuButton>
-                     {openSubMenu === 'class' && (
-                        <SidebarMenuSub className="space-y-3">
-                            <Link href="/dashboard/owner/class-scheduling">
-                                <SidebarMenuSubButton className={subMenuButtonClass}>Class scheduling</SidebarMenuSubButton>
-                            </Link>
-                            <Link href="/dashboard/owner/waitlist">
-                                <SidebarMenuSubButton className={subMenuButtonClass}>Waitlist management</SidebarMenuSubButton>
-                             </Link>
-                            <Link href="/dashboard/owner/trainer-assignments">
-                                <SidebarMenuSubButton className={subMenuButtonClass}>Trainer assignments</SidebarMenuSubButton>
-                            </Link>
-                            <Link href="/dashboard/owner/session-tracking">
-                                <SidebarMenuSubButton className={subMenuButtonClass}>Session tracking</SidebarMenuSubButton>
-                            </Link>
-                            <Link href="/dashboard/owner/trainer-performance">
-                              <SidebarMenuSubButton className={subMenuButtonClass}>Trainer performance</SidebarMenuSubButton>
-                            </Link>
-                        </SidebarMenuSub>
-                    )}
-                </SidebarMenuItem>
-                <SidebarMenuItem>
-                     <SidebarMenuButton onClick={() => toggleSubMenu('reports')} className="justify-between">
-                        <div className="flex items-center gap-2"><BarChart3 /> Reporting &amp; Analytics</div>
-                        <ChevronDown className={`transition-transform duration-200 ${openSubMenu === 'reports' ? 'rotate-180' : ''}`} />
-                    </SidebarMenuButton>
-                     {openSubMenu === 'reports' && (
-                        <SidebarMenuSub className="space-y-3">
-                            <Link href="/dashboard/owner/revenue-reports">
-                                <SidebarMenuSubButton className={subMenuButtonClass}>Revenue reports</SidebarMenuSubButton>
-                            </Link>
-                             <Link href="/dashboard/owner/expenses">
-                                <SidebarMenuSubButton className={subMenuButtonClass}>Expenses</SidebarMenuSubButton>
-                            </Link>
-                            <Link href="/dashboard/owner/attendance-trends">
-                                <SidebarMenuSubButton className={subMenuButtonClass}>Attendance trends</SidebarMenuSubButton>
-                            </Link>
-                        </SidebarMenuSub>
-                    )}
-                </SidebarMenuItem>
-                <SidebarMenuItem>
-                    <Link href="/dashboard/owner/make-offers" passHref>
-                        <SidebarMenuButton>
-                            <div className="flex items-center gap-2"><Megaphone /> Make offers</div>
-                        </SidebarMenuButton>
-                    </Link>
-                </SidebarMenuItem>
-                 <SidebarMenuItem>
-                     <SidebarMenuButton onClick={() => toggleSubMenu('inventory')} className="justify-between">
-                        <div className="flex items-center gap-2"><Boxes /> Inventory &amp; Facility</div>
-                        <ChevronDown className={`transition-transform duration-200 ${openSubMenu === 'inventory' ? 'rotate-180' : ''}`} />
-                    </SidebarMenuButton>
-                     {openSubMenu === 'inventory' && (
-                        <SidebarMenuSub className="space-y-3">
-                            <Link href="/dashboard/owner/equipment-maintenance" passHref>
-                                <SidebarMenuSubButton className={subMenuButtonClass}>Equipment maintenance</SidebarMenuSubButton>
-                            </Link>
-                            <Link href="/dashboard/owner/inventory-tracking" passHref>
-                                <SidebarMenuSubButton className={subMenuButtonClass}>Inventory tracking</SidebarMenuSubButton>
-                             </Link>
-                        </SidebarMenuSub>
-                    )}
-                </SidebarMenuItem>
-            </SidebarGroup>
+            <MenuItem href="/dashboard/owner" icon={<BarChart3 />}>Dashboard</MenuItem>
+            
+            <SubMenu title="Management" icon={<Users />} isOpen={openSubMenu === 'management'} onToggle={() => toggleSubMenu('management')}>
+                <SubMenuItem href="/dashboard/owner/add-member">Add Member</SubMenuItem>
+                <SubMenuItem href="/dashboard/owner/add-trainer">Add Trainer</SubMenuItem>
+                <SubMenuItem href="/dashboard/owner/members">View All</SubMenuItem>
+                <SubMenuItem href="/dashboard/owner/member-status">Membership Status</SubMenuItem>
+            </SubMenu>
+
+             <SubMenu title="Financial" icon={<CreditCard />} isOpen={openSubMenu === 'financial'} onToggle={() => toggleSubMenu('financial')}>
+                <SubMenuItem href="/dashboard/owner/add-payment">Collect Fee</SubMenuItem>
+                <SubMenuItem href="/dashboard/owner/revenue-reports">Revenue Reports</SubMenuItem>
+                <SubMenuItem href="/dashboard/owner/expenses">Expenses</SubMenuItem>
+            </SubMenu>
+
+             <SubMenu title="Operations" icon={<ClipboardList />} isOpen={openSubMenu === 'operations'} onToggle={() => toggleSubMenu('operations')}>
+                 <SubMenuItem href="/dashboard/owner/class-scheduling">Class Scheduling</SubMenuItem>
+                 <SubMenuItem href="/dashboard/owner/attendance/log">Attendance Log</SubMenuItem>
+                 <SubMenuItem href="/dashboard/owner/multi-branch" >Multi-Branch</SubMenuItem>
+            </SubMenu>
+
+             <SubMenu title="Engagement" icon={<Megaphone />} isOpen={openSubMenu === 'engagement'} onToggle={() => toggleSubMenu('engagement')}>
+                <SubMenuItem href="/dashboard/owner/automated-messages">Automated Reminders</SubMenuItem>
+                <SubMenuItem href="/dashboard/owner/make-offers">Make Offers</SubMenuItem>
+                <SubMenuItem href="/dashboard/owner/complaints">Complaints</SubMenuItem>
+            </SubMenu>
+
+             <SubMenu title="Facility" icon={<Boxes />} isOpen={openSubMenu === 'facility'} onToggle={() => toggleSubMenu('facility')}>
+                <SubMenuItem href="/dashboard/owner/equipment-maintenance">Equipment</SubMenuItem>
+                <SubMenuItem href="/dashboard/owner/inventory-tracking">Inventory</SubMenuItem>
+            </SubMenu>
+             
+             <SubMenu title="Gym Info" icon={<Info />} isOpen={openSubMenu === 'gym-info'} onToggle={() => toggleSubMenu('gym-info')}>
+                <SubMenuItem href="/dashboard/owner/gym-info/basic">Basic Information</SubMenuItem>
+                <SubMenuItem href="/dashboard/owner/gym-info/owner">Owner Details</SubMenuItem>
+                <SubMenuItem href="/dashboard/owner/gym-info/membership-plans">Membership Plans</SubMenuItem>
+                <SubMenuItem href="/dashboard/owner/gym-info/facilities">Facilities</SubMenuItem>
+            </SubMenu>
+            <MenuItem href="/dashboard/owner/change-password" icon={<KeyRound />}>Change Password</MenuItem>
+
           </SidebarMenu>
         </SidebarContent>
-        <SidebarFooter>
-          {timeLeft && tierInfo.tier && (
-            <div className="p-4 text-center text-xs text-muted-foreground border-t border-sidebar-border">
+        <SidebarFooter className="p-4 space-y-4">
+           {timeLeft && tierInfo.tier && (
+            <div className="p-2 text-center text-xs text-muted-foreground border rounded-lg">
               <p className="font-semibold capitalize">{tierInfo.tier} Plan</p>
-              <p>Time Left: <span className="font-mono">{timeLeft}</span></p>
+              <p>Expires in: <span className="font-mono">{timeLeft}</span></p>
             </div>
           )}
-          <SidebarMenu>
-            <SidebarMenuItem>
-                <SidebarMenuButton onClick={handleLogout} className="text-red-500 hover:bg-red-500/10 hover:text-red-500">
-                    <div className="flex items-center gap-2"><LogOut /> Logout</div>
-                </SidebarMenuButton>
-            </SidebarMenuItem>
-          </SidebarMenu>
+          <Button variant="ghost" className="w-full justify-start gap-2" onClick={handleLogout}>
+            <LogOut className="h-5 w-5 text-red-500"/>
+            <span className="text-red-500">Logout</span>
+          </Button>
         </SidebarFooter>
       </Sidebar>
-      <SidebarInset>
-        <div className="p-4 flex items-center gap-2">
-            <SidebarTrigger variant="outline" size="default">
-                <Dumbbell/>
-            </SidebarTrigger>
-        </div>
-        {children}
-      </SidebarInset>
+      <div className="flex-1 flex flex-col transition-all duration-300 ease-in-out">
+        <header className="sticky top-0 z-10 flex h-16 items-center justify-between border-b bg-background/80 backdrop-blur-sm px-4 md:px-8">
+            <SidebarTrigger className="md:hidden" />
+            <div className='flex-1'></div>
+            <ThemeToggle />
+        </header>
+        <main className="flex-1 p-4 md:p-8">
+          {children}
+        </main>
+      </div>
+      </div>
     </SidebarProvider>
   );
 }
-
-    
