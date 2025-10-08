@@ -13,6 +13,7 @@ import { Badge } from '@/components/ui/badge';
 import { format, parseISO, isBefore, isWithinInterval, addDays, isToday } from 'date-fns';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { ThemeToggle } from '@/components/theme-toggle';
 
 
 interface Offer {
@@ -215,6 +216,7 @@ export default function MemberDashboard() {
             <p className="text-muted-foreground">Here's your fitness overview.</p>
           </div>
           <div className="flex items-center gap-2">
+            <ThemeToggle />
              <Link href="/dashboard/member/payment-history" passHref>
                 <Button variant="outline" size="icon" className="relative">
                     <Bell className="h-5 w-5" />
