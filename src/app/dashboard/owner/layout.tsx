@@ -203,7 +203,9 @@ export default function OwnerDashboardLayout({
                     </SidebarMenuButton>
                      {openSubMenu === 'reports' && (
                         <SidebarMenuSub className="space-y-3">
-                            <SidebarMenuSubButton className={subMenuButtonClass}>Revenue reports</SidebarMenuSubButton>
+                            <Link href="/dashboard/owner/revenue-reports">
+                                <SidebarMenuSubButton className={subMenuButtonClass}>Revenue reports</SidebarMenuSubButton>
+                            </Link>
                             <SidebarMenuSubButton className={subMenuButtonClass}>Attendance trends</SidebarMenuSubButton>
                             <SidebarMenuSubButton className={subMenuButtonClass}>Trainer performance</SidebarMenuSubButton>
                         </SidebarMenuSub>
