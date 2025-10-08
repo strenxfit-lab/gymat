@@ -7,7 +7,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 import * as z from 'zod';
 import { Loader2, Lock, Mail } from 'lucide-react';
-import { collection, query, where, getDocs } from 'firebase/firestore';
+import { collection, query, where, getDocs, collectionGroup } from 'firebase/firestore';
 
 import { Button } from '@/components/ui/button';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
@@ -16,7 +16,7 @@ import { useToast } from '@/hooks/use-toast';
 import { db } from '@/lib/firebase';
 
 const formSchema = z.object({
-  email: z.string().email({ message: 'Please enter a valid email address.' }),
+  email: z.string().min(1, { message: 'Please enter a valid email or login ID.' }),
   password: z.string().min(1, { message: 'Password is required.' }),
 });
 
@@ -37,46 +37,68 @@ export default function LoginForm() {
     setIsLoading(true);
     
     try {
+      // Query for gym owner
       const gymsCollection = collection(db, 'gyms');
-      const q = query(gymsCollection, where('email', '==', values.email));
-      const querySnapshot = await getDocs(q);
+      const ownerQuery = query(gymsCollection, where('email', '==', values.email));
+      const ownerSnapshot = await getDocs(ownerQuery);
 
-      if (querySnapshot.empty) {
-        toast({
-          title: 'Login Failed',
-          description: 'No user found with that email.',
-          variant: 'destructive',
-        });
+      if (!ownerSnapshot.empty) {
+        const userDoc = ownerSnapshot.docs[0];
+        const userData = userDoc.data();
+
+        if (userData.password !== values.password) {
+          toast({ title: 'Login Failed', description: 'Incorrect password.', variant: 'destructive' });
+          setIsLoading(false);
+          return;
+        }
+        
+        localStorage.setItem('userDocId', userDoc.id);
+        localStorage.setItem('userRole', userData.role);
+
+        toast({ title: 'Welcome!', description: "You have been successfully logged in." });
+        
+        if (userData.passwordChanged === false) {
+          router.push('/change-password');
+        } else {
+          router.push('/dashboard/owner');
+        }
+        return;
+      }
+
+      // If not an owner, query for a member across all branches
+      const membersCollectionGroup = collectionGroup(db, 'members');
+      const memberQuery = query(membersCollectionGroup, where('loginId', '==', values.email));
+      const memberSnapshot = await getDocs(memberQuery);
+
+      if (memberSnapshot.empty) {
+        toast({ title: 'Login Failed', description: 'No user found with that email or login ID.', variant: 'destructive' });
         setIsLoading(false);
         return;
       }
 
-      const userDoc = querySnapshot.docs[0];
-      const userData = userDoc.data();
+      const memberDoc = memberSnapshot.docs[0];
+      const memberData = memberDoc.data();
 
-      if (userData.password !== values.password) {
-        toast({
-          title: 'Login Failed',
-          description: 'Incorrect password.',
-          variant: 'destructive',
-        });
+      if (memberData.password !== values.password) {
+        toast({ title: 'Login Failed', description: 'Incorrect password.', variant: 'destructive' });
         setIsLoading(false);
         return;
       }
-      
-      localStorage.setItem('userDocId', userDoc.id);
-      localStorage.setItem('userRole', userData.role);
 
-
-      toast({
-        title: 'Welcome!',
-        description: "You have been successfully logged in.",
-      });
+      // For members, we need the gym ID and branch ID from the document path
+      const pathSegments = memberDoc.ref.path.split('/');
+      const gymId = pathSegments[1];
+      const branchId = pathSegments[3];
       
-      if (userData.passwordChanged === false) {
+      localStorage.setItem('userDocId', gymId);
+      localStorage.setItem('activeBranch', branchId);
+      localStorage.setItem('memberId', memberDoc.id);
+      localStorage.setItem('userRole', memberData.role);
+
+      toast({ title: 'Welcome!', description: "You have been successfully logged in." });
+
+      if (memberData.passwordChanged === false) {
         router.push('/change-password');
-      } else if (userData.role === 'owner') {
-        router.push('/dashboard/owner');
       } else {
         router.push('/dashboard/member');
       }
@@ -100,11 +122,11 @@ export default function LoginForm() {
           name="email"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Email Address</FormLabel>
+              <FormLabel>Email or Login ID</FormLabel>
               <div className="relative">
                 <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <FormControl>
-                  <Input type="email" placeholder="you@example.com" {...field} className="pl-10"/>
+                  <Input placeholder="you@example.com or your_login_id" {...field} className="pl-10"/>
                 </FormControl>
               </div>
               <FormMessage />
