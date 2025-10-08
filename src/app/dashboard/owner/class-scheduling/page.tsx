@@ -7,7 +7,7 @@ import Link from 'next/link';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { collection, addDoc, getDocs, Timestamp, deleteDoc, doc } from 'firebase/firestore';
+import { collection, addDoc, getDocs, Timestamp, deleteDoc, doc, updateDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -52,6 +52,7 @@ export default function ClassSchedulingPage() {
   const [trainers, setTrainers] = useState<Trainer[]>([]);
   const [loading, setLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [editingClass, setEditingClass] = useState<Class | null>(null);
   const router = useRouter();
   const { toast } = useToast();
 
@@ -103,6 +104,7 @@ export default function ClassSchedulingPage() {
         });
 
         const classesList = await Promise.all(classesListPromises);
+        classesList.sort((a,b) => new Date(a.date + 'T' + a.time).getTime() - new Date(b.date + 'T' + b.time).getTime());
         setClasses(classesList);
 
     } catch (error) {
@@ -116,6 +118,31 @@ export default function ClassSchedulingPage() {
   useEffect(() => {
     fetchAllData();
   }, [toast]);
+  
+  useEffect(() => {
+    if (editingClass) {
+        form.reset(editingClass);
+        setIsDialogOpen(true);
+    } else {
+        form.reset({ className: '', trainerId: '', date: '', time: '', capacity: 10, location: '' });
+    }
+  }, [editingClass, form]);
+
+
+  const handleDialogStateChange = (open: boolean) => {
+      setIsDialogOpen(open);
+      if (!open) {
+          setEditingClass(null);
+      }
+  }
+
+  const handleFormSubmit = async (values: z.infer<typeof classSchema>) => {
+    if (editingClass) {
+        await onUpdateClass(values);
+    } else {
+        await onAddClass(values);
+    }
+  };
 
   const onAddClass = async (values: z.infer<typeof classSchema>) => {
     const userDocId = localStorage.getItem('userDocId');
@@ -136,14 +163,41 @@ export default function ClassSchedulingPage() {
       });
 
       toast({ title: 'Success!', description: 'New class has been scheduled.' });
-      setIsDialogOpen(false);
-      form.reset();
+      handleDialogStateChange(false);
       await fetchAllData();
     } catch (error) {
       console.error("Error adding class:", error);
       toast({ title: 'Error', description: 'Could not schedule class. Please try again.', variant: 'destructive' });
     }
   };
+
+  const onUpdateClass = async (values: z.infer<typeof classSchema>) => {
+      if (!editingClass) return;
+      const userDocId = localStorage.getItem('userDocId');
+      const activeBranchId = localStorage.getItem('activeBranch');
+      if (!userDocId || !activeBranchId) return;
+
+      try {
+        const dateTime = new Date(`${values.date}T${values.time}`);
+        const classRef = doc(db, 'gyms', userDocId, 'branches', activeBranchId, 'classes', editingClass.id);
+
+        await updateDoc(classRef, {
+            className: values.className,
+            trainerId: values.trainerId,
+            capacity: values.capacity,
+            location: values.location,
+            dateTime: Timestamp.fromDate(dateTime),
+        });
+        
+        toast({ title: 'Success!', description: 'Class details have been updated.' });
+        handleDialogStateChange(false);
+        await fetchAllData();
+
+      } catch (error) {
+          console.error("Error updating class:", error);
+          toast({ title: 'Error', description: 'Could not update class.', variant: 'destructive'});
+      }
+  }
   
   const onDeleteClass = async (classId: string) => {
     const userDocId = localStorage.getItem('userDocId');
@@ -173,7 +227,7 @@ export default function ClassSchedulingPage() {
           <h1 className="text-3xl font-bold">Class Schedule</h1>
           <p className="text-muted-foreground">Manage your upcoming group classes and workshops.</p>
         </div>
-        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+        <Dialog open={isDialogOpen} onOpenChange={handleDialogStateChange}>
           <DialogTrigger asChild>
             <Button>
               <PlusCircle className="mr-2 h-4 w-4" />
@@ -182,15 +236,15 @@ export default function ClassSchedulingPage() {
           </DialogTrigger>
           <DialogContent className="sm:max-w-[425px]">
             <DialogHeader>
-              <DialogTitle>Schedule a New Class</DialogTitle>
-              <DialogDescription>Fill in the details for the new class session.</DialogDescription>
+              <DialogTitle>{editingClass ? 'Edit Class' : 'Schedule a New Class'}</DialogTitle>
+              <DialogDescription>{editingClass ? 'Update the details for this class session.' : 'Fill in the details for the new class session.'}</DialogDescription>
             </DialogHeader>
             <Form {...form}>
-              <form onSubmit={form.handleSubmit(onAddClass)} className="space-y-4 py-4">
+              <form onSubmit={form.handleSubmit(handleFormSubmit)} className="space-y-4 py-4">
                 <FormField control={form.control} name="className" render={({ field }) => ( <FormItem><FormLabel>Class Name</FormLabel><FormControl><Input placeholder="e.g., Morning Yoga" {...field} /></FormControl><FormMessage /></FormItem> )} />
                 <FormField control={form.control} name="trainerId" render={({ field }) => (
                   <FormItem><FormLabel>Assign Trainer</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <Select onValueChange={field.onChange} value={field.value}>
                       <FormControl><SelectTrigger><SelectValue placeholder="Select a trainer" /></SelectTrigger></FormControl>
                       <SelectContent>
                         {trainers.map(t => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}
@@ -207,9 +261,9 @@ export default function ClassSchedulingPage() {
                     <FormField control={form.control} name="location" render={({ field }) => ( <FormItem><FormLabel>Room/Studio</FormLabel><FormControl><Input placeholder="Main Studio" {...field} /></FormControl><FormMessage /></FormItem> )} />
                 </div>
                 <DialogFooter>
-                  <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>Cancel</Button>
+                  <Button type="button" variant="outline" onClick={() => handleDialogStateChange(false)}>Cancel</Button>
                   <Button type="submit" disabled={form.formState.isSubmitting}>
-                    {form.formState.isSubmitting ? <Loader2 className="animate-spin" /> : 'Add Class'}
+                    {form.formState.isSubmitting ? <Loader2 className="animate-spin" /> : (editingClass ? 'Save Changes' : 'Add Class')}
                   </Button>
                 </DialogFooter>
               </form>
@@ -253,9 +307,9 @@ export default function ClassSchedulingPage() {
                               </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
-                              <DropdownMenuItem><Edit className="mr-2 h-4 w-4"/> Edit Class</DropdownMenuItem>
+                              <DropdownMenuItem onSelect={() => setEditingClass(cls)}><Edit className="mr-2 h-4 w-4"/> Edit Class</DropdownMenuItem>
                               <AlertDialogTrigger asChild>
-                                <DropdownMenuItem className="text-destructive"><Trash className="mr-2 h-4 w-4"/> Delete Class</DropdownMenuItem>
+                                <DropdownMenuItem className="text-destructive focus:text-destructive focus:bg-destructive/10"><Trash className="mr-2 h-4 w-4"/> Delete Class</DropdownMenuItem>
                               </AlertDialogTrigger>
                             </DropdownMenuContent>
                           </DropdownMenu>
@@ -268,7 +322,7 @@ export default function ClassSchedulingPage() {
                                 </AlertDialogHeader>
                                 <AlertDialogFooter>
                                 <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                <AlertDialogAction onClick={() => onDeleteClass(cls.id)}>Delete</AlertDialogAction>
+                                <AlertDialogAction onClick={() => onDeleteClass(cls.id)} className="bg-destructive hover:bg-destructive/90">Delete</AlertDialogAction>
                                 </AlertDialogFooter>
                             </AlertDialogContent>
                         </AlertDialog>
