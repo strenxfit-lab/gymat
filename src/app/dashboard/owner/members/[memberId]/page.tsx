@@ -2,7 +2,7 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useParams } from 'next/navigation';
 import { doc, getDoc, collection, getDocs, Timestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useToast } from '@/hooks/use-toast';
@@ -10,7 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Loader2, ArrowLeft, User, Calendar, DollarSign, Weight, BarChart2, Edit } from 'lucide-react';
+import { Loader2, ArrowLeft, User, Calendar, DollarSign, Weight, BarChart2, Edit, KeyRound } from 'lucide-react';
 import Link from 'next/link';
 
 interface MemberDetails {
@@ -23,6 +23,8 @@ interface MemberDetails {
   address?: string;
   emergencyContact?: string;
   joiningDate: string;
+  loginId?: string;
+  password?: string;
 
   // Membership Details
   membershipType: string;
@@ -96,6 +98,8 @@ export default function MemberProfilePage({ params }: { params: { memberId: stri
           address: data.address,
           emergencyContact: data.emergencyContact,
           joiningDate: (data.createdAt as Timestamp)?.toDate().toLocaleDateString(),
+          loginId: data.loginId,
+          password: data.password,
           membershipType: data.membershipType,
           startDate: (data.startDate as Timestamp)?.toDate().toLocaleDateString(),
           endDate: endDate?.toLocaleDateString() || 'N/A',
@@ -151,7 +155,9 @@ export default function MemberProfilePage({ params }: { params: { memberId: stri
             <Link href="/dashboard/owner/members" passHref>
                 <Button variant="outline"><ArrowLeft className="mr-2 h-4 w-4"/>Back to Members</Button>
             </Link>
-            <Button><Edit className="mr-2 h-4 w-4"/>Edit Profile</Button>
+            <Link href={`/dashboard/owner/members/${memberId}/edit`} passHref>
+                <Button><Edit className="mr-2 h-4 w-4"/>Edit Profile</Button>
+            </Link>
         </div>
         
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -170,6 +176,16 @@ export default function MemberProfilePage({ params }: { params: { memberId: stri
                     <DetailItem label="Residential Address" value={member.address} />
                     <DetailItem label="Emergency Contact" value={member.emergencyContact} />
                     <DetailItem label="Joining Date" value={member.joiningDate} />
+                </CardContent>
+            </Card>
+            
+            <Card>
+                <CardHeader>
+                    <CardTitle className="flex items-center gap-2"><KeyRound /> Login Credentials</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                    <DetailItem label="Login ID (Member No.)" value={member.loginId} />
+                    <DetailItem label="Password" value={member.password} />
                 </CardContent>
             </Card>
 
@@ -246,7 +262,6 @@ export default function MemberProfilePage({ params }: { params: { memberId: stri
                 </div>
             </CardContent>
           </Card>
-
         </div>
       </div>
     </div>
