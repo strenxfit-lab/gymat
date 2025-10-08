@@ -1,8 +1,10 @@
 "use client";
 
+import Link from 'next/link';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dumbbell } from 'lucide-react';
 import LoginForm from '@/components/login-form';
+import { Button } from '@/components/ui/button';
 
 export default function Home() {
   return (
@@ -19,6 +21,13 @@ export default function Home() {
           <CardContent className="p-4 sm:p-6 bg-card">
             <LoginForm />
           </CardContent>
+           <div className="p-6 pt-0 text-center">
+            <Link href="/activate-trial" passHref>
+              <Button variant="ghost" className="text-primary hover:text-primary hover:bg-primary/10">
+                Have a trial key?
+              </Button>
+            </Link>
+          </div>
         </Card>
       </main>
 
