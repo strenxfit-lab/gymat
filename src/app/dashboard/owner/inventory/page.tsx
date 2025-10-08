@@ -132,13 +132,26 @@ export default function InventoryPage() {
     try {
       const inventoryCollection = collection(db, 'gyms', userDocId, 'branches', activeBranchId, 'inventory');
       
-      await addDoc(inventoryCollection, {
+      const newItemRef = await addDoc(inventoryCollection, {
         ...values,
         expiryDate: values.expiryDate ? Timestamp.fromDate(new Date(values.expiryDate)) : null,
         createdAt: Timestamp.now(),
       });
 
-      toast({ title: 'Success!', description: 'New item has been added to inventory.' });
+      // Automatically log the purchase as an expense
+      if (values.purchasePrice && values.purchasePrice > 0 && values.quantity > 0) {
+        const expensesCollection = collection(db, 'gyms', userDocId, 'branches', activeBranchId, 'expenses');
+        await addDoc(expensesCollection, {
+          name: `Inventory Purchase: ${values.name}`,
+          category: "Miscellaneous",
+          amount: values.purchasePrice * values.quantity,
+          date: Timestamp.now(),
+          description: `Added ${values.quantity} ${values.unit} of ${values.name} to inventory.`,
+          inventoryItemId: newItemRef.id,
+        });
+      }
+
+      toast({ title: 'Success!', description: 'New item has been added and expense logged.' });
       handleFormDialogStateChange(false);
       await fetchInventory();
     } catch (error) {
@@ -353,4 +366,6 @@ export default function InventoryPage() {
     </div>
   );
 }
+    
+
     
