@@ -1,5 +1,7 @@
-/** @type {import('next').NextConfig} */
-const nextConfig = {
+import type {NextConfig} from 'next';
+
+const nextConfig: NextConfig = {
+  /* config options here */
   typescript: {
     ignoreBuildErrors: true,
   },
@@ -22,6 +24,7 @@ const nextConfig = {
       },
     ],
   },
+  transpilePackages: ['recharts'],
 };
 
-module.exports = nextConfig;
+export default nextConfig;
