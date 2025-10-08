@@ -98,12 +98,14 @@ export default function AddPaymentPage() {
 
   useEffect(() => {
     const memberId = searchParams.get('memberId');
+    const memberName = searchParams.get('memberName');
     
     const initialize = async () => {
         const fetchedMembers = await fetchMembers();
-        if (memberId && fetchedMembers) {
+        if (memberId && memberName && fetchedMembers) {
             const member = fetchedMembers.find(m => m.id === memberId);
             if(member) {
+                // This will trigger the watch effect below
                 form.setValue('memberId', memberId);
             }
         }
@@ -170,7 +172,7 @@ export default function AddPaymentPage() {
         title: 'Payment Added!',
         description: `Payment for ${selectedMember?.fullName} has been recorded.`,
       });
-      router.push('/dashboard/owner');
+      window.location.href = '/dashboard/owner';
     } catch (error) {
       console.error("Error adding payment:", error);
       toast({
@@ -310,5 +312,3 @@ export default function AddPaymentPage() {
     </div>
   );
 }
-
-    
