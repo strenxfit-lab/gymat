@@ -1,4 +1,3 @@
-
 "use client";
 
 import { Muscle } from "@/lib/workouts";
@@ -24,7 +23,7 @@ export function BackBody({ muscleColors }: BodyProps) {
       {/* Teres Major/Rear Delts */}
       <circle cx="100" cy="120" r="20" fill={muscleColors.teres_major || '#D3D3D3'} />
       <circle cx="150" cy="120" r="20" fill={muscleColors.teres_major || '#D3D3D3'} />
-       <circle cx="105" cy="110" r="15" fill={muscleColors.rear_delts || '#D3D3D3'} />
+      <circle cx="105" cy="110" r="15" fill={muscleColors.rear_delts || '#D3D3D3'} />
       <circle cx="145" cy="110" r="15" fill={muscleColors.rear_delts || '#D3D3D3'} />
       {/* Left Arm */}
       <rect x="60" y="125" width="25" height="100" fill={muscleColors.triceps || '#D3D3D3'} />
