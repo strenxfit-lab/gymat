@@ -15,13 +15,6 @@ const inventoryFeatures = [
         disabled: false,
     },
     {
-        title: "Stock Management",
-        description: "Update stock levels, set reorder points, and manage suppliers.",
-        icon: <Boxes className="h-8 w-8 text-primary" />,
-        link: "/dashboard/owner/inventory",
-        disabled: false,
-    },
-    {
         title: "Usage Logs",
         description: "Track the consumption of items for internal use, such as cleaning supplies.",
         icon: <ClipboardList className="h-8 w-8 text-primary" />,
