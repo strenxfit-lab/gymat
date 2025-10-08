@@ -8,8 +8,8 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { format } from 'date-fns';
-import { Loader2, User, Briefcase, Wallet, Calendar as CalendarIcon, ChevronLeft, ChevronRight, Building } from 'lucide-react';
-import { collection, addDoc, Timestamp, doc, getDoc, setDoc } from 'firebase/firestore';
+import { Loader2, User, Briefcase, Wallet, Calendar as CalendarIcon, ChevronLeft, ChevronRight, Building, KeyRound, ClipboardCopy, LayoutDashboard } from 'lucide-react';
+import { collection, addDoc, Timestamp, doc, getDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useToast } from '@/hooks/use-toast';
 
@@ -18,13 +18,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter }
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Calendar } from '@/components/ui/calendar';
 import { Textarea } from '@/components/ui/textarea';
-import { cn } from '@/lib/utils';
 import { Progress } from '@/components/ui/progress';
-import { AlertDialog, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
-
+import { AlertDialog, AlertDialogAction, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
+import { Label } from '@/components/ui/label';
 
 const formSchema = z.object({
   // Personal Info
@@ -54,12 +51,17 @@ const formSchema = z.object({
 type FormData = z.infer<typeof formSchema>;
 type FieldName = keyof FormData;
 
-
 const steps: { id: number; title: string; icon: JSX.Element; fields: FieldName[] }[] = [
     { id: 1, title: 'Personal Information', icon: <User />, fields: ['fullName', 'gender', 'dob', 'phone', 'email', 'address', 'emergencyContactName', 'emergencyContactNumber'] },
     { id: 2, title: 'Professional Details', icon: <Briefcase />, fields: ['designation', 'specialization', 'experience', 'certifications', 'joiningDate', 'shiftTiming'] },
     { id: 3, title: 'Financial Information', icon: <Wallet />, fields: ['salaryType', 'salaryRate', 'bankDetails'] },
 ];
+
+interface NewTrainerInfo {
+  name: string;
+  loginId?: string;
+  password?: string;
+}
 
 function NoBranchDialog() {
     const router = useRouter();
@@ -90,6 +92,8 @@ export default function AddTrainerPage() {
   const [currentStep, setCurrentStep] = useState(1);
   const [activeBranchId, setActiveBranchId] = useState<string | null>(null);
   const [activeBranchName, setActiveBranchName] = useState<string | null>(null);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [newTrainer, setNewTrainer] = useState<NewTrainerInfo | null>(null);
   const { toast } = useToast();
   const router = useRouter();
   
@@ -111,8 +115,6 @@ export default function AddTrainerPage() {
       salaryType: '',
       salaryRate: '',
       bankDetails: '',
-      dob: new Date(),
-      joiningDate: new Date(),
     },
   });
 
@@ -152,18 +154,24 @@ export default function AddTrainerPage() {
 
     try {
       const trainersCollection = collection(db, 'gyms', userDocId, 'branches', activeBranchId, 'trainers');
+      
+      const loginId = data.phone;
+      const password = Math.random().toString(36).slice(-8);
+
       await addDoc(trainersCollection, {
         ...data,
         dob: Timestamp.fromDate(data.dob),
         joiningDate: Timestamp.fromDate(data.joiningDate),
         createdAt: Timestamp.now(),
+        loginId: loginId,
+        password: password,
+        role: 'trainer',
+        passwordChanged: false,
       });
 
-      toast({
-        title: 'Trainer Added!',
-        description: `${data.fullName} has been successfully registered to ${activeBranchName}.`,
-      });
-      router.push('/dashboard/owner');
+      setNewTrainer({ name: data.fullName, loginId, password });
+      setIsDialogOpen(true);
+
     } catch (error) {
       console.error("Error adding trainer:", error);
       toast({
@@ -175,15 +183,53 @@ export default function AddTrainerPage() {
       setIsLoading(false);
     }
   };
+  
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text);
+    toast({ title: 'Copied!', description: 'Credentials copied to clipboard.' });
+  }
 
   const progress = (currentStep / steps.length) * 100;
   
-  if (!activeBranchId) {
+  if (!activeBranchId && typeof window !== 'undefined' && localStorage.getItem('userDocId')) {
       return <NoBranchDialog />;
   }
 
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-background p-4">
+        <AlertDialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+            <AlertDialogContent>
+            <AlertDialogHeader>
+                <AlertDialogTitle>Trainer Added Successfully!</AlertDialogTitle>
+                <AlertDialogDescription>
+                Login credentials for {newTrainer?.name} have been created.
+                </AlertDialogDescription>
+            </AlertDialogHeader>
+            <div className="space-y-4 my-4">
+                <div className="space-y-2">
+                    <Label htmlFor="loginId">Login ID (Phone No.)</Label>
+                    <div className="flex items-center gap-2">
+                        <Input id="loginId" value={newTrainer?.loginId || ''} readOnly />
+                         <Button variant="outline" size="icon" onClick={() => copyToClipboard(newTrainer?.loginId || '')}><ClipboardCopy className="h-4 w-4" /></Button>
+                    </div>
+                </div>
+                 <div className="space-y-2">
+                    <Label htmlFor="password">Password</Label>
+                     <div className="flex items-center gap-2">
+                        <Input id="password" value={newTrainer?.password || ''} readOnly />
+                        <Button variant="outline" size="icon" onClick={() => copyToClipboard(newTrainer?.password || '')}><ClipboardCopy className="h-4 w-4" /></Button>
+                    </div>
+                </div>
+            </div>
+            <AlertDialogFooter>
+                <AlertDialogAction onClick={() => router.push('/dashboard/owner')}>
+                    <LayoutDashboard className="mr-2 h-4 w-4" />
+                    Go to Dashboard
+                </AlertDialogAction>
+            </AlertDialogFooter>
+            </AlertDialogContent>
+        </AlertDialog>
+
         <Card className="w-full max-w-2xl">
             <CardHeader>
                 <Progress value={progress} className="mb-4" />
