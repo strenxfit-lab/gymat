@@ -84,10 +84,11 @@ export default function MemberDashboardLayout({
     router.push('/');
   };
   
-  const isSpecialLayoutPage = pathname.startsWith('/dashboard/member/community') || 
-                              pathname.startsWith('/dashboard/member/profile') || 
-                              pathname.startsWith('/dashboard/member/activity') || 
-                              pathname.startsWith('/dashboard/search');
+  const isSpecialLayoutPage =
+    pathname.startsWith('/dashboard/member/community') ||
+    pathname.startsWith('/dashboard/member/profile') ||
+    pathname.startsWith('/dashboard/member/activity') ||
+    pathname.startsWith('/dashboard/search');
 
   if (isSpecialLayoutPage) {
     return <>{children}</>;

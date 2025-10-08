@@ -83,10 +83,11 @@ export default function TrainerDashboardLayout({
     router.push('/');
   };
   
-  const isSpecialLayoutPage = pathname.startsWith('/dashboard/trainer/community') || 
-                              pathname.startsWith('/dashboard/trainer/profile') || 
-                              pathname.startsWith('/dashboard/trainer/activity') || 
-                              pathname.startsWith('/dashboard/search');
+  const isSpecialLayoutPage =
+    pathname.startsWith('/dashboard/trainer/community') ||
+    pathname.startsWith('/dashboard/trainer/profile') ||
+    pathname.startsWith('/dashboard/trainer/activity') ||
+    pathname.startsWith('/dashboard/search');
 
   if (isSpecialLayoutPage) {
     return <>{children}</>;
