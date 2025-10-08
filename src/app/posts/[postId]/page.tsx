@@ -3,7 +3,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { doc, getDoc, updateDoc, arrayUnion, arrayRemove, Timestamp, collection, getDocs, collectionGroup, deleteDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, getDoc, updateDoc, arrayUnion, arrayRemove, Timestamp, collection, getDocs, collectionGroup, deleteDoc, serverTimestamp, query, where } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter, CardDescription } from "@/components/ui/card";
@@ -118,42 +118,11 @@ export default function PostPage() {
 
             if (postSnap.exists()) {
                 const postData = postSnap.data() as Omit<Post, 'id' | 'authorRole'>;
-                const authorId = postData.authorId;
-                let authorRole: Post['authorRole'] = 'member'; // Default
-
-                const allGymsSnap = await getDocs(collection(db, 'gyms'));
-                let userFound = false;
-
-                for (const gymDoc of allGymsSnap.docs) {
-                    if (gymDoc.id === authorId) {
-                        authorRole = 'owner';
-                        userFound = true;
-                        break;
-                    }
-                    const branchesSnap = await getDocs(collection(gymDoc.ref, 'branches'));
-                    for (const branchDoc of branchesSnap.docs) {
-                        const memberRef = doc(branchDoc.ref, 'members', authorId);
-                        const memberSnap = await getDoc(memberRef);
-                        if (memberSnap.exists()) {
-                            authorRole = 'member';
-                            userFound = true;
-                            break;
-                        }
-                        const trainerRef = doc(branchDoc.ref, 'trainers', authorId);
-                        const trainerSnap = await getDoc(trainerRef);
-                        if (trainerSnap.exists()) {
-                            authorRole = 'trainer';
-                            userFound = true;
-                            break;
-                        }
-                    }
-                    if (userFound) break;
-                }
                 
-                const fullPostData = { id: postSnap.id, ...postData, authorRole } as Post;
+                const fullPostData = { id: postSnap.id, ...postData } as Post;
                 setPost(fullPostData);
                 
-                setBackLink(`/dashboard/${authorRole}/profile`);
+                setBackLink(`/profile/${postData.authorName}`);
 
             } else {
                 toast({ title: 'Error', description: 'Post not found.', variant: 'destructive' });
@@ -494,4 +463,3 @@ export default function PostPage() {
         </Dialog>
     );
 }
-
