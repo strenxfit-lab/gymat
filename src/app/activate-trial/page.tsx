@@ -8,7 +8,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 import * as z from 'zod';
 import { KeyRound, Loader2, ArrowLeft } from 'lucide-react';
-import { collection, query, where, getDocs, writeBatch, serverTimestamp, Timestamp } from 'firebase/firestore';
+import { collection, query, where, getDocs, writeBatch, serverTimestamp, Timestamp, doc } from 'firebase/firestore';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
@@ -51,7 +51,17 @@ export default function ActivateTrialPage() {
         const trialData = trialDoc.data();
 
         if (trialData.activatedAt) {
-            toast({ title: "Key Already Used", description: "This trial key has already been activated.", variant: "destructive" });
+            const now = new Date();
+            const expiresAt = (trialData.expiresAt as Timestamp)?.toDate();
+            if (expiresAt && expiresAt >= now) {
+                // Key already used, but not expired, so log them in.
+                 localStorage.setItem('userDocId', trialData.gymId);
+                 localStorage.setItem('userRole', 'owner');
+                 toast({ title: 'Welcome Back!', description: "You have been successfully logged in." });
+                 router.push('/dashboard/owner');
+            } else {
+                toast({ title: "Key Already Used", description: "This trial key has already been activated and has expired.", variant: "destructive" });
+            }
             setIsLoading(false);
             return;
         }
@@ -63,7 +73,7 @@ export default function ActivateTrialPage() {
         const batch = writeBatch(db);
         
         const activationTime = new Date();
-        const expirationTime = new Date(activationTime.getTime() + 5 * 60 * 60 * 1000); // 5 hours from now
+        const expirationTime = new Date(activationTime.getTime() + 24 * 60 * 60 * 1000); // 24 hours from now
 
         batch.update(trialDoc.ref, {
             activatedAt: serverTimestamp(),
