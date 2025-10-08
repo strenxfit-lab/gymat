@@ -184,7 +184,7 @@ export default function TrainerDashboardPage() {
                             assignedClasses.map((cls) => (
                             <TableRow key={cls.id}>
                                 <TableCell className="font-medium">{cls.className}</TableCell>
-                                <TableCell>{cls.dateTime.toLocaleString()}</TableCell>
+                                <TableCell>{cls.dateTime.toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}</TableCell>
                                 <TableCell>{cls.location}</TableCell>
                                 <TableCell>{cls.booked} / {cls.capacity}</TableCell>
                             </TableRow>
