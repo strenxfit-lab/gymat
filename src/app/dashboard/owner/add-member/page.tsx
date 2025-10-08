@@ -8,7 +8,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { addDays, format } from 'date-fns';
-import { Loader2, User, Calendar as CalendarIcon, Dumbbell, HeartPulse, ChevronLeft, ChevronRight, Building, KeyRound, ClipboardCopy } from 'lucide-react';
+import { Loader2, User, Calendar as CalendarIcon, Dumbbell, HeartPulse, ChevronLeft, ChevronRight, Building, KeyRound, ClipboardCopy, IndianRupee, LayoutDashboard } from 'lucide-react';
 import { collection, addDoc, getDocs, doc, Timestamp, getDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useToast } from '@/hooks/use-toast';
@@ -39,7 +39,7 @@ const formSchema = z.object({
   dob: z.date().optional(),
   email: z.string().email().optional().or(z.literal('')),
   
-  membershipType: z.string().nonempty({ message: "Please select a membership type." }),
+  membershipType: z.string().nonempty({ message: "Membership type is required." }),
   startDate: z.date({ required_error: 'Start date is required.' }),
   totalFee: z.string().min(1, { message: "Total fee is required." }),
   assignedTrainer: z.string().optional(),
@@ -228,6 +228,12 @@ export default function AddMemberPage() {
   const handleGoToDashboard = () => {
     window.location.href = '/dashboard/owner';
   };
+  
+  const handleGoToPayment = () => {
+      if(newMember) {
+        router.push(`/dashboard/owner/add-payment?memberId=${newMember.id}`);
+      }
+  }
 
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
@@ -271,7 +277,14 @@ export default function AddMemberPage() {
                 </div>
             </div>
           <AlertDialogFooter>
-            <Button variant="outline" onClick={handleGoToDashboard}>Done</Button>
+            <Button variant="outline" onClick={handleGoToDashboard}>
+              <LayoutDashboard className="mr-2 h-4 w-4" />
+              Go to Dashboard
+            </Button>
+            <Button onClick={handleGoToPayment}>
+                <IndianRupee className="mr-2 h-4 w-4" />
+                Collect Payment
+            </Button>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
@@ -388,3 +401,5 @@ export default function AddMemberPage() {
     </div>
   );
 }
+
+    
