@@ -215,18 +215,11 @@ export default function OwnerDashboardLayout({
                     )}
                 </SidebarMenuItem>
                 <SidebarMenuItem>
-                     <SidebarMenuButton onClick={() => toggleSubMenu('comms')} className="justify-between">
-                        <div className="flex items-center gap-2"><Megaphone /> Communication &amp; Marketing</div>
-                        <ChevronDown className={`transition-transform duration-200 ${openSubMenu === 'comms' ? 'rotate-180' : ''}`} />
-                    </SidebarMenuButton>
-                     {openSubMenu === 'comms' && (
-                        <SidebarMenuSub className="space-y-3">
-                            <SidebarMenuSubButton className={subMenuButtonClass}>SMS, WhatsApp, Email</SidebarMenuSubButton>
-                            <SidebarMenuSubButton className={subMenuButtonClass}>Referral programs</SidebarMenuSubButton>
-                            <SidebarMenuSubButton className={subMenuButtonClass}>Event management</SidebarMenuSubButton>
-                            <SidebarMenuSubButton className={subMenuButtonClass}>Social media integration</SidebarMenuSubButton>
-                        </SidebarMenuSub>
-                    )}
+                    <Link href="/dashboard/owner/make-offers" passHref>
+                        <SidebarMenuButton>
+                            <div className="flex items-center gap-2"><Megaphone /> Make offers</div>
+                        </SidebarMenuButton>
+                    </Link>
                 </SidebarMenuItem>
                  <SidebarMenuItem>
                      <SidebarMenuButton onClick={() => toggleSubMenu('inventory')} className="justify-between">
