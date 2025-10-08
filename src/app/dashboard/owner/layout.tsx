@@ -12,7 +12,7 @@ import {
   SidebarFooter,
   SidebarProvider,
 } from '@/components/ui/sidebar';
-import { Dumbbell, Users, CreditCard, ClipboardList, BarChart3, Megaphone, Boxes, Info, Mail, Phone, Building, UserCheck, LogOut, MessageSquare, CalendarCheck, CheckSquare, Clock, KeyRound, ChevronDown, IndianRupee, LifeBuoy } from 'lucide-react';
+import { Dumbbell, Users, CreditCard, ClipboardList, BarChart3, Megaphone, Boxes, Info, Mail, Phone, Building, UserCheck, LogOut, MessageSquare, CalendarCheck, CheckSquare, Clock, KeyRound, ChevronDown, IndianRupee, LifeBuoy, Fingerprint } from 'lucide-react';
 import { doc, getDoc, collection, getDocs, Timestamp, query, where } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -302,6 +302,11 @@ export default function OwnerDashboardLayout({
                 <SubMenuItem href="/dashboard/owner/add-trainer">Add Trainer</SubMenuItem>
                 <SubMenuItem href="/dashboard/owner/members">View All</SubMenuItem>
                 <SubMenuItem href="/dashboard/owner/member-status">Membership Status</SubMenuItem>
+            </SubMenu>
+            
+            <SubMenu title="KYC" icon={<Fingerprint />} isOpen={openSubMenu === 'kyc'} onToggle={() => toggleSubMenu('kyc')}>
+                <SubMenuItem href="/dashboard/owner/kyc/update">Update KYC</SubMenuItem>
+                <SubMenuItem href="/dashboard/owner/kyc/view">View KYC</SubMenuItem>
             </SubMenu>
             
             <SubMenu title="Financial" icon={<CreditCard />} isOpen={openSubMenu === 'financial'} onToggle={() => toggleSubMenu('financial')}>
