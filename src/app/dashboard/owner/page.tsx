@@ -74,8 +74,6 @@ export default function OwnerDashboardPage() {
   const [loading, setLoading] = useState(true);
   const [isSupportDialogOpen, setIsSupportDialogOpen] = useState(false);
   const [isAnnouncementDialogOpen, setIsAnnouncementDialogOpen] = useState(false);
-  const [trialExpiresAt, setTrialExpiresAt] = useState<Date | null>(null);
-  const [timeLeft, setTimeLeft] = useState('');
   const router = useRouter();
   const { toast } = useToast();
 
@@ -106,19 +104,6 @@ export default function OwnerDashboardPage() {
         }
 
         const gym = gymSnap.data();
-
-        if (gym.isTrial && gym.trialKey) {
-            const trialKeysRef = collection(db, 'trialKeys');
-            const q = query(trialKeysRef, where("key", "==", gym.trialKey));
-            const trialKeySnap = await getDocs(q);
-            if (!trialKeySnap.empty) {
-                const trialData = trialKeySnap.docs[0].data();
-                if (trialData.expiresAt) {
-                    setTrialExpiresAt((trialData.expiresAt as Timestamp).toDate());
-                }
-            }
-        }
-
 
         let activeBranchId = localStorage.getItem('activeBranch');
         
@@ -152,6 +137,8 @@ export default function OwnerDashboardPage() {
               runningOffers: [],
               multiBranch: gym.multiBranch || false,
               activeBranchName: null,
+              isTrial: gym.isTrial,
+              trialKey: gym.trialKey,
             });
             setLoading(false);
             return;
@@ -273,6 +260,7 @@ export default function OwnerDashboardPage() {
           runningOffers: gym.runningOffers || [],
           multiBranch: gym.multiBranch || false,
           activeBranchName: branchName,
+          isTrial: gym.isTrial,
         };
 
         setGymData(data);
@@ -304,29 +292,6 @@ export default function OwnerDashboardPage() {
     return () => clearTimeout(timeoutId);
 
   }, [router, toast]);
-  
-  useEffect(() => {
-    if (trialExpiresAt) {
-      const intervalId = setInterval(() => {
-        const now = new Date();
-        const diff = trialExpiresAt.getTime() - now.getTime();
-        
-        if (diff <= 0) {
-          setTimeLeft("Expired");
-          clearInterval(intervalId);
-          return;
-        }
-
-        const hours = Math.floor(diff / (1000 * 60 * 60));
-        const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-        const seconds = Math.floor((diff % (1000 * 60)) / 1000);
-
-        setTimeLeft(`${hours}h ${minutes}m ${seconds}s`);
-      }, 1000);
-
-      return () => clearInterval(intervalId);
-    }
-  }, [trialExpiresAt]);
   
   const onAnnouncementSubmit = async (data: AnnouncementFormData) => {
     const userDocId = localStorage.getItem('userDocId');
@@ -373,7 +338,7 @@ export default function OwnerDashboardPage() {
     );
   }
   
-  if (!gymData.activeBranchName && !trialExpiresAt) {
+  if (!gymData.activeBranchName && !gymData.isTrial) {
     return (
         <div className="flex flex-col min-h-screen items-center justify-center bg-background p-8 text-center">
             <Building className="h-16 w-16 text-primary mb-4"/>
@@ -396,12 +361,12 @@ export default function OwnerDashboardPage() {
   return (
     <ScrollArea className="h-screen bg-background">
       <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
-        {timeLeft && (
+        {gymData.isTrial && (
             <Alert variant="destructive" className="mb-4">
                 <ClockIcon className="h-4 w-4" />
                 <AlertTitle>Trial Period Active</AlertTitle>
                 <AlertDescription>
-                    Your trial expires in: <span className="font-bold">{timeLeft}</span>
+                    You are currently on a trial plan. Some features may be limited.
                 </AlertDescription>
             </Alert>
         )}
@@ -735,3 +700,5 @@ export default function OwnerDashboardPage() {
     </ScrollArea>
   );
 }
+
+    
