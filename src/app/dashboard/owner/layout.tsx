@@ -293,7 +293,6 @@ export default function OwnerDashboardLayout({
 
              <SubMenu title="Operations" icon={<ClipboardList />} isOpen={openSubMenu === 'operations'} onToggle={() => toggleSubMenu('operations')}>
                  <SubMenuItem href="/dashboard/owner/class-scheduling">Class Scheduling</SubMenuItem>
-                 <SubMenuItem href="/dashboard/owner/attendance/log">Attendance Log</SubMenuItem>
                  <SubMenuItem href="/dashboard/owner/multi-branch" >Multi-Branch</SubMenuItem>
             </SubMenu>
 
