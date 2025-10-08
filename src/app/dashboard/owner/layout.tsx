@@ -72,8 +72,8 @@ export default function OwnerDashboardLayout({
                         <SidebarMenuSub className="space-y-3">
                             <SidebarMenuSubButton className={subMenuButtonClass}>Multi-branch support</SidebarMenuSubButton>
                              <Link href="/dashboard/owner/members" passHref>
-                                <SidebarMenuSubButton asChild className={subMenuButtonClass}>
-                                  <a>Member profile with history</a>
+                                <SidebarMenuSubButton className={subMenuButtonClass}>
+                                  Member profile with history
                                 </SidebarMenuSubButton>
                               </Link>
                             <SidebarMenuSubButton className={subMenuButtonClass}>Membership pause/freeze</SidebarMenuSubButton>
