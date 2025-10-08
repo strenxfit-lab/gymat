@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect } from 'react';
@@ -19,8 +18,10 @@ export function InstallPWA() {
 
     const isIosDevice = /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream;
     setIsIOS(isIosDevice);
-    setIsStandalone((window.navigator as any).standalone === true);
-
+    if (typeof window !== 'undefined') {
+      setIsStandalone((window.navigator as any).standalone === true);
+    }
+    
     window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
 
     if ('serviceWorker' in navigator) {
