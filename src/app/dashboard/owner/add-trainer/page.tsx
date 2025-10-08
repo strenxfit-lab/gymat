@@ -8,7 +8,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { format } from 'date-fns';
-import { Loader2, User, Briefcase, Wallet, Calendar as CalendarIcon, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Loader2, User, Briefcase, Wallet, Calendar as CalendarIcon, ChevronLeft, ChevronRight, Building } from 'lucide-react';
 import { collection, addDoc, Timestamp, doc, getDoc, setDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useToast } from '@/hooks/use-toast';
@@ -23,6 +23,8 @@ import { Calendar } from '@/components/ui/calendar';
 import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
 import { Progress } from '@/components/ui/progress';
+import { AlertDialog, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
+
 
 const formSchema = z.object({
   // Personal Info
@@ -59,10 +61,35 @@ const steps: { id: number; title: string; icon: JSX.Element; fields: FieldName[]
     { id: 3, title: 'Financial Information', icon: <Wallet />, fields: ['salaryType', 'salaryRate', 'bankDetails'] },
 ];
 
+function NoBranchDialog() {
+    const router = useRouter();
+    return (
+        <div className="flex min-h-screen flex-col items-center justify-center bg-background p-4">
+            <AlertDialog open={true}>
+                <AlertDialogContent>
+                <AlertDialogHeader>
+                    <AlertDialogTitle>No Branch Found</AlertDialogTitle>
+                    <AlertDialogDescription>
+                    You need to create a branch before you can add a new trainer. Please go to the branch management page to add your first branch.
+                    </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                    <Link href="/dashboard/owner" passHref>
+                        <Button variant="outline">Go to Dashboard</Button>
+                    </Link>
+                    <Button onClick={() => router.push('/dashboard/owner/multi-branch')}>Create Branch</Button>
+                </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+        </div>
+    )
+}
+
 export default function AddTrainerPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [currentStep, setCurrentStep] = useState(1);
-  const [activeBranch, setActiveBranch] = useState<string | null>(null);
+  const [activeBranchId, setActiveBranchId] = useState<string | null>(null);
+  const [activeBranchName, setActiveBranchName] = useState<string | null>(null);
   const { toast } = useToast();
   const router = useRouter();
   
@@ -90,8 +117,19 @@ export default function AddTrainerPage() {
   });
 
   useEffect(() => {
-    const branch = localStorage.getItem('activeBranch');
-    setActiveBranch(branch);
+    const branchId = localStorage.getItem('activeBranch');
+    setActiveBranchId(branchId);
+    
+    if (branchId) {
+        const userDocId = localStorage.getItem('userDocId');
+        if (!userDocId) return;
+        const branchRef = doc(db, 'gyms', userDocId, 'branches', branchId);
+        getDoc(branchRef).then(docSnap => {
+            if (docSnap.exists()) {
+                setActiveBranchName(docSnap.data().name);
+            }
+        });
+    }
   }, []);
 
   const handleNext = async () => {
@@ -105,7 +143,7 @@ export default function AddTrainerPage() {
 
   const onSubmit = async (data: FormData) => {
     const userDocId = localStorage.getItem('userDocId');
-    if (!userDocId || !activeBranch) {
+    if (!userDocId || !activeBranchId) {
       toast({ title: 'Error', description: 'Gym owner session or branch not found.', variant: 'destructive' });
       return;
     }
@@ -113,7 +151,7 @@ export default function AddTrainerPage() {
     setIsLoading(true);
 
     try {
-      const trainersCollection = collection(db, 'gyms', userDocId, 'branches', activeBranch, 'trainers');
+      const trainersCollection = collection(db, 'gyms', userDocId, 'branches', activeBranchId, 'trainers');
       await addDoc(trainersCollection, {
         ...data,
         dob: Timestamp.fromDate(data.dob),
@@ -123,7 +161,7 @@ export default function AddTrainerPage() {
 
       toast({
         title: 'Trainer Added!',
-        description: `${data.fullName} has been successfully registered to ${activeBranch}.`,
+        description: `${data.fullName} has been successfully registered to ${activeBranchName}.`,
       });
       router.push('/dashboard/owner');
     } catch (error) {
@@ -139,6 +177,10 @@ export default function AddTrainerPage() {
   };
 
   const progress = (currentStep / steps.length) * 100;
+  
+  if (!activeBranchId) {
+      return <NoBranchDialog />;
+  }
 
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-background p-4">
@@ -155,7 +197,7 @@ export default function AddTrainerPage() {
                             <CardDescription>Step {currentStep} of {steps.length}</CardDescription>
                         </div>
                     </div>
-                     {activeBranch && <div className="text-sm font-medium text-muted-foreground">Branch: {activeBranch}</div>}
+                     {activeBranchName && <div className="text-sm font-medium text-muted-foreground">Branch: {activeBranchName}</div>}
                 </div>
             </CardHeader>
             <Form {...form}>
