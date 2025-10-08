@@ -342,6 +342,7 @@ export default function OwnerDashboardLayout({
             <MenuItem href="/dashboard/owner" icon={<BarChart3 />}>Dashboard</MenuItem>
             <MenuItem href="/dashboard/owner/community" icon={<Users />}>Community</MenuItem>
             <MenuItem href="/dashboard/owner/activity" icon={<Activity />} notificationCount={notificationCount}>Activity</MenuItem>
+            <MenuItem href="/progress" icon={<BarChart3 />}>My Progress</MenuItem>
             
             <SubMenu title="Gym Info" icon={<Info />} isOpen={openSubMenu === 'gym-info'} onToggle={() => toggleSubMenu('gym-info')}>
                 <SubMenuItem href="/dashboard/owner/gym-info/basic">Basic Information</SubMenuItem>

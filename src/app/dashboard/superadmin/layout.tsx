@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect } from 'react';
@@ -12,7 +13,7 @@ import {
   SidebarFooter,
   SidebarProvider,
 } from '@/components/ui/sidebar';
-import { Dumbbell, LogOut, LayoutDashboard, UserCog, IndianRupee, Flag, Users, Activity, Image as ImageIcon } from 'lucide-react';
+import { Dumbbell, LogOut, LayoutDashboard, UserCog, IndianRupee, Flag, Users, Activity, Image as ImageIcon, BarChart3 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { ThemeToggle } from '@/components/theme-toggle';
@@ -94,6 +95,7 @@ export default function SuperAdminDashboardLayout({
             <MenuItem href="/dashboard/superadmin" icon={<LayoutDashboard />}>Dashboard</MenuItem>
             <MenuItem href="/dashboard/superadmin/community" icon={<Users />}>Community</MenuItem>
             <MenuItem href="/dashboard/superadmin/activity" icon={<Activity />}>Activity</MenuItem>
+            <MenuItem href="/progress" icon={<BarChart3 />}>My Progress</MenuItem>
             <MenuItem href="/dashboard/superadmin/banners" icon={<ImageIcon />}>Banners</MenuItem>
             <MenuItem href="/dashboard/superadmin/settlements" icon={<IndianRupee />}>Settlements</MenuItem>
             <MenuItem href="/dashboard/superadmin/reports" icon={<Flag />}>Reports</MenuItem>

@@ -116,6 +116,7 @@ export default function MemberDashboardLayout({
             <MenuItem href="/dashboard/gym-profile" icon={<Building />}>Your Gym</MenuItem>
             <MenuItem href="/dashboard/member/community" icon={<Users />}>Community</MenuItem>
             <MenuItem href="/dashboard/member/activity" icon={<Activity />} notificationCount={notificationCount}>Activity</MenuItem>
+            <MenuItem href="/progress" icon={<BarChart3 />}>My Progress</MenuItem>
             <MenuItem href="/dashboard/member/trainers" icon={<Users />}>View Trainers</MenuItem>
             <MenuItem href="/dashboard/member/book-class" icon={<CalendarCheck />}>Book a Class</MenuItem>
             <MenuItem href="/dashboard/member/complaints" icon={<MessageSquare />}>Complaints</MenuItem>
