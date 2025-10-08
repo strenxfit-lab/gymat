@@ -8,7 +8,7 @@ import { db } from '@/lib/firebase';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Loader2, ArrowLeft, IndianRupee, TrendingUp, Calendar, BarChart3, Users, AlertCircle } from 'lucide-react';
+import { Loader2, ArrowLeft, IndianRupee, TrendingUp, Calendar, BarChart3, Users, AlertCircle, TrendingDown } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ResponsiveContainer, BarChart, XAxis, YAxis, Tooltip, Bar, Legend } from 'recharts';
 import { startOfWeek, startOfMonth, eachMonthOfInterval, format } from 'date-fns';
@@ -28,9 +28,10 @@ interface PendingDue {
     amountDue: number;
 }
 
-interface MonthlyRevenue {
+interface MonthlyData {
     name: string;
     revenue: number;
+    expense?: number;
 }
 
 export default function RevenueReportsPage() {
@@ -40,8 +41,9 @@ export default function RevenueReportsPage() {
   const [todaysRevenue, setTodaysRevenue] = useState(0);
   const [thisWeeksRevenue, setThisWeeksRevenue] = useState(0);
   const [thisMonthsRevenue, setThisMonthsRevenue] = useState(0);
+  const [thisMonthsExpenses, setThisMonthsExpenses] = useState(0);
   const [totalPendingDues, setTotalPendingDues] = useState(0);
-  const [monthlyChartData, setMonthlyChartData] = useState<MonthlyRevenue[]>([]);
+  const [monthlyChartData, setMonthlyChartData] = useState<MonthlyData[]>([]);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -56,6 +58,7 @@ export default function RevenueReportsPage() {
         return;
       }
       try {
+        // Fetch Members
         const membersRef = collection(db, 'gyms', userDocId, 'branches', activeBranchId, 'members');
         const membersSnap = await getDocs(membersRef);
         const memberDetails = membersSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
@@ -98,28 +101,43 @@ export default function RevenueReportsPage() {
         setPayments(allPayments);
         setPendingDues(allPendingDues);
         setTotalPendingDues(totalDues);
+
+        // Fetch Expenses
+        const expensesCollection = collection(db, 'gyms', userDocId, 'branches', activeBranchId, 'expenses');
+        const expensesSnap = await getDocs(expensesCollection);
+        const allExpenses = expensesSnap.docs.map(doc => ({ ...doc.data(), date: (doc.data().date as Timestamp).toDate() }));
         
         // Calculate stats
         const now = new Date();
-        const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-        const startOfThisWeek = startOfWeek(now);
         const startOfThisMonth = startOfMonth(now);
+        const startOfThisWeek = startOfWeek(now);
+        const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
         
-        let today = 0, week = 0, month = 0;
-        const monthlyTotals: Record<string, number> = {};
+        let today = 0, week = 0, monthRevenue = 0, monthExpense = 0;
+        const monthlyTotals: Record<string, { revenue: number, expense: number }> = {};
         
         allPayments.forEach(p => {
             if (p.paymentDate >= startOfToday) today += p.amountPaid;
             if (p.paymentDate >= startOfThisWeek) week += p.amountPaid;
-            if (p.paymentDate >= startOfThisMonth) month += p.amountPaid;
+            if (p.paymentDate >= startOfThisMonth) monthRevenue += p.amountPaid;
 
             const monthKey = format(p.paymentDate, 'MMM yyyy');
-            monthlyTotals[monthKey] = (monthlyTotals[monthKey] || 0) + p.amountPaid;
+            if (!monthlyTotals[monthKey]) monthlyTotals[monthKey] = { revenue: 0, expense: 0 };
+            monthlyTotals[monthKey].revenue += p.amountPaid;
+        });
+
+        allExpenses.forEach(e => {
+            if (e.date >= startOfThisMonth) monthExpense += e.amount;
+            
+            const monthKey = format(e.date, 'MMM yyyy');
+            if (!monthlyTotals[monthKey]) monthlyTotals[monthKey] = { revenue: 0, expense: 0 };
+            monthlyTotals[monthKey].expense += e.amount;
         });
 
         setTodaysRevenue(today);
         setThisWeeksRevenue(week);
-        setThisMonthsRevenue(month);
+        setThisMonthsRevenue(monthRevenue);
+        setThisMonthsExpenses(monthExpense);
 
         const lastSixMonths = eachMonthOfInterval({
             start: new Date(now.getFullYear(), now.getMonth() - 5, 1),
@@ -130,7 +148,8 @@ export default function RevenueReportsPage() {
             const monthKey = format(monthDate, 'MMM yyyy');
             return {
                 name: format(monthDate, 'MMM'),
-                revenue: monthlyTotals[monthKey] || 0
+                revenue: monthlyTotals[monthKey]?.revenue || 0,
+                expense: monthlyTotals[monthKey]?.expense || 0,
             };
         });
         setMonthlyChartData(chartData);
@@ -144,6 +163,8 @@ export default function RevenueReportsPage() {
     };
     fetchRevenueData();
   }, [toast]);
+
+  const netProfit = thisMonthsRevenue - thisMonthsExpenses;
   
   if (loading) {
     return <div className="flex min-h-screen items-center justify-center bg-background"><Loader2 className="h-8 w-8 animate-spin" /></div>;
@@ -161,7 +182,7 @@ export default function RevenueReportsPage() {
         </Link>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 mb-6">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 mb-6">
          <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">Today's Revenue</CardTitle>
@@ -189,6 +210,17 @@ export default function RevenueReportsPage() {
                 <div className="text-2xl font-bold">₹{thisMonthsRevenue.toLocaleString()}</div>
             </CardContent>
         </Card>
+        <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Net Profit/Loss (This Month)</CardTitle>
+                {netProfit >= 0 ? <TrendingUp className="h-4 w-4 text-muted-foreground" /> : <TrendingDown className="h-4 w-4 text-muted-foreground" />}
+            </CardHeader>
+            <CardContent>
+                <div className={`text-2xl font-bold ${netProfit >= 0 ? 'text-primary' : 'text-destructive'}`}>
+                    ₹{netProfit.toLocaleString()}
+                </div>
+            </CardContent>
+        </Card>
          <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">Total Pending Dues</CardTitle>
@@ -203,7 +235,7 @@ export default function RevenueReportsPage() {
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
         <Card className="col-span-full lg:col-span-4">
             <CardHeader>
-                <CardTitle>Monthly Revenue Trend (Last 6 Months)</CardTitle>
+                <CardTitle>Monthly Performance (Last 6 Months)</CardTitle>
             </CardHeader>
             <CardContent className="pl-2">
                 <ResponsiveContainer width="100%" height={350}>
@@ -211,7 +243,9 @@ export default function RevenueReportsPage() {
                         <XAxis dataKey="name" stroke="#888888" fontSize={12} tickLine={false} axisLine={false} />
                         <YAxis stroke="#888888" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(value) => `₹${value/1000}k`} />
                         <Tooltip contentStyle={{backgroundColor: 'hsl(var(--background))', border: '1px solid hsl(var(--border))' }} />
-                        <Bar dataKey="revenue" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+                        <Legend />
+                        <Bar dataKey="revenue" name="Revenue" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+                        <Bar dataKey="expense" name="Expense" fill="hsl(var(--destructive))" radius={[4, 4, 0, 0]} />
                     </BarChart>
                 </ResponsiveContainer>
             </CardContent>
@@ -286,5 +320,3 @@ export default function RevenueReportsPage() {
     </div>
   );
 }
-
-    
