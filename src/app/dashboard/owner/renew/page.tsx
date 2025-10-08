@@ -8,15 +8,19 @@ import { db } from '@/lib/firebase';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Loader2, ArrowLeft, Shield, Calendar, IndianRupee, Phone, Mail } from 'lucide-react';
+import { Loader2, ArrowLeft, Shield, Check, IndianRupee, Phone, Mail } from 'lucide-react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Badge } from '@/components/ui/badge';
 
 interface SubscriptionPlan {
   id: string;
   name: string;
   duration: string;
   price: number;
+  Benefits: string[];
 }
+
+const bestSellingPlanIds = ["6 Month Plan", "3 Month Plan Multi", "1 Year Plan Multi", "1 Year Plan"];
 
 export default function RenewPage() {
   const [plans, setPlans] = useState<SubscriptionPlan[]>([]);
@@ -63,7 +67,10 @@ export default function RenewPage() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {plans.length > 0 ? (
           plans.map(plan => (
-            <Card key={plan.id} className="flex flex-col">
+            <Card key={plan.id} className="flex flex-col relative">
+              {bestSellingPlanIds.includes(plan.id) && (
+                <Badge className="absolute -top-3 right-4">Best Selling</Badge>
+              )}
               <CardHeader>
                 <div className="flex items-center gap-3">
                     <Shield className="h-8 w-8 text-primary"/>
@@ -73,11 +80,19 @@ export default function RenewPage() {
                     </div>
                 </div>
               </CardHeader>
-              <CardContent className="flex-grow">
+              <CardContent className="flex-grow space-y-4">
                 <p className="text-4xl font-bold flex items-center">
                   <IndianRupee className="h-7 w-7 mr-1"/>
                   {plan.price.toLocaleString()}
                 </p>
+                <ul className="space-y-2 text-sm text-muted-foreground">
+                    {plan.Benefits?.map((benefit, index) => (
+                        <li key={index} className="flex items-center gap-2">
+                            <Check className="h-4 w-4 text-primary"/>
+                            <span>{benefit}</span>
+                        </li>
+                    ))}
+                </ul>
               </CardContent>
               <CardContent>
                  <DialogTrigger asChild>
@@ -115,4 +130,3 @@ export default function RenewPage() {
     </Dialog>
   );
 }
-
