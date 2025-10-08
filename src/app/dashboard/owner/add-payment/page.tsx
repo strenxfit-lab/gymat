@@ -43,20 +43,22 @@ interface Member {
   fullName: string;
   phone: string;
   membershipType: string;
+  totalFee: number;
 }
 
-const planFees: Record<string, number> = {
-    'trial': 0,
-    'monthly': 1500,
-    'quarterly': 4000,
-    'half-yearly': 7500,
-    'yearly': 12000,
+const planDurations: Record<string, number> = {
+    'trial': 0.25, // 1 week
+    'monthly': 1,
+    'quarterly': 3,
+    'half-yearly': 6,
+    'yearly': 12,
 };
 
 export default function AddPaymentPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [members, setMembers] = useState<Member[]>([]);
   const [selectedMember, setSelectedMember] = useState<Member | null>(null);
+  const [baseMonthlyFee, setBaseMonthlyFee] = useState<number>(0);
   const { toast } = useToast();
   const router = useRouter();
   
@@ -87,6 +89,7 @@ export default function AddPaymentPage() {
       fullName: doc.data().fullName,
       phone: doc.data().phone,
       membershipType: doc.data().membershipType,
+      totalFee: doc.data().totalFee,
     }));
     setMembers(membersList);
   };
@@ -97,20 +100,30 @@ export default function AddPaymentPage() {
 
   useEffect(() => {
     const subscription = form.watch((values, { name }) => {
-        const { totalFee, discount, amountPaid } = values;
+        const { totalFee, discount, amountPaid, membershipPlan } = values;
         const numericDiscount = typeof discount === 'string' ? parseFloat(discount) : discount;
 
         if (name === 'memberId' && values.memberId) {
             const member = members.find(m => m.id === values.memberId);
             if (member) {
                 setSelectedMember(member);
-                const fee = planFees[member.membershipType] || 0;
+                const originalDuration = planDurations[member.membershipType] || 1;
+                const monthlyFee = originalDuration > 0 ? member.totalFee / originalDuration : member.totalFee;
+                setBaseMonthlyFee(monthlyFee);
+                
                 form.setValue('membershipPlan', member.membershipType);
-                form.setValue('totalFee', fee);
-                form.setValue('amountPaid', fee);
+                form.setValue('totalFee', member.totalFee);
+                form.setValue('amountPaid', member.totalFee);
             }
         }
         
+        if (name === 'membershipPlan' && membershipPlan && baseMonthlyFee > 0) {
+            const newDuration = planDurations[membershipPlan] || 1;
+            const newFee = Math.round(baseMonthlyFee * newDuration);
+            form.setValue('totalFee', newFee);
+            form.setValue('amountPaid', newFee);
+        }
+
         if (name === 'totalFee' || name === 'discount' || name === 'amountPaid') {
             const finalPayable = (totalFee || 0) - (numericDiscount || 0);
             const balance = finalPayable - (amountPaid || 0);
@@ -118,7 +131,7 @@ export default function AddPaymentPage() {
         }
     });
     return () => subscription.unsubscribe();
-  }, [form, members]);
+  }, [form, members, selectedMember, baseMonthlyFee]);
 
 
   const onSubmit = async (data: FormData) => {
@@ -212,10 +225,17 @@ export default function AddPaymentPage() {
 
                     {selectedMember && (
                         <FormField control={form.control} name="membershipPlan" render={({ field }) => (
-                            <FormItem>
-                                <FormLabel>Membership Plan</FormLabel>
-                                <FormControl><Input {...field} readOnly disabled placeholder="Membership Plan" /></FormControl>
-                                <FormMessage />
+                            <FormItem><FormLabel>Membership Plan</FormLabel>
+                            <Select onValueChange={field.onChange} value={field.value}>
+                                <FormControl><SelectTrigger><SelectValue placeholder="Select type" /></SelectTrigger></FormControl>
+                                <SelectContent>
+                                    <SelectItem value="trial">Trial</SelectItem>
+                                    <SelectItem value="monthly">Monthly</SelectItem>
+                                    <SelectItem value="quarterly">Quarterly</SelectItem>
+                                    <SelectItem value="half-yearly">Half-Yearly</SelectItem>
+                                    <SelectItem value="yearly">Yearly</SelectItem>
+                                </SelectContent>
+                            </Select><FormMessage />
                             </FormItem>
                         )} />
                     )}
@@ -224,7 +244,7 @@ export default function AddPaymentPage() {
                 <div className="space-y-4 border-b pb-4">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <FormField control={form.control} name="totalFee" render={({ field }) => ( <FormItem><FormLabel>Total Fee (₹)</FormLabel><FormControl><Input type="number" {...field} onChange={e => field.onChange(e.target.value === '' ? 0 : parseInt(e.target.value, 10))} /></FormControl><FormMessage /></FormItem> )} />
-                        <FormField control={form.control} name="discount" render={({ field }) => ( <FormItem><FormLabel>Discount (₹, Optional)</FormLabel><FormControl><Input type="number" placeholder="0" {...field} /></FormControl><FormMessage /></FormItem> )} />
+                        <FormField control={form.control} name="discount" render={({ field }) => ( <FormItem><FormLabel>Discount (₹, Optional)</FormLabel><FormControl><Input type="number" placeholder="0" {...field} value={field.value ?? ''} onChange={e => field.onChange(e.target.value)}/></FormControl><FormMessage /></FormItem> )} />
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <FormField control={form.control} name="amountPaid" render={({ field }) => ( <FormItem><FormLabel>Amount Paid (₹)</FormLabel><FormControl><Input type="number" {...field} onChange={e => field.onChange(e.target.value === '' ? 0 : parseInt(e.target.value, 10))} /></FormControl><FormMessage /></FormItem> )} />
@@ -235,17 +255,9 @@ export default function AddPaymentPage() {
                 <div className="space-y-4">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <FormField control={form.control} name="paymentDate" render={({ field }) => (
-                             <FormItem className="flex flex-col">
-                                <FormLabel>Payment Date</FormLabel>
-                                <FormControl>
-                                <Input
-                                    type="date"
-                                    value={field.value ? format(field.value, 'yyyy-MM-dd') : ''}
-                                    onChange={(e) => field.onChange(new Date(e.target.value))}
-                                />
-                                </FormControl>
-                                <FormMessage />
-                            </FormItem>
+                             <FormItem className="flex flex-col"><FormLabel>Payment Date</FormLabel><FormControl>
+                                <Input type="date" value={field.value ? format(field.value, 'yyyy-MM-dd') : ''} onChange={e => field.onChange(new Date(e.target.value))} />
+                             </FormControl><FormMessage /></FormItem>
                         )} />
                         <FormField control={form.control} name="paymentMode" render={({ field }) => (
                             <FormItem><FormLabel>Payment Mode</FormLabel>
@@ -280,3 +292,5 @@ export default function AddPaymentPage() {
     </div>
   );
 }
+ 
+    
