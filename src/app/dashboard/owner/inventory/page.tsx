@@ -16,15 +16,17 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Loader2, PlusCircle, ArrowLeft, MoreHorizontal, Edit, Trash } from 'lucide-react';
+import { Loader2, PlusCircle, ArrowLeft, MoreHorizontal, Edit, Trash, AlertTriangle } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+import { Badge } from '@/components/ui/badge';
 
 const inventorySchema = z.object({
   name: z.string().min(1, 'Item name is required.'),
   category: z.string().min(1, 'Please select a category.'),
   quantity: z.coerce.number().min(0, 'Quantity cannot be negative.'),
   unit: z.string().min(1, 'Please select a unit.'),
+  reorderPoint: z.coerce.number().min(0, 'Reorder point cannot be negative.').optional(),
   purchasePrice: z.coerce.number().optional(),
   sellingPrice: z.coerce.number().optional(),
   supplier: z.string().optional(),
@@ -55,7 +57,7 @@ export default function InventoryPage() {
 
   const form = useForm<z.infer<typeof inventorySchema>>({
     resolver: zodResolver(inventorySchema),
-    defaultValues: { name: '', category: '', quantity: 0, unit: '', purchasePrice: 0, sellingPrice: 0, supplier: '' },
+    defaultValues: { name: '', category: '', quantity: 0, unit: '', reorderPoint: 0, purchasePrice: 0, sellingPrice: 0, supplier: '' },
   });
   
   const fetchInventory = async () => {
@@ -100,7 +102,7 @@ export default function InventoryPage() {
         form.reset(editingItem);
         setIsFormDialogOpen(true);
     } else {
-        form.reset({ name: '', category: '', quantity: 0, unit: '', purchasePrice: 0, sellingPrice: 0, supplier: '' });
+        form.reset({ name: '', category: '', quantity: 0, unit: '', reorderPoint: 0, purchasePrice: 0, sellingPrice: 0, supplier: '' });
     }
   }, [editingItem, form]);
 
@@ -234,6 +236,7 @@ export default function InventoryPage() {
                         <FormField control={form.control} name="purchasePrice" render={({ field }) => ( <FormItem><FormLabel>Purchase Price (₹)</FormLabel><FormControl><Input type="number" placeholder="1000" {...field} /></FormControl><FormMessage /></FormItem> )} />
                         <FormField control={form.control} name="sellingPrice" render={({ field }) => ( <FormItem><FormLabel>Selling Price (₹)</FormLabel><FormControl><Input type="number" placeholder="1200" {...field} /></FormControl><FormMessage /></FormItem> )} />
                     </div>
+                     <FormField control={form.control} name="reorderPoint" render={({ field }) => ( <FormItem><FormLabel>Low Stock Alert At</FormLabel><FormControl><Input type="number" placeholder="Set a reorder point" {...field} /></FormControl><FormMessage /></FormItem> )} />
                     <FormField control={form.control} name="supplier" render={({ field }) => ( <FormItem><FormLabel>Supplier / Vendor</FormLabel><FormControl><Input placeholder="e.g., HealthFirst Suppliers" {...field} /></FormControl><FormMessage /></FormItem> )} />
                     
                     <DialogFooter>
@@ -268,9 +271,16 @@ export default function InventoryPage() {
             </TableHeader>
             <TableBody>
               {inventory.length > 0 ? (
-                inventory.map((item) => (
-                  <TableRow key={item.id}>
-                    <TableCell className="font-medium">{item.name}</TableCell>
+                inventory.map((item) => {
+                  const isLowStock = item.reorderPoint && item.quantity <= item.reorderPoint;
+                  return (
+                  <TableRow key={item.id} className={isLowStock ? 'bg-destructive/10 hover:bg-destructive/20' : ''}>
+                    <TableCell className="font-medium">
+                        <div className="flex items-center gap-2">
+                            {isLowStock && <AlertTriangle className="h-4 w-4 text-destructive" title="Low stock"/>}
+                            {item.name}
+                        </div>
+                    </TableCell>
                     <TableCell>{item.category}</TableCell>
                     <TableCell>{item.quantity} {item.unit}</TableCell>
                     <TableCell>₹{item.purchasePrice?.toLocaleString() || 'N/A'}</TableCell>
@@ -305,7 +315,8 @@ export default function InventoryPage() {
                         </AlertDialog>
                     </TableCell>
                   </TableRow>
-                ))
+                  );
+                })
               ) : (
                 <TableRow>
                   <TableCell colSpan={6} className="h-24 text-center">
@@ -320,5 +331,4 @@ export default function InventoryPage() {
     </div>
   );
 }
-
     
