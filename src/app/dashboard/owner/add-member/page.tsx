@@ -151,14 +151,21 @@ export default function AddMemberPage() {
         }
       }
 
-      const newDocRef = await addDoc(membersCollection, {
+      const memberData: any = {
         ...data,
         totalFee: parseFloat(data.totalFee),
         dob: Timestamp.fromDate(data.dob),
         startDate: Timestamp.fromDate(data.startDate),
         endDate: endDate ? Timestamp.fromDate(endDate) : null,
         createdAt: Timestamp.now(),
-      });
+      };
+
+      if (data.membershipType === 'trial') {
+        memberData.isTrial = true;
+      }
+
+      const newDocRef = await addDoc(membersCollection, memberData);
+
       setNewMember({ id: newDocRef.id, name: data.fullName });
       setIsDialogOpen(true);
 
@@ -316,3 +323,5 @@ export default function AddMemberPage() {
     </div>
   );
 }
+
+    
