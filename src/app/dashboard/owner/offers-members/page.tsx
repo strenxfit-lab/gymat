@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { collection, addDoc, getDocs, Timestamp, deleteDoc, doc, updateDoc, query, where, getDoc, collectionGroup, serverTimestamp } from 'firebase/firestore';
+import { collection, addDoc, getDocs, Timestamp, deleteDoc, doc, updateDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
@@ -15,7 +15,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from "@/components/ui/input";
 import { Textarea } from '@/components/ui/textarea';
-import { Loader2, PlusCircle, ArrowLeft, MoreHorizontal, Edit, Trash, Tags, Calendar, Percent, IndianRupee, Users, TrendingUp, Phone, Mail } from 'lucide-react';
+import { Loader2, PlusCircle, ArrowLeft, MoreHorizontal, Edit, Trash, Tags, Calendar, Percent, IndianRupee } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -45,21 +45,6 @@ const offerSchema = z.object({
 
 interface Offer extends z.infer<typeof offerSchema> {
   id: string;
-  availed: number;
-  revenue: number;
-}
-
-interface LimitDialogInfo {
-    members?: number;
-    trainers?: number;
-    payments?: number;
-    equipment?: number;
-    classes?: number;
-    expenses?: number;
-    inventory?: number;
-    maintenance?: number;
-    offers?: number;
-    usageLogs?: number;
 }
 
 const getStatus = (startDate: string, endDate: string): { text: 'Active' | 'Upcoming' | 'Expired', variant: 'default' | 'secondary' | 'destructive'} => {
@@ -72,49 +57,11 @@ const getStatus = (startDate: string, endDate: string): { text: 'Active' | 'Upco
     return { text: 'Active', variant: 'default' };
 }
 
-function LimitReachedDialog({ isOpen, onOpenChange, limits }: { isOpen: boolean; onOpenChange: (open: boolean) => void, limits: LimitDialogInfo }) {
-  return (
-    <AlertDialog open={isOpen} onOpenChange={onOpenChange}>
-      <AlertDialogContent>
-        <AlertDialogHeader>
-          <AlertDialogTitle>You've reached the limit of your trial account</AlertDialogTitle>
-          <AlertDialogDescription className="space-y-2 pt-2">
-            {limits.members !== undefined && <p>Members ({limits.members}/3)</p>}
-            {limits.trainers !== undefined && <p>Trainers ({limits.trainers}/2)</p>}
-            {limits.payments !== undefined && <p>Payments ({limits.payments}/5 per member)</p>}
-            {limits.equipment !== undefined && <p>Equipment ({limits.equipment}/1)</p>}
-            {limits.classes !== undefined && <p>Classes ({limits.classes}/1)</p>}
-            {limits.expenses !== undefined && <p>Expenses ({limits.expenses}/2)</p>}
-            {limits.inventory !== undefined && <p>Inventory ({limits.inventory}/1)</p>}
-            {limits.maintenance !== undefined && <p>Maintenance ({limits.maintenance}/1)</p>}
-            {limits.offers !== undefined && <p>Offers ({limits.offers}/1)</p>}
-            {limits.usageLogs !== undefined && <p>Usage Logs ({limits.usageLogs}/1)</p>}
-            <p className="font-semibold pt-2">Upgrade to a full Account to continue managing without restrictions.</p>
-          </AlertDialogDescription>
-        </AlertDialogHeader>
-        <div className="flex flex-col space-y-2">
-            <p className="font-bold text-center">Contact Strenxfit Support</p>
-            <a href="https://wa.me/917988487892" target="_blank" rel="noopener noreferrer" className="flex items-center justify-center gap-3 p-3 rounded-md hover:bg-accent transition-colors">
-                <Phone className="h-5 w-5 text-muted-foreground" />
-                <span>+91 79884 87892</span>
-            </a>
-        </div>
-        <AlertDialogFooter>
-          <AlertDialogAction onClick={() => onOpenChange(false)}>OK</AlertDialogAction>
-        </AlertDialogFooter>
-      </AlertDialogContent>
-    </AlertDialog>
-  );
-}
-
 export default function MemberOffersPage() {
   const [offers, setOffers] = useState<Offer[]>([]);
   const [loading, setLoading] = useState(true);
   const [isFormDialogOpen, setIsFormDialogOpen] = useState(false);
   const [editingOffer, setEditingOffer] = useState<Offer | null>(null);
-  const [isTrial, setIsTrial] = useState(false);
-  const [limitDialogOpen, setLimitDialogOpen] = useState(false);
-  const [limitInfo, setLimitInfo] = useState<LimitDialogInfo>({});
   const { toast } = useToast();
 
   const form = useForm<z.infer<typeof offerSchema>>({
@@ -132,48 +79,17 @@ export default function MemberOffersPage() {
       setLoading(false);
       return;
     }
-
-    const gymRef = doc(db, 'gyms', userDocId);
-    const gymSnap = await getDoc(gymRef);
-    if (gymSnap.exists() && gymSnap.data().isTrial) {
-        setIsTrial(true);
-    }
-    
     try {
         const offersCollection = collection(db, 'gyms', userDocId, 'branches', activeBranchId, 'offers');
         const offersSnapshot = await getDocs(offersCollection);
-        
-        const membersCollection = collection(db, 'gyms', userDocId, 'branches', activeBranchId, 'members');
-        const membersSnapshot = await getDocs(membersCollection);
-        
-        const allPayments = [];
-        for (const memberDoc of membersSnapshot.docs) {
-            const paymentsCollection = collection(memberDoc.ref, 'payments');
-            const paymentsSnapshot = await getDocs(paymentsCollection);
-            for (const paymentDoc of paymentsSnapshot.docs) {
-                allPayments.push(paymentDoc.data());
-            }
-        }
-        
+
         const offersList = offersSnapshot.docs.map(docSnap => {
             const data = docSnap.data();
-            const offerId = docSnap.id;
-
-            const analytics = allPayments
-                .filter(p => p.appliedOfferId === offerId)
-                .reduce((acc, p) => {
-                    acc.availed += 1;
-                    acc.revenue += p.amountPaid;
-                    return acc;
-                }, { availed: 0, revenue: 0 });
-
             return {
-                id: offerId,
+                id: docSnap.id,
                 ...data,
                 startDate: (data.startDate as Timestamp).toDate().toISOString().split('T')[0],
                 endDate: (data.endDate as Timestamp).toDate().toISOString().split('T')[0],
-                availed: analytics.availed,
-                revenue: analytics.revenue,
             } as Offer;
         });
 
@@ -194,12 +110,7 @@ export default function MemberOffersPage() {
   
   useEffect(() => {
     if (editingOffer) {
-        form.reset({
-            ...editingOffer,
-            // @ts-ignore
-            availed: undefined,
-            revenue: undefined,
-        });
+        form.reset(editingOffer);
         setIsFormDialogOpen(true);
     } else {
         form.reset({ title: '', description: '', startDate: '', endDate: '', applicablePlans: [], discountType: undefined, discountValue: 0 });
@@ -227,14 +138,6 @@ export default function MemberOffersPage() {
     const activeBranchId = localStorage.getItem('activeBranch');
     if (!userDocId || !activeBranchId) return;
 
-    if(isTrial) {
-        if (offers.length >= 1) {
-            setLimitInfo({ offers: offers.length });
-            setLimitDialogOpen(true);
-            return;
-        }
-    }
-
     try {
       const offersCollection = collection(db, 'gyms', userDocId, 'branches', activeBranchId, 'offers');
       
@@ -242,7 +145,7 @@ export default function MemberOffersPage() {
         ...values,
         startDate: Timestamp.fromDate(new Date(values.startDate)),
         endDate: Timestamp.fromDate(new Date(values.endDate)),
-        createdAt: serverTimestamp(),
+        createdAt: Timestamp.now(),
       });
 
       toast({ title: 'Success!', description: 'New offer has been created.' });
@@ -300,7 +203,6 @@ export default function MemberOffersPage() {
 
   return (
     <div className="container mx-auto py-10">
-      <LimitReachedDialog isOpen={limitDialogOpen} onOpenChange={setLimitDialogOpen} limits={limitInfo} />
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-3xl font-bold">Member Offers</h1>
@@ -381,7 +283,7 @@ export default function MemberOffersPage() {
       </div>
       
       <div>
-        <h2 className="text-2xl font-bold mb-4">Offers Dashboard</h2>
+        <h2 className="text-2xl font-bold mb-4">Active Offers</h2>
         {loading ? <p>Loading offers...</p> : (
             offers.length > 0 ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -409,11 +311,6 @@ export default function MemberOffersPage() {
                                                 <Badge key={planId} variant="secondary">{membershipPlans.find(p=>p.id === planId)?.label || planId}</Badge>
                                             ))}
                                         </div>
-                                    </div>
-                                    <div className="border-t pt-3 mt-3 space-y-2">
-                                        <h4 className="text-sm font-semibold">Analytics</h4>
-                                        <div className="flex items-center text-sm text-muted-foreground"><Users className="mr-2 h-4 w-4" /> Availed by: <span className="font-bold text-foreground ml-1">{offer.availed} members</span></div>
-                                        <div className="flex items-center text-sm text-muted-foreground"><TrendingUp className="mr-2 h-4 w-4" /> Revenue: <span className="font-bold text-foreground ml-1">₹{offer.revenue.toLocaleString()}</span></div>
                                     </div>
                                 </CardContent>
                                 <CardFooter className="bg-muted/50 p-2 flex justify-end gap-2">
