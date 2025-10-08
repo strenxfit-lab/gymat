@@ -8,7 +8,7 @@ import { db } from '@/lib/firebase';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Loader2, User, LogOut, Building, Cake } from 'lucide-react';
+import { Loader2, User, LogOut, Building, Cake, MessageSquare } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
@@ -201,7 +201,7 @@ export default function TrainerDashboardPage() {
                     </CardContent>
                 </Card>
             </div>
-            <div className="md:col-span-1">
+            <div className="md:col-span-1 space-y-4">
                 <Card>
                     <CardHeader>
                         <CardTitle>Gym Info</CardTitle>
@@ -209,6 +209,16 @@ export default function TrainerDashboardPage() {
                     <CardContent>
                          <Link href="/dashboard/gym-profile" passHref>
                             <Button className="w-full justify-start" variant="outline"><Building className="mr-2"/> View Gym Profile</Button>
+                         </Link>
+                    </CardContent>
+                </Card>
+                 <Card>
+                    <CardHeader>
+                        <CardTitle>Feedback</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                         <Link href="/dashboard/trainer/complaints" passHref>
+                            <Button className="w-full justify-start" variant="outline"><MessageSquare className="mr-2"/> Complaints</Button>
                          </Link>
                     </CardContent>
                 </Card>
