@@ -1,5 +1,4 @@
 
-
 "use client";
 
 import { useState, useEffect } from 'react';
@@ -7,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { doc, getDoc, setDoc, collection, getDocs, Timestamp, addDoc, query, orderBy, limit } from 'firebase/firestore';
+import { doc, getDoc, setDoc, collection, getDocs, Timestamp, addDoc, query, orderBy, limit, serverTimestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
@@ -228,7 +227,7 @@ export default function RemindersPage() {
             memberPhone: member.phone,
             message: messageContent,
             type: type,
-            sentAt: Timestamp.now(),
+            sentAt: serverTimestamp(),
         });
 
         setMessageLists(prev => ({
@@ -433,4 +432,3 @@ export default function RemindersPage() {
     </div>
   );
 }
-
