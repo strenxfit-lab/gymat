@@ -21,11 +21,11 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 const formSchema = z.object({
-  gymName: z.string().optional(),
+  gymName: z.string().min(1, 'Gym Name is required.'),
   gymAddress: z.string().optional(),
   cityStatePin: z.string().optional(),
-  contactNumber: z.string().optional(),
-  gymEmail: z.string().email().optional().or(z.literal('')),
+  contactNumber: z.string().length(10, { message: "Contact number must be 10 digits." }),
+  gymEmail: z.string().email({ message: "Invalid email address." }).optional().or(z.literal('')),
   gymStartDate: z.string().optional(),
   ownerName: z.string().optional(),
   ownerMobile: z.string().optional(),
@@ -49,14 +49,16 @@ const formSchema = z.object({
 });
 
 type FormData = z.infer<typeof formSchema>;
+type FieldName = keyof FormData;
 
-const steps = [
-  { id: 1, title: "Basic Gym Information", icon: <Building className="h-6 w-6" /> },
-  { id: 2, title: "Owner Information", icon: <User className="h-6 w-6" /> },
-  { id: 3, title: "Gym Capacity & Setup", icon: <Ruler className="h-6 w-6" /> },
-  { id: 4, title: "Membership & Plans", icon: <Wallet className="h-6 w-6" /> },
-  { id: 5, title: "Facilities & Machines", icon: <Dumbbell className="h-6 w-6" /> },
-  { id: 6, title: "Goals & Insights", icon: <BarChart className="h-6 w-6" /> },
+
+const steps: { id: number; title: string; icon: JSX.Element, fields: FieldName[] }[] = [
+  { id: 1, title: "Basic Gym Information", icon: <Building className="h-6 w-6" />, fields: ['gymName', 'gymAddress', 'cityStatePin', 'contactNumber', 'gymEmail', 'gymStartDate'] },
+  { id: 2, title: "Owner Information", icon: <User className="h-6 w-6" />, fields: ['ownerName', 'ownerMobile', 'ownerEmail', 'ownerAlternateContact'] },
+  { id: 3, title: "Gym Capacity & Setup", icon: <Ruler className="h-6 w-6" />, fields: ['gymArea', 'maxCapacity', 'numTrainers', 'numStaff', 'openDays', 'openingTime', 'closingTime'] },
+  { id: 4, title: "Membership & Plans", icon: <Wallet className="h-6 w-6" />, fields: ['hasPlans', 'plans', 'freeTrial'] },
+  { id: 5, title: "Facilities & Machines", icon: <Dumbbell className="h-6 w-6" />, fields: ['facilities', 'numMachines', 'keyBrands'] },
+  { id: 6, title: "Goals & Insights", icon: <BarChart className="h-6 w-6" />, fields: ['primaryGoal', 'expectedMembers'] },
 ];
 
 const daysOfWeek = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
@@ -72,6 +74,28 @@ export default function OnboardingPage() {
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
     defaultValues: {
+      gymName: '',
+      gymAddress: '',
+      cityStatePin: '',
+      contactNumber: '',
+      gymEmail: '',
+      gymStartDate: '',
+      ownerName: '',
+      ownerMobile: '',
+      ownerEmail: '',
+      ownerAlternateContact: '',
+      gymArea: '',
+      maxCapacity: '',
+      numTrainers: '',
+      numStaff: '',
+      openingTime: '',
+      closingTime: '',
+      hasPlans: '',
+      freeTrial: '',
+      numMachines: '',
+      keyBrands: '',
+      primaryGoal: '',
+      expectedMembers: '',
       openDays: [],
       plans: [{ name: '', price: '' }],
       facilities: [],
@@ -88,7 +112,13 @@ export default function OnboardingPage() {
     }
   }, [router, toast]);
 
-  const handleNext = () => setCurrentStep((prev) => Math.min(prev + 1, steps.length));
+  const handleNext = async () => {
+    const fieldsToValidate = steps[currentStep - 1].fields;
+    const isValid = await form.trigger(fieldsToValidate);
+    if (isValid) {
+      setCurrentStep((prev) => Math.min(prev + 1, steps.length));
+    }
+  };
   const handleSkip = () => setCurrentStep((prev) => Math.min(prev + 1, steps.length));
   const handleBack = () => setCurrentStep((prev) => Math.max(prev - 1, 1));
   
@@ -148,12 +178,12 @@ export default function OnboardingPage() {
             <CardContent className="space-y-6">
               {currentStep === 1 && (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <FormField control={form.control} name="gymName" render={({ field }) => ( <FormItem><FormLabel>Gym Name</FormLabel><FormControl><Input placeholder="Strenxfit Gym" {...field} /></FormControl></FormItem> )} />
-                  <FormField control={form.control} name="gymAddress" render={({ field }) => ( <FormItem><FormLabel>Gym Address</FormLabel><FormControl><Input placeholder="123 Fitness Ave" {...field} /></FormControl></FormItem> )} />
-                  <FormField control={form.control} name="cityStatePin" render={({ field }) => ( <FormItem><FormLabel>City, State, PIN</FormLabel><FormControl><Input placeholder="Metropolis, NY, 10001" {...field} /></FormControl></FormItem> )} />
-                  <FormField control={form.control} name="contactNumber" render={({ field }) => ( <FormItem><FormLabel>Contact Number</FormLabel><FormControl><Input placeholder="+1 234 567 890" {...field} /></FormControl></FormItem> )} />
-                  <FormField control={form.control} name="gymEmail" render={({ field }) => ( <FormItem><FormLabel>Email Address</FormLabel><FormControl><Input type="email" placeholder="contact@strenxfit.com" {...field} /></FormControl></FormItem> )} />
-                  <FormField control={form.control} name="gymStartDate" render={({ field }) => ( <FormItem><FormLabel>Gym Start Date</FormLabel><FormControl><Input type="date" {...field} /></FormControl></FormItem> )} />
+                  <FormField control={form.control} name="gymName" render={({ field }) => ( <FormItem><FormLabel>Gym Name</FormLabel><FormControl><Input placeholder="Strenxfit Gym" {...field} /></FormControl><FormMessage /></FormItem> )} />
+                  <FormField control={form.control} name="gymAddress" render={({ field }) => ( <FormItem><FormLabel>Gym Address</FormLabel><FormControl><Input placeholder="123 Fitness Ave" {...field} /></FormControl><FormMessage /></FormItem> )} />
+                  <FormField control={form.control} name="cityStatePin" render={({ field }) => ( <FormItem><FormLabel>City, State, PIN</FormLabel><FormControl><Input placeholder="Metropolis, NY, 10001" {...field} /></FormControl><FormMessage /></FormItem> )} />
+                  <FormField control={form.control} name="contactNumber" render={({ field }) => ( <FormItem><FormLabel>Contact Number</FormLabel><FormControl><Input placeholder="+1 234 567 890" {...field} /></FormControl><FormMessage /></FormItem> )} />
+                  <FormField control={form.control} name="gymEmail" render={({ field }) => ( <FormItem><FormLabel>Email Address</FormLabel><FormControl><Input type="email" placeholder="contact@strenxfit.com" {...field} /></FormControl><FormMessage /></FormItem> )} />
+                  <FormField control={form.control} name="gymStartDate" render={({ field }) => ( <FormItem><FormLabel>Gym Start Date</FormLabel><FormControl><Input type="date" {...field} /></FormControl><FormMessage /></FormItem> )} />
                 </div>
               )}
                {currentStep === 2 && (
@@ -254,7 +284,7 @@ export default function OnboardingPage() {
                     )}/>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                          <FormField control={form.control} name="numMachines" render={({ field }) => ( <FormItem><FormLabel>Number of Machines (approx.)</FormLabel><FormControl><Input placeholder="50" {...field} /></FormControl></FormItem> )} />
-                         <FormField control={form.control} name="keyBrands" render={({ field }) => ( <FormItem><FormLabel>Key Equipment Brands (Optional)</FormLabel><FormControl><Input placeholder="Technogym, Life Fitness" {...field} /></FormControl></FormItem> )} />
+                         <FormField control={form.control} name="keyBrands" render={({ field }) => ( <FormItem><FormLabel>Key Equipment Brands (Optional)</FormLabel><FormControl><Input placeholder="StrenxFit" {...field} /></FormControl></FormItem> )} />
                     </div>
                 </div>
               )}
