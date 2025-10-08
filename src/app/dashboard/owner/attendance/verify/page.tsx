@@ -80,19 +80,22 @@ export default function VerifyAttendancePage() {
       const attendanceRef = collection(db, "attendance");
       const qAttendance = query(
           attendanceRef,
-          where("gymId", "==", userDocId),
           where("branchId", "==", activeBranchId),
           where("userId", "==", codeData.userId),
-          where("scanTime", ">=", Timestamp.fromDate(tenMinutesAgo))
+          orderBy("scanTime", "desc"),
+          limit(1)
       );
 
       const attendanceSnapshot = await getDocs(qAttendance);
       if(!attendanceSnapshot.empty) {
-          toast({ title: "Already Checked In", description: `${codeData.userName} has already marked attendance recently.`, variant: "default" });
-          await deleteDoc(validDoc.ref);
-          setLoading(false);
-          form.reset();
-          return;
+          const lastScan = attendanceSnapshot.docs[0].data();
+          if ((lastScan.scanTime as Timestamp).toDate() > tenMinutesAgo) {
+            toast({ title: "Already Checked In", description: `${codeData.userName} has already marked attendance recently.`, variant: "default" });
+            await deleteDoc(validDoc.ref);
+            setLoading(false);
+            form.reset();
+            return;
+          }
       }
 
 
