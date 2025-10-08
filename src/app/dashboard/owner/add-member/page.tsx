@@ -43,7 +43,6 @@ const formSchema = z.object({
   
   membershipType: z.string().nonempty({ message: 'Please select a membership type.' }),
   startDate: z.date({ required_error: 'Start date is required.' }),
-  endDate: z.date({ required_error: 'End date is required.' }),
   totalFee: z.string().min(1, { message: "Total fee is required."}),
   assignedTrainer: z.string().optional(),
   plan: z.string().optional(),
@@ -64,7 +63,7 @@ interface Trainer {
 
 const steps: { id: number; title: string; icon: JSX.Element; fields: FieldName[] }[] = [
     { id: 1, title: 'Basic Information', icon: <User />, fields: ['fullName', 'gender', 'dob', 'phone', 'email'] },
-    { id: 2, title: 'Membership Details', icon: <Dumbbell />, fields: ['membershipType', 'startDate', 'endDate', 'totalFee', 'assignedTrainer', 'plan'] },
+    { id: 2, title: 'Membership Details', icon: <Dumbbell />, fields: ['membershipType', 'startDate', 'totalFee', 'assignedTrainer', 'plan'] },
     { id: 3, title: 'Health & Fitness', icon: <HeartPulse />, fields: ['height', 'weight', 'medicalConditions', 'fitnessGoal'] },
 ];
 
@@ -95,7 +94,6 @@ export default function AddMemberPage() {
       fitnessGoal: '',
       dob: new Date(),
       startDate: new Date(),
-      endDate: addDays(new Date(), 30),
     },
   });
 
@@ -117,25 +115,6 @@ export default function AddMemberPage() {
     fetchTrainers();
   }, []);
 
-  useEffect(() => {
-    const subscription = form.watch((value, { name }) => {
-      if (name === 'membershipType' || name === 'startDate') {
-        const { membershipType, startDate } = value;
-        if (membershipType && startDate) {
-          let endDate = new Date(startDate);
-          switch (membershipType) {
-            case 'monthly': endDate = addDays(endDate, 30); break;
-            case 'quarterly': endDate = addDays(endDate, 90); break;
-            case 'half-yearly': endDate = addDays(endDate, 180); break;
-            case 'yearly': endDate = addDays(endDate, 365); break;
-            case 'trial': endDate = addDays(endDate, 7); break;
-          }
-          form.setValue('endDate', endDate);
-        }
-      }
-    });
-    return () => subscription.unsubscribe();
-  }, [form]);
 
   const handleNext = async () => {
     const fieldsToValidate = steps[currentStep - 1].fields;
@@ -157,12 +136,27 @@ export default function AddMemberPage() {
 
     try {
       const membersCollection = collection(db, 'gyms', userDocId, 'members');
+      
+      let endDate;
+      const { membershipType, startDate } = data;
+      if (membershipType && startDate) {
+        let date = new Date(startDate);
+        switch (membershipType) {
+          case 'monthly': endDate = addDays(date, 30); break;
+          case 'quarterly': endDate = addDays(date, 90); break;
+          case 'half-yearly': endDate = addDays(date, 180); break;
+          case 'yearly': endDate = addDays(date, 365); break;
+          case 'trial': endDate = addDays(date, 7); break;
+          default: endDate = addDays(date, 30);
+        }
+      }
+
       const newDocRef = await addDoc(membersCollection, {
         ...data,
         totalFee: parseFloat(data.totalFee),
         dob: Timestamp.fromDate(data.dob),
         startDate: Timestamp.fromDate(data.startDate),
-        endDate: Timestamp.fromDate(data.endDate),
+        endDate: endDate ? Timestamp.fromDate(endDate) : null,
         createdAt: Timestamp.now(),
       });
       setNewMember({ id: newDocRef.id, name: data.fullName });
@@ -258,47 +252,7 @@ export default function AddMemberPage() {
                         )} />
                         <FormField control={form.control} name="totalFee" render={({ field }) => ( <FormItem><FormLabel>Total Fee (₹)</FormLabel><FormControl><Input type="number" placeholder="1500" {...field} /></FormControl><FormMessage /></FormItem> )} />
                         <FormField control={form.control} name="startDate" render={({ field }) => ( <FormItem className="flex flex-col"><FormLabel>Start Date</FormLabel><FormControl><Input type="date" value={field.value ? format(field.value, 'yyyy-MM-dd') : ''} onChange={e => field.onChange(new Date(e.target.value))} /></FormControl><FormMessage /></FormItem>)} />
-                        <FormField
-                          control={form.control}
-                          name="endDate"
-                          render={({ field }) => (
-                            <FormItem className="flex flex-col">
-                              <FormLabel>End Date</FormLabel>
-                              <Popover>
-                                <PopoverTrigger asChild>
-                                  <FormControl>
-                                    <Button
-                                      variant={"outline"}
-                                      className={cn(
-                                        "pl-3 text-left font-normal",
-                                        !field.value && "text-muted-foreground"
-                                      )}
-                                    >
-                                      {field.value ? (
-                                        format(field.value, "PPP")
-                                      ) : (
-                                        <span>Pick a date</span>
-                                      )}
-                                      <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                                    </Button>
-                                  </FormControl>
-                                </PopoverTrigger>
-                                <PopoverContent className="w-auto p-0" align="start">
-                                  <Calendar
-                                    mode="single"
-                                    selected={field.value}
-                                    onSelect={field.onChange}
-                                    disabled={(date) =>
-                                      date < (form.getValues('startDate') || new Date())
-                                    }
-                                    initialFocus
-                                  />
-                                </PopoverContent>
-                              </Popover>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
+                        
                         <FormField control={form.control} name="assignedTrainer" render={({ field }) => (
                             <FormItem><FormLabel>Assigned Trainer (Optional)</FormLabel>
                             <Select onValueChange={field.onChange} defaultValue={field.value}>
@@ -311,7 +265,7 @@ export default function AddMemberPage() {
                             </FormItem>
                         )} />
                         <FormField control={form.control} name="plan" render={({ field }) => (
-                            <FormItem><FormLabel>Plan/Package (Optional)</FormLabel>
+                            <FormItem className="md:col-span-2"><FormLabel>Plan/Package (Optional)</FormLabel>
                             <Select onValueChange={field.onChange} defaultValue={field.value}>
                                 <FormControl><SelectTrigger><SelectValue placeholder="Select plan" /></SelectTrigger></FormControl>
                                 <SelectContent><SelectItem value="gym">Gym</SelectItem><SelectItem value="personal-training">Personal Training</SelectItem><SelectItem value="weight-loss">Weight Loss</SelectItem><SelectItem value="bodybuilding">Bodybuilding</SelectItem></SelectContent>
