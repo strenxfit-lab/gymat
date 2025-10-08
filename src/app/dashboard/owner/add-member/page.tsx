@@ -188,7 +188,7 @@ export default function AddMemberPage() {
         }
       }
       
-      const loginId = `${data.fullName.toLowerCase().replace(/\s/g, '')}${Math.floor(1000 + Math.random() * 9000)}`;
+      const loginId = data.phone; // Use phone number as login ID
       const password = Math.random().toString(36).slice(-8);
 
       const memberData: any = {
@@ -256,7 +256,7 @@ export default function AddMemberPage() {
           </AlertDialogHeader>
             <div className="space-y-4 my-4">
                 <div className="space-y-2">
-                    <Label htmlFor="loginId">Login ID</Label>
+                    <Label htmlFor="loginId">Login ID (Member No.)</Label>
                     <div className="flex items-center gap-2">
                         <Input id="loginId" value={newMember?.loginId || ''} readOnly />
                          <Button variant="outline" size="icon" onClick={() => copyToClipboard(newMember?.loginId || '')}><ClipboardCopy className="h-4 w-4" /></Button>
@@ -388,5 +388,3 @@ export default function AddMemberPage() {
     </div>
   );
 }
-
-    
