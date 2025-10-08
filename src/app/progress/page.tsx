@@ -9,8 +9,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Loader2, Sparkles } from 'lucide-react';
-import { differenceInDays, format, startOfDay } from 'date-fns';
+import { Loader2, Sparkles, Download, Flame, BarChart3, Dumbbell } from 'lucide-react';
+import { differenceInDays, format, startOfDay, isSameDay, subDays } from 'date-fns';
 import { workouts, type Muscle } from '@/lib/workouts';
 import { FrontBody } from '@/components/ui/front-body';
 import { BackBody } from '@/components/ui/back-body';
@@ -35,6 +35,11 @@ type MuscleColors = {
     [key in Muscle]?: MuscleColor;
 };
 
+interface TopWorkout {
+    name: string;
+    count: number;
+}
+
 export default function ProgressPage() {
     const [profile, setProfile] = useState<CommunityProfile | null>(null);
     const [workoutLogs, setWorkoutLogs] = useState<WorkoutLog[]>([]);
@@ -44,6 +49,8 @@ export default function ProgressPage() {
     const [loading, setLoading] = useState(true);
     const [isAnalyzing, setIsAnalyzing] = useState(false);
     const [analysisResult, setAnalysisResult] = useState<string | null>(null);
+    const [streak, setStreak] = useState(0);
+    const [topWorkouts, setTopWorkouts] = useState<TopWorkout[]>([]);
     const { toast } = useToast();
 
     useEffect(() => {
@@ -69,10 +76,54 @@ export default function ProgressPage() {
                 const q = query(workoutLogRef, orderBy('completedAt', 'desc'));
 
                 const unsubscribeLogs = onSnapshot(q, (logSnap) => {
-                    const logs = logSnap.docs.map(d => d.data() as WorkoutLog);
+                    const logs = logSnap.docs.map(d => {
+                        const data = d.data();
+                        if (data.completedAt) {
+                            return data as WorkoutLog;
+                        }
+                        return null;
+                    }).filter(Boolean) as WorkoutLog[];
+                    
                     setWorkoutLogs(logs);
                     setTotalWorkouts(logs.length);
                     
+                    // --- Streak Calculation ---
+                    let currentStreak = 0;
+                    if (logs.length > 0) {
+                        const uniqueDays = [...new Set(logs.map(log => startOfDay(log.completedAt.toDate()).getTime()))];
+                        uniqueDays.sort((a,b) => b-a);
+                        
+                        const today = startOfDay(new Date());
+                        const yesterday = startOfDay(subDays(new Date(), 1));
+
+                        if(uniqueDays[0] === today.getTime() || uniqueDays[0] === yesterday.getTime()){
+                            currentStreak = 1;
+                            for (let i = 1; i < uniqueDays.length; i++) {
+                                const dayDiff = differenceInDays(new Date(uniqueDays[i-1]), new Date(uniqueDays[i]));
+                                if (dayDiff === 1) {
+                                    currentStreak++;
+                                } else {
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                    setStreak(currentStreak);
+
+                    // --- Top 3 Workouts ---
+                    const workoutCounts = logs.reduce((acc, log) => {
+                        const workoutName = workouts.find(w => w.id === log.workoutId)?.name || 'Unknown';
+                        acc[workoutName] = (acc[workoutName] || 0) + 1;
+                        return acc;
+                    }, {} as Record<string, number>);
+
+                    const sortedWorkouts = Object.entries(workoutCounts)
+                        .map(([name, count]) => ({ name, count }))
+                        .sort((a, b) => b.count - a.count)
+                        .slice(0, 3);
+                    setTopWorkouts(sortedWorkouts);
+
+                    // --- Heatmap Logic ---
                     const lastWorkoutDates: { [key in Muscle]?: Date } = {};
                     logs.forEach(log => {
                         if (log.completedAt) { 
@@ -84,7 +135,6 @@ export default function ProgressPage() {
                         }
                     });
 
-                    const today = new Date();
                     const colors: MuscleColors = {};
                     Object.keys(lastWorkoutDates).forEach(m => {
                         const muscle = m as Muscle;
@@ -208,13 +258,24 @@ export default function ProgressPage() {
                                 <span><span className="font-bold text-white">{profile?.following?.length || 0}</span> Following</span>
                             </div>
                         </div>
+                         <div className="flex items-center gap-2">
+                            <Flame className="h-6 w-6 text-accent-red" />
+                            <span className="font-bold text-2xl">{streak}</span>
+                        </div>
                     </CardContent>
                 </Card>
                 
-                 <Button onClick={handleAnalysis} disabled={isAnalyzing} className="w-full mb-6 bg-accent-red hover:bg-accent-red/90">
-                    {isAnalyzing ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Sparkles className="mr-2 h-4 w-4"/>}
-                    Analyze My Performance
-                </Button>
+                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                    <Button onClick={handleAnalysis} disabled={isAnalyzing} className="w-full bg-accent-red hover:bg-accent-red/90 text-lg py-6">
+                        {isAnalyzing ? <Loader2 className="mr-2 h-5 w-5 animate-spin"/> : <Sparkles className="mr-2 h-5 w-5"/>}
+                        Analyze My Performance
+                    </Button>
+                     <Button disabled className="w-full bg-gray-700 hover:bg-gray-600 text-lg py-6">
+                        <Download className="mr-2 h-5 w-5"/>
+                        Download Progress Report (PDF)
+                    </Button>
+                </div>
+
 
                 {analysisResult && (
                     <Card className="bg-[#1A1A1A] border-[#2A2A2A] text-white mb-6">
@@ -226,6 +287,21 @@ export default function ProgressPage() {
                         </CardContent>
                     </Card>
                 )}
+
+                 <Card className="bg-[#1A1A1A] border-[#2A2A2A] text-white mb-6">
+                    <CardHeader>
+                        <CardTitle className="flex items-center gap-2"><BarChart3/> Top 3 Workouts</CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-2">
+                        {topWorkouts.map((workout, index) => (
+                            <div key={index} className="flex justify-between items-center text-sm">
+                                <span>{index + 1}. {workout.name}</span>
+                                <span className="font-semibold">{workout.count} times</span>
+                            </div>
+                        ))}
+                         {topWorkouts.length === 0 && <p className="text-sm text-gray-400">Log some workouts to see your top ones!</p>}
+                    </CardContent>
+                </Card>
 
 
                 <Tabs defaultValue="heatmap" className="w-full">
@@ -277,6 +353,10 @@ export default function ProgressPage() {
                         </div>
                     </TabsContent>
                 </Tabs>
+
+                <footer className="text-center mt-12 text-gray-500 font-semibold">
+                    Stay Strong with StrenxFit💪
+                </footer>
             </div>
         </div>
     );
