@@ -72,6 +72,7 @@ type DietFormData = z.infer<typeof dietFormSchema>;
 
 export default function TrainerDashboardPage() {
   const [assignedClasses, setAssignedClasses] = useState<AssignedClass[]>([]);
+  const [pastClasses, setPastClasses] = useState<AssignedClass[]>([]);
   const [assignedMembers, setAssignedMembers] = useState<AssignedMember[]>([]);
   const [trainerInfo, setTrainerInfo] = useState<TrainerInfo | null>(null);
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
@@ -137,24 +138,28 @@ export default function TrainerDashboardPage() {
         const qClasses = query(classesCollection, where("trainerId", "==", trainerId));
         const classesSnapshot = await getDocs(qClasses);
         
-        const upcomingClassesPromises = classesSnapshot.docs
-            .filter(docSnap => (docSnap.data().dateTime as Timestamp).toDate() > new Date())
-            .map(async (docSnap) => {
-              const data = docSnap.data();
-              const bookingsCollection = collection(docSnap.ref, 'bookings');
-              const bookingsSnapshot = await getDocs(bookingsCollection);
-              return {
+        const allClassesPromises = classesSnapshot.docs.map(async (docSnap) => {
+            const data = docSnap.data();
+            const bookingsCollection = collection(docSnap.ref, 'bookings');
+            const bookingsSnapshot = await getDocs(bookingsCollection);
+            return {
                 id: docSnap.id,
                 className: data.className,
                 dateTime: (data.dateTime as Timestamp).toDate(),
                 capacity: data.capacity,
                 location: data.location,
                 booked: bookingsSnapshot.size,
-              };
+            };
         });
-        const classesList = await Promise.all(upcomingClassesPromises);
-        classesList.sort((a,b) => a.dateTime.getTime() - b.dateTime.getTime());
-        setAssignedClasses(classesList);
+        const allLoadedClasses = await Promise.all(allClassesPromises);
+        
+        const upcomingClasses = allLoadedClasses.filter(c => c.dateTime > new Date());
+        upcomingClasses.sort((a,b) => a.dateTime.getTime() - b.dateTime.getTime());
+        setAssignedClasses(upcomingClasses);
+
+        const pastConductedClasses = allLoadedClasses.filter(c => c.dateTime <= new Date());
+        pastConductedClasses.sort((a,b) => b.dateTime.getTime() - a.dateTime.getTime());
+        setPastClasses(pastConductedClasses);
         
         const membersCollection = collection(db, 'gyms', userDocId, 'branches', activeBranchId, 'members');
         const qMembers = query(membersCollection, where('assignedTrainer', '==', trainerId));
@@ -174,15 +179,14 @@ export default function TrainerDashboardPage() {
 
         // Fetch Announcements
         const now = new Date();
-        const oneDayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
         const announcementsRef = collection(db, 'gyms', userDocId, 'branches', activeBranchId, 'announcements');
         const announcementsQuery = query(announcementsRef, orderBy("createdAt", "desc"));
         const announcementsSnap = await getDocs(announcementsQuery);
         
         const announcementsList = announcementsSnap.docs
             .map(doc => ({ id: doc.id, ...doc.data(), createdAt: (doc.data().createdAt as Timestamp).toDate() } as Announcement))
-            .filter(a => (a.audience === 'all' || a.audience === 'trainers') && a.createdAt >= oneDayAgo);
-        setAnnouncements(announcementsList);
+            .filter(a => (a.audience === 'all' || a.audience === 'trainers'));
+        setAnnouncements(announcementsList.slice(0,1)); // Only show the most recent one
         
         // Fetch Trainer Offers
         const offersRef = collection(db, 'gyms', userDocId, 'branches', activeBranchId, 'trainerOffers');
@@ -192,7 +196,6 @@ export default function TrainerDashboardPage() {
             .map(doc => ({ id: doc.id, ...doc.data() } as TrainerOffer))
             .filter(offer => isWithinInterval(now, {start: parseISO((offer.startDate as unknown) as string), end: parseISO((offer.endDate as unknown) as string)}));
         setOffers(offersList);
-
 
       } catch (error) {
         console.error("Error fetching trainer data:", error);
@@ -296,7 +299,7 @@ export default function TrainerDashboardPage() {
        <Card className="mb-6">
             <CardHeader>
                 <CardTitle>Scan QR Code</CardTitle>
-                <CardDescription>Mark attendance for yourself or a member.</CardDescription>
+                <CardDescription>Mark attendance for yourself.</CardDescription>
             </CardHeader>
             <CardContent>
                 <Link href="/dashboard/attendance" passHref>
@@ -311,7 +314,7 @@ export default function TrainerDashboardPage() {
             <div className="md:col-span-2 space-y-6">
                 <Card>
                     <CardHeader>
-                    <CardTitle>My Schedule</CardTitle>
+                    <CardTitle>My Upcoming Schedule</CardTitle>
                     <CardDescription>A list of your upcoming assigned classes.</CardDescription>
                     </CardHeader>
                     <CardContent>
@@ -384,6 +387,59 @@ export default function TrainerDashboardPage() {
                         </Table>
                     </CardContent>
                 </Card>
+                 <Card>
+                    <CardHeader>
+                        <CardTitle>My Past Classes</CardTitle>
+                        <CardDescription>A log of your recently conducted classes.</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead>Class Name</TableHead>
+                                    <TableHead>Date & Time</TableHead>
+                                    <TableHead>Attendance</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {pastClasses.length > 0 ? (
+                                    pastClasses.slice(0, 5).map((cls) => (
+                                        <TableRow key={cls.id}>
+                                            <TableCell className="font-medium">{cls.className}</TableCell>
+                                            <TableCell>{cls.dateTime.toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}</TableCell>
+                                            <TableCell>{cls.booked} / {cls.capacity}</TableCell>
+                                        </TableRow>
+                                    ))
+                                ) : (
+                                    <TableRow>
+                                        <TableCell colSpan={3} className="h-24 text-center">No past classes found.</TableCell>
+                                    </TableRow>
+                                )}
+                            </TableBody>
+                        </Table>
+                    </CardContent>
+                </Card>
+            </div>
+            <div className="md:col-span-1 space-y-4">
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Quick Actions</CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-3">
+                         <Link href="/dashboard/gym-profile" passHref>
+                            <Button className="w-full justify-start" variant="outline"><Building className="mr-2"/> View Gym Profile</Button>
+                         </Link>
+                         <Link href="/dashboard/trainer/maintenance" passHref>
+                            <Button className="w-full justify-start" variant="outline"><Wrench className="mr-2"/> Maintenance Tasks</Button>
+                         </Link>
+                         <Link href="/dashboard/trainer/complaints" passHref>
+                            <Button className="w-full justify-start" variant="outline"><MessageSquare className="mr-2"/> Complaints</Button>
+                         </Link>
+                         <Link href="/dashboard/trainer/payments" passHref>
+                            <Button className="w-full justify-start" variant="outline"><IndianRupee className="mr-2"/> Payments</Button>
+                         </Link>
+                    </CardContent>
+                </Card>
                  {offers.length > 0 && (
                     <Card>
                         <CardHeader>
@@ -407,27 +463,6 @@ export default function TrainerDashboardPage() {
                         </CardContent>
                     </Card>
                 )}
-            </div>
-            <div className="md:col-span-1 space-y-4">
-                <Card>
-                    <CardHeader>
-                        <CardTitle>Quick Actions</CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-3">
-                         <Link href="/dashboard/gym-profile" passHref>
-                            <Button className="w-full justify-start" variant="outline"><Building className="mr-2"/> View Gym Profile</Button>
-                         </Link>
-                         <Link href="/dashboard/trainer/maintenance" passHref>
-                            <Button className="w-full justify-start" variant="outline"><Wrench className="mr-2"/> Maintenance Tasks</Button>
-                         </Link>
-                         <Link href="/dashboard/trainer/complaints" passHref>
-                            <Button className="w-full justify-start" variant="outline"><MessageSquare className="mr-2"/> Complaints</Button>
-                         </Link>
-                         <Link href="/dashboard/owner/transactions" passHref>
-                            <Button className="w-full justify-start" variant="outline"><IndianRupee className="mr-2"/> Payments</Button>
-                         </Link>
-                    </CardContent>
-                </Card>
             </div>
         </div>
     </div>
