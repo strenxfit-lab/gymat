@@ -2,7 +2,7 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { doc, getDoc, collection, query, orderBy, onSnapshot, addDoc, serverTimestamp, where, limit } from 'firebase/firestore';
+import { doc, getDoc, collection, query, orderBy, onSnapshot, addDoc, serverTimestamp, where, limit, Timestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -75,11 +75,13 @@ export default function ProgressPage() {
                     
                     const lastWorkoutDates: { [key in Muscle]?: Date } = {};
                     logs.forEach(log => {
-                        log.muscles.forEach(muscle => {
-                            if (!lastWorkoutDates[muscle]) {
-                                lastWorkoutDates[muscle] = log.completedAt.toDate();
-                            }
-                        });
+                        if (log.completedAt) { // Null check for serverTimestamp
+                            log.muscles.forEach(muscle => {
+                                if (!lastWorkoutDates[muscle]) {
+                                    lastWorkoutDates[muscle] = log.completedAt.toDate();
+                                }
+                            });
+                        }
                     });
 
                     const today = new Date();
@@ -165,7 +167,7 @@ export default function ProgressPage() {
 
     const getLastCompletedDate = (workoutId: string) => {
         const log = workoutLogs.find(log => log.workoutId === workoutId);
-        return log ? format(log.completedAt.toDate(), 'PPP') : 'Not completed yet';
+        return log && log.completedAt ? format(log.completedAt.toDate(), 'PPP') : 'Not completed yet';
     };
 
     return (
