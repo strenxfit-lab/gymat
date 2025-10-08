@@ -3,7 +3,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { doc, getDoc, updateDoc, collection, addDoc, getDocs } from 'firebase/firestore';
+import { doc, getDoc, updateDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useToast } from '@/hooks/use-toast';
 import { useForm } from 'react-hook-form';
@@ -14,87 +14,22 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
-import { Loader2, PlusCircle, Building, ArrowLeft, Phone, Mail } from 'lucide-react';
+import { Loader2, PlusCircle, Building, ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
-import { AlertDialog, AlertDialogAction, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
-
 
 interface Branch {
-  id: string;
   name: string;
-}
-
-interface LimitDialogInfo {
-    members?: number;
-    trainers?: number;
-    payments?: number;
-    equipment?: number;
-    classes?: number;
-    expenses?: number;
-    inventory?: number;
-    maintenance?: number;
-    offers?: number;
-    usageLogs?: number;
-    branches?: number;
 }
 
 const addBranchSchema = z.object({
   name: z.string().min(1, 'Branch name is required.'),
 });
 
-function LimitReachedDialog({ isOpen, onOpenChange, limits, isMultiBranchError = false }: { isOpen: boolean; onOpenChange: (open: boolean) => void, limits: LimitDialogInfo, isMultiBranchError?: boolean }) {
-  return (
-    <AlertDialog open={isOpen} onOpenChange={onOpenChange}>
-      <AlertDialogContent>
-        <AlertDialogHeader>
-          <AlertDialogTitle>{isMultiBranchError ? "Multi-Branch Feature Not Enabled" : "You've reached the limit of your trial account"}</AlertDialogTitle>
-          <AlertDialogDescription>
-            {isMultiBranchError
-              ? "Your current plan only supports one branch. To add more locations, please upgrade your plan."
-              : "Upgrade to a full Account to continue managing without restrictions."}
-          </AlertDialogDescription>
-        </AlertDialogHeader>
-        
-        {!isMultiBranchError && (
-            <div className="text-sm text-muted-foreground space-y-2">
-                {limits.branches !== undefined && <p>Branches ({limits.branches}/1)</p>}
-                {limits.members !== undefined && <p>Members ({limits.members}/3)</p>}
-                {limits.trainers !== undefined && <p>Trainers ({limits.trainers}/2)</p>}
-                {limits.payments !== undefined && <p>Payments ({limits.payments}/5 per member)</p>}
-                {limits.equipment !== undefined && <p>Equipment ({limits.equipment}/1)</p>}
-                {limits.classes !== undefined && <p>Classes ({limits.classes}/1)</p>}
-                {limits.expenses !== undefined && <p>Expenses ({limits.expenses}/2)</p>}
-                {limits.inventory !== undefined && <p>Inventory ({limits.inventory}/1)</p>}
-                {limits.maintenance !== undefined && <p>Maintenance ({limits.maintenance}/1)</p>}
-                {limits.offers !== undefined && <p>Offers ({limits.offers}/1)</p>}
-                {limits.usageLogs !== undefined && <p>Usage Logs ({limits.usageLogs}/1)</p>}
-            </div>
-        )}
-
-        <div className="flex flex-col space-y-2 pt-2">
-            <p className="font-bold text-center">Contact Strenxfit Support</p>
-            <a href="https://wa.me/917988487892" target="_blank" rel="noopener noreferrer" className="flex items-center justify-center gap-3 p-3 rounded-md hover:bg-accent transition-colors">
-                <Phone className="h-5 w-5 text-muted-foreground" />
-                <span>+91 79884 87892</span>
-            </a>
-        </div>
-        <AlertDialogFooter>
-          <AlertDialogAction onClick={() => onOpenChange(false)}>OK</AlertDialogAction>
-        </AlertDialogFooter>
-      </AlertDialogContent>
-    </AlertDialog>
-  );
-}
-
 export default function MultiBranchPage() {
   const [branches, setBranches] = useState<Branch[]>([]);
   const [loading, setLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [userDocId, setUserDocId] = useState<string | null>(null);
-  const [isTrial, setIsTrial] = useState(false);
-  const [hasMultiBranch, setHasMultiBranch] = useState(false);
-  const [limitDialogOpen, setLimitDialogOpen] = useState(false);
-  const [isMultiBranchLimitError, setIsMultiBranchLimitError] = useState(false);
   const router = useRouter();
   const { toast } = useToast();
 
@@ -116,16 +51,18 @@ export default function MultiBranchPage() {
         try {
             const gymRef = doc(db, 'gyms', docId);
             const gymSnap = await getDoc(gymRef);
-            if(gymSnap.exists()){
-                const gymData = gymSnap.data();
-                setIsTrial(gymData.isTrial || false);
-                setHasMultiBranch(gymData.multiBranch || false);
+            let allBranches: Branch[] = [];
+            if (gymSnap.exists()) {
+                const data = gymSnap.data();
+                if(data.name) {
+                    allBranches.push({ name: data.name });
+                }
+                 const detailsRef = doc(db, 'gyms', docId, 'details', 'onboarding');
+                 const detailsSnap = await getDoc(detailsRef);
+                 if(detailsSnap.exists() && detailsSnap.data().branches) {
+                     allBranches = [...allBranches, ...detailsSnap.data().branches];
+                 }
             }
-
-            const branchesCollection = collection(db, 'gyms', docId, 'branches');
-            const branchesSnapshot = await getDocs(branchesCollection);
-            const allBranches = branchesSnapshot.docs.map(doc => ({ id: doc.id, name: doc.data().name }));
-
             setBranches(allBranches);
         } catch (error) {
             console.error("Error fetching branches:", error);
@@ -140,19 +77,15 @@ export default function MultiBranchPage() {
 
   const onAddBranch = async (values: z.infer<typeof addBranchSchema>) => {
     if (!userDocId) return;
-    
-    if ((isTrial || !hasMultiBranch) && branches.length >= 1) {
-        setIsMultiBranchLimitError(!hasMultiBranch && !isTrial);
-        setLimitDialogOpen(true);
-        return;
-    }
 
     const newBranch = { name: values.name };
-    
+    const additionalBranches = branches.slice(1);
+    const updatedBranches = [...additionalBranches, newBranch];
+
     try {
-      const branchesCollection = collection(db, 'gyms', userDocId, 'branches');
-      const docRef = await addDoc(branchesCollection, newBranch);
-      setBranches([...branches, { id: docRef.id, name: values.name }]);
+      const detailsRef = doc(db, 'gyms', userDocId, 'details', 'onboarding');
+      await updateDoc(detailsRef, { branches: updatedBranches });
+      setBranches([branches[0], ...updatedBranches]);
       toast({ title: 'Success!', description: 'New branch has been added.' });
       setIsDialogOpen(false);
       form.reset();
@@ -162,18 +95,9 @@ export default function MultiBranchPage() {
     }
   };
 
-  const handleBranchClick = (branchId: string) => {
-    localStorage.setItem('activeBranch', branchId);
+  const handleBranchClick = (branchName: string) => {
+    localStorage.setItem('activeBranch', branchName);
     router.push('/dashboard/owner');
-  }
-
-  const handleAddBranchClick = () => {
-    if ((isTrial || !hasMultiBranch) && branches.length >= 1) {
-        setIsMultiBranchLimitError(!hasMultiBranch && !isTrial);
-        setLimitDialogOpen(true);
-    } else {
-        setIsDialogOpen(true);
-    }
   }
 
   if (loading) {
@@ -187,12 +111,6 @@ export default function MultiBranchPage() {
 
   return (
     <div className="container mx-auto py-10">
-        <LimitReachedDialog 
-            isOpen={limitDialogOpen} 
-            onOpenChange={setLimitDialogOpen} 
-            limits={{ branches: branches.length }}
-            isMultiBranchError={isMultiBranchLimitError}
-        />
       <Card className="w-full max-w-2xl mx-auto">
         <CardHeader className="flex flex-row items-center justify-between">
             <div>
@@ -208,10 +126,10 @@ export default function MultiBranchPage() {
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            {branches.map((branch) => (
+            {branches.map((branch, index) => (
               <button 
-                key={branch.id} 
-                onClick={() => handleBranchClick(branch.id)}
+                key={index} 
+                onClick={() => handleBranchClick(branch.name)}
                 className="w-full flex items-center gap-4 rounded-md border p-4 text-left hover:bg-accent transition-colors"
               >
                 <Building className="h-6 w-6 text-primary" />
@@ -223,10 +141,12 @@ export default function MultiBranchPage() {
             )}
           </div>
           <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-            <Button className="mt-6 w-full" onClick={handleAddBranchClick}>
+            <DialogTrigger asChild>
+              <Button className="mt-6 w-full">
                 <PlusCircle className="mr-2 h-4 w-4" />
                 Add New Branch
-            </Button>
+              </Button>
+            </DialogTrigger>
             <DialogContent>
               <DialogHeader>
                 <DialogTitle>Add a New Branch</DialogTitle>
@@ -235,8 +155,8 @@ export default function MultiBranchPage() {
                <div className="py-4">
                 <h4 className="text-sm font-medium mb-2">Current Branches:</h4>
                 <div className="space-y-2 max-h-32 overflow-y-auto pr-2">
-                    {branches.map((branch) => (
-                        <div key={branch.id} className="flex items-center gap-2 text-sm text-muted-foreground">
+                    {branches.map((branch, index) => (
+                        <div key={index} className="flex items-center gap-2 text-sm text-muted-foreground">
                             <Building className="h-4 w-4" />
                             <span>{branch.name}</span>
                         </div>
