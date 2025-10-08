@@ -1,5 +1,4 @@
 
-
 "use client";
 
 import { useState, useEffect } from 'react';
@@ -9,7 +8,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { addDays, format } from 'date-fns';
-import { Loader2, User, Calendar as CalendarIcon, Dumbbell, HeartPulse, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Loader2, User, Calendar as CalendarIcon, Dumbbell, HeartPulse, ChevronLeft, ChevronRight, Building } from 'lucide-react';
 import { collection, addDoc, getDocs, doc, Timestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useToast } from '@/hooks/use-toast';
@@ -31,8 +30,6 @@ import {
 import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
 import { Progress } from '@/components/ui/progress';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Calendar } from '@/components/ui/calendar';
 
 const formSchema = z.object({
   fullName: z.string().min(2, { message: 'Full name must be at least 2 characters.' }),
@@ -67,6 +64,30 @@ const steps: { id: number; title: string; icon: JSX.Element; fields: FieldName[]
     { id: 3, title: 'Health & Fitness', icon: <HeartPulse />, fields: ['height', 'weight', 'medicalConditions', 'fitnessGoal'] },
 ];
 
+function NoBranchDialog() {
+    const router = useRouter();
+    return (
+        <div className="flex min-h-screen flex-col items-center justify-center bg-background p-4">
+            <AlertDialog open={true}>
+                <AlertDialogContent>
+                <AlertDialogHeader>
+                    <AlertDialogTitle>No Branch Found</AlertDialogTitle>
+                    <AlertDialogDescription>
+                    You need to create a branch before you can add a new member. Please go to the branch management page to add your first branch.
+                    </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                    <Link href="/dashboard/owner" passHref>
+                        <Button variant="outline">Go to Dashboard</Button>
+                    </Link>
+                    <Button onClick={() => router.push('/dashboard/owner/multi-branch')}>Create Branch</Button>
+                </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+        </div>
+    )
+}
+
 export default function AddMemberPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
@@ -76,7 +97,8 @@ export default function AddMemberPage() {
   const router = useRouter();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [newMember, setNewMember] = useState<{ id: string; name: string } | null>(null);
-  const [activeBranch, setActiveBranch] = useState<string | null>(null);
+  const [activeBranchId, setActiveBranchId] = useState<string | null>(null);
+  const [activeBranchName, setActiveBranchName] = useState<string | null>(null);
 
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
@@ -100,25 +122,36 @@ export default function AddMemberPage() {
 
   useEffect(() => {
     setIsMounted(true);
-    const branch = localStorage.getItem('activeBranch');
-    setActiveBranch(branch);
+    const branchId = localStorage.getItem('activeBranch');
+    setActiveBranchId(branchId);
+    
+    if (branchId) {
+        const userDocId = localStorage.getItem('userDocId');
+        if (!userDocId) return;
+        const branchRef = doc(db, 'gyms', userDocId, 'branches', branchId);
+        getDoc(branchRef).then(docSnap => {
+            if (docSnap.exists()) {
+                setActiveBranchName(docSnap.data().name);
+            }
+        });
+    }
+
   }, []);
   
   useEffect(() => {
     const fetchTrainers = async () => {
       const userDocId = localStorage.getItem('userDocId');
-      const branch = localStorage.getItem('activeBranch');
-      if (!userDocId || !branch) return;
+      if (!userDocId || !activeBranchId) return;
       
-      const trainersCollection = collection(db, 'gyms', userDocId, 'branches', branch, 'trainers');
+      const trainersCollection = collection(db, 'gyms', userDocId, 'branches', activeBranchId, 'trainers');
       const trainersSnapshot = await getDocs(trainersCollection);
       const trainersList = trainersSnapshot.docs.map(doc => ({ id: doc.id, name: doc.data().fullName }));
       setTrainers(trainersList);
     };
-    if (activeBranch) {
+    if (activeBranchId) {
         fetchTrainers();
     }
-  }, [activeBranch]);
+  }, [activeBranchId]);
 
 
   const handleNext = async () => {
@@ -132,7 +165,7 @@ export default function AddMemberPage() {
 
   const onSubmit = async (data: FormData) => {
     const userDocId = localStorage.getItem('userDocId');
-    if (!userDocId || !activeBranch) {
+    if (!userDocId || !activeBranchId) {
       toast({ title: 'Error', description: 'Gym owner session or branch not found.', variant: 'destructive' });
       return;
     }
@@ -140,7 +173,7 @@ export default function AddMemberPage() {
     setIsLoading(true);
 
     try {
-      const membersCollection = collection(db, 'gyms', userDocId, 'branches', activeBranch, 'members');
+      const membersCollection = collection(db, 'gyms', userDocId, 'branches', activeBranchId, 'members');
       
       let endDate;
       const { membershipType, startDate } = data;
@@ -202,6 +235,10 @@ export default function AddMemberPage() {
     return null; // Or a loading spinner
   }
 
+  if (!activeBranchId) {
+    return <NoBranchDialog />;
+  }
+
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-background p-4">
       <AlertDialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
@@ -209,7 +246,7 @@ export default function AddMemberPage() {
           <AlertDialogHeader>
             <AlertDialogTitle>Member Added Successfully!</AlertDialogTitle>
             <AlertDialogDescription>
-              {newMember?.name} has been registered to branch {activeBranch}. What would you like to do next?
+              {newMember?.name} has been registered to branch {activeBranchName}. What would you like to do next?
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -232,7 +269,7 @@ export default function AddMemberPage() {
                           <CardDescription>Step {currentStep} of {steps.length}</CardDescription>
                       </div>
                   </div>
-                  {activeBranch && <div className="text-sm font-medium text-muted-foreground">Branch: {activeBranch}</div>}
+                  {activeBranchName && <div className="text-sm font-medium text-muted-foreground">Branch: {activeBranchName}</div>}
                 </div>
             </CardHeader>
             <Form {...form}>
