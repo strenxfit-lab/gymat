@@ -311,16 +311,18 @@ export default function RemindersPage() {
                                 Connect WhatsApp
                             </Button>
                         </DialogTrigger>
-                        <DialogContent>
+                        <DialogContent className="sm:max-w-md">
                             <DialogHeader>
                                 <DialogTitle>Connect to WhatsApp</DialogTitle>
                                 <DialogDescription>
-                                    To send messages, you need to have WhatsApp Web open in a browser tab. Click the button below to open WhatsApp Web and scan the QR code with your phone if you are not already logged in.
+                                    Click the button below to open WhatsApp Web in a new tab. Scan the QR code with your phone to link your device.
                                 </DialogDescription>
                             </DialogHeader>
                             <DialogFooter>
-                                <a href="https://web.whatsapp.com" target="_blank" rel="noopener noreferrer">
-                                    <Button type="button">Open WhatsApp Web</Button>
+                                <a href="https://web.whatsapp.com" target="_blank" rel="noopener noreferrer" className="w-full">
+                                    <Button className="w-full">
+                                        <WhatsAppIcon /> Open WhatsApp Web
+                                    </Button>
                                 </a>
                             </DialogFooter>
                         </DialogContent>
