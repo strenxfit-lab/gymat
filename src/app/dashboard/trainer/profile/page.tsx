@@ -13,7 +13,7 @@ import Link from 'next/link';
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Loader2, ArrowLeft, User, Briefcase, Wallet, Calendar, Mail, Phone, Clock, Edit, Star, HeartPulse, Dumbbell, Notebook } from 'lucide-react';
+import { Loader2, ArrowLeft, User, Briefcase, Wallet, Calendar, Mail, Phone, Clock, Edit, Star, HeartPulse, Dumbbell, Notebook, Utensils } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
@@ -31,6 +31,14 @@ const notesFormSchema = z.object({
   note: z.string().min(1, 'Note cannot be empty.'),
 });
 type NotesFormData = z.infer<typeof notesFormSchema>;
+
+const dietFormSchema = z.object({
+    breakfast: z.string().min(1, 'Breakfast details are required.'),
+    lunch: z.string().min(1, 'Lunch details are required.'),
+    dinner: z.string().min(1, 'Dinner details are required.'),
+    snacks: z.string().optional(),
+});
+type DietFormData = z.infer<typeof dietFormSchema>;
 
 
 interface TrainerDetails {
@@ -81,7 +89,9 @@ export default function TrainerProfilePage() {
   const [loading, setLoading] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
   const [isNotesDialogOpen, setIsNotesDialogOpen] = useState(false);
+  const [isDietDialogOpen, setIsDietDialogOpen] = useState(false);
   const [selectedMemberForNotes, setSelectedMemberForNotes] = useState<AssignedMember | null>(null);
+  const [selectedMemberForDiet, setSelectedMemberForDiet] = useState<AssignedMember | null>(null);
   const [memberNotes, setMemberNotes] = useState<PrivateNote[]>([]);
   const [isFetchingNotes, setIsFetchingNotes] = useState(false);
   const router = useRouter();
@@ -95,6 +105,11 @@ export default function TrainerProfilePage() {
   const notesForm = useForm<NotesFormData>({
     resolver: zodResolver(notesFormSchema),
     defaultValues: { note: '' },
+  });
+  
+  const dietForm = useForm<DietFormData>({
+    resolver: zodResolver(dietFormSchema),
+    defaultValues: { breakfast: '', lunch: '', dinner: '', snacks: '' },
   });
 
 
@@ -236,6 +251,30 @@ export default function TrainerProfilePage() {
     }
   }
 
+  const onDietSubmit = async (data: DietFormData) => {
+    if (!selectedMemberForDiet) return;
+    const userDocId = localStorage.getItem('userDocId');
+    const activeBranchId = localStorage.getItem('activeBranch');
+    const trainerId = localStorage.getItem('trainerId');
+    if (!userDocId || !activeBranchId || !trainerId) return;
+
+    try {
+        const dietCollection = collection(db, 'gyms', userDocId, 'branches', activeBranchId, 'members', selectedMemberForDiet.id, 'dietPlans');
+        await addDoc(dietCollection, {
+            ...data,
+            sentByTrainerId: trainerId,
+            sentAt: Timestamp.now(),
+        });
+        toast({ title: "Diet Plan Sent!", description: `A new diet plan has been sent to ${selectedMemberForDiet.fullName}.`});
+        dietForm.reset();
+        setIsDietDialogOpen(false);
+    } catch (e) {
+        console.error("Error sending diet plan: ", e);
+        toast({ title: "Error", description: "Could not send the diet plan.", variant: "destructive"});
+    }
+  };
+
+
   if (loading) {
     return <div className="flex min-h-screen items-center justify-center bg-background"><Loader2 className="h-8 w-8 animate-spin" /></div>;
   }
@@ -352,6 +391,7 @@ export default function TrainerProfilePage() {
             </Card>
 
             <Dialog open={isNotesDialogOpen} onOpenChange={setIsNotesDialogOpen}>
+            <Dialog open={isDietDialogOpen} onOpenChange={setIsDietDialogOpen}>
             <Card>
                 <CardHeader>
                     <CardTitle className="flex items-center gap-2"><Users /> My Students</CardTitle>
@@ -374,10 +414,15 @@ export default function TrainerProfilePage() {
                                 <TableCell className="font-medium">{member.fullName}</TableCell>
                                 <TableCell>{member.fitnessGoal || 'N/A'}</TableCell>
                                 <TableCell>{member.height || 'N/A'}cm / {member.weight || 'N/A'}kg</TableCell>
-                                <TableCell>
+                                <TableCell className="flex gap-2">
                                     <DialogTrigger asChild>
                                         <Button variant="outline" size="sm" onClick={() => handleOpenNotesDialog(member)}>
                                             <Notebook className="mr-2 h-4 w-4"/> Notes
+                                        </Button>
+                                    </DialogTrigger>
+                                    <DialogTrigger asChild>
+                                        <Button variant="outline" size="sm" onClick={() => setSelectedMemberForDiet(member)}>
+                                            <Utensils className="mr-2 h-4 w-4" /> Diet
                                         </Button>
                                     </DialogTrigger>
                                 </TableCell>
@@ -394,6 +439,8 @@ export default function TrainerProfilePage() {
                     </Table>
                 </CardContent>
             </Card>
+            
+            {/* Notes Dialog */}
             <DialogContent className="max-w-2xl">
                  <DialogHeader>
                     <DialogTitle>Private Notes for {selectedMemberForNotes?.fullName}</DialogTitle>
@@ -436,6 +483,29 @@ export default function TrainerProfilePage() {
                         </div>
                     </div>
                 </div>
+            </DialogContent>
+            </Dialog>
+
+            {/* Diet Dialog */}
+            <DialogContent className="max-w-lg">
+                <DialogHeader>
+                    <DialogTitle>Send Diet Plan to {selectedMemberForDiet?.fullName}</DialogTitle>
+                    <DialogDescription>Create a diet plan for your student. They will be notified.</DialogDescription>
+                </DialogHeader>
+                <Form {...dietForm}>
+                    <form onSubmit={dietForm.handleSubmit(onDietSubmit)} className="space-y-4 py-4 max-h-[70vh] overflow-y-auto pr-4">
+                        <FormField control={dietForm.control} name="breakfast" render={({ field }) => (<FormItem><FormLabel>Breakfast</FormLabel><FormControl><Textarea placeholder="e.g., Oats with fruits and nuts" {...field} /></FormControl><FormMessage /></FormItem>)} />
+                        <FormField control={dietForm.control} name="lunch" render={({ field }) => (<FormItem><FormLabel>Lunch</FormLabel><FormControl><Textarea placeholder="e.g., Grilled chicken with brown rice and salad" {...field} /></FormControl><FormMessage /></FormItem>)} />
+                        <FormField control={dietForm.control} name="dinner" render={({ field }) => (<FormItem><FormLabel>Dinner</FormLabel><FormControl><Textarea placeholder="e.g., Paneer stir-fry with vegetables" {...field} /></FormControl><FormMessage /></FormItem>)} />
+                        <FormField control={dietForm.control} name="snacks" render={({ field }) => (<FormItem><FormLabel>Snacks (Optional)</FormLabel><FormControl><Textarea placeholder="e.g., Greek yogurt, a handful of almonds" {...field} /></FormControl><FormMessage /></FormItem>)} />
+                        <DialogFooter>
+                            <Button type="button" variant="outline" onClick={() => setIsDietDialogOpen(false)}>Cancel</Button>
+                            <Button type="submit" disabled={dietForm.formState.isSubmitting}>
+                                {dietForm.formState.isSubmitting ? <Loader2 className="animate-spin" /> : 'Send Diet Plan'}
+                            </Button>
+                        </DialogFooter>
+                    </form>
+                </Form>
             </DialogContent>
             </Dialog>
         </div>
