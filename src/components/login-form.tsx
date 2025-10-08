@@ -1,28 +1,28 @@
 "use client";
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 import * as z from 'zod';
 import { Loader2, Lock, Mail } from 'lucide-react';
+import { collection, query, where, getDocs } from 'firebase/firestore';
 
 import { Button } from '@/components/ui/button';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
+import { db } from '@/lib/firebase';
 
 const formSchema = z.object({
   email: z.string().email({ message: 'Please enter a valid email address.' }),
-  password: z.string().min(6, { message: 'Password must be at least 6 characters.' }),
+  password: z.string().min(1, { message: 'Password is required.' }),
 });
 
-type LoginFormProps = {
-  role: 'Gym Owner' | 'Trainer' | 'Member';
-};
-
-export default function LoginForm({ role }: LoginFormProps) {
+export default function LoginForm() {
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
+  const router = useRouter();
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -32,19 +32,61 @@ export default function LoginForm({ role }: LoginFormProps) {
     },
   });
 
-  function onSubmit(values: z.infer<typeof formSchema>) {
+  async function onSubmit(values: z.infer<typeof formSchema>) {
     setIsLoading(true);
-    console.log(`Logging in as ${role} with:`, values);
+    
+    try {
+      const gymsCollection = collection(db, 'gyms');
+      const q = query(gymsCollection, where('email', '==', values.email));
+      const querySnapshot = await getDocs(q);
 
-    // Simulate API call
-    setTimeout(() => {
-      setIsLoading(false);
+      if (querySnapshot.empty) {
+        toast({
+          title: 'Login Failed',
+          description: 'No user found with that email.',
+          variant: 'destructive',
+        });
+        setIsLoading(false);
+        return;
+      }
+
+      const userDoc = querySnapshot.docs[0];
+      const userData = userDoc.data();
+
+      if (userData.password !== values.password) {
+        toast({
+          title: 'Login Failed',
+          description: 'Incorrect password.',
+          variant: 'destructive',
+        });
+        setIsLoading(false);
+        return;
+      }
+      
+      localStorage.setItem('userDocId', userDoc.id);
+
       toast({
-        title: `Welcome, ${role}!`,
+        title: 'Welcome!',
         description: "You have been successfully logged in.",
       });
-      // form.reset(); // Don't reset form for demo purposes
-    }, 2000);
+
+      if (userData.passwordChanged === false) {
+        router.push('/change-password');
+      } else if (userData.role === 'owner') {
+        router.push('/dashboard/owner');
+      } else {
+        router.push('/dashboard/member');
+      }
+
+    } catch (error) {
+      console.error("Error logging in:", error);
+      toast({
+        title: 'Error',
+        description: 'An unexpected error occurred. Please try again.',
+        variant: 'destructive',
+      });
+      setIsLoading(false);
+    }
   }
 
   return (
@@ -82,8 +124,8 @@ export default function LoginForm({ role }: LoginFormProps) {
             </FormItem>
           )}
         />
-        <Button type="submit" className="w-full font-semibold !mt-8" disabled={isLoading} style={{backgroundColor: 'hsl(var(--primary))'}}>
-          {isLoading ? <Loader2 className="animate-spin" /> : `Sign In as ${role}`}
+        <Button type="submit" className="w-full font-semibold !mt-8" disabled={isLoading}>
+          {isLoading ? <Loader2 className="animate-spin" /> : 'Sign In'}
         </Button>
       </form>
     </Form>
