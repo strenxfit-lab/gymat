@@ -48,6 +48,7 @@ interface GymData {
   newTrialMembers: number;
   runningOffers: string[];
   multiBranch?: boolean;
+  activeBranch?: string | null;
 }
 
 export default function OwnerDashboardPage() {
@@ -59,10 +60,19 @@ export default function OwnerDashboardPage() {
 
   useEffect(() => {
     const userDocId = localStorage.getItem('userDocId');
+    const activeBranch = localStorage.getItem('activeBranch');
+
     if (!userDocId) {
       toast({ title: "Error", description: "No user session found.", variant: "destructive" });
       router.push('/');
       return;
+    }
+    
+    if (!activeBranch) {
+        // This can happen on first load after login, layout should handle it.
+        // For now, we can wait for a bit, or redirect to branch selection.
+        setTimeout(() => window.location.reload(), 1000);
+        return;
     }
 
     const fetchData = async () => {
@@ -78,11 +88,14 @@ export default function OwnerDashboardPage() {
 
         const gym = gymSnap.data();
 
+        // Fetch data scoped to the active branch
         const membersRef = collection(db, 'gyms', userDocId, 'members');
-        const membersSnap = await getDocs(membersRef);
+        const membersQuery = query(membersRef, where("branch", "==", activeBranch));
+        const membersSnap = await getDocs(membersQuery);
         
         const trainersRef = collection(db, 'gyms', userDocId, 'trainers');
-        const trainersSnap = await getDocs(trainersRef);
+        const trainersQuery = query(trainersRef, where("branch", "==", activeBranch));
+        const trainersSnap = await getDocs(trainersQuery);
 
         const now = new Date();
         const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
@@ -206,6 +219,7 @@ export default function OwnerDashboardPage() {
           newTrialMembers: newTrialMembers,
           runningOffers: gym.runningOffers || [],
           multiBranch: gym.multiBranch || false,
+          activeBranch: activeBranch,
         };
 
         setGymData(data);
@@ -237,7 +251,7 @@ export default function OwnerDashboardPage() {
     <ScrollArea className="h-screen bg-background">
       <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
         <div className="flex items-center justify-between space-y-2">
-          <h2 className="text-3xl font-bold tracking-tight">{gymData.name ? `${gymData.name} Dashboard` : 'Owner Dashboard'}</h2>
+          <h2 className="text-3xl font-bold tracking-tight">{gymData.activeBranch ? `${gymData.activeBranch} Dashboard` : 'Owner Dashboard'}</h2>
           <div className="flex items-center space-x-2">
             <Button>
               <Calendar className="mr-2 h-4 w-4" />
@@ -312,7 +326,7 @@ export default function OwnerDashboardPage() {
              <CardHeader>
                 <CardTitle className="flex items-center">
                     <Building className="mr-2"/>
-                    {gymData.name}
+                    {gymData.name} ({gymData.activeBranch})
                 </CardTitle>
                 <CardDescription>{gymData.location}</CardDescription>
             </CardHeader>
