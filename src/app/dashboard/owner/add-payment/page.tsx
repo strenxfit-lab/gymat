@@ -8,8 +8,8 @@ import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { format, addDays, parseISO } from 'date-fns';
-import { Loader2, Calendar as CalendarIcon, Search, Check, Building, AlertTriangle, Tags } from 'lucide-react';
-import { collection, addDoc, getDocs, Timestamp, doc, updateDoc, getDoc, query, where } from 'firebase/firestore';
+import { Loader2, Calendar as CalendarIcon, Search, Check, Building, AlertTriangle, Tags, Phone, Mail } from 'lucide-react';
+import { collection, addDoc, getDocs, Timestamp, doc, updateDoc, getDoc, query, where, collectionGroup } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useToast } from '@/hooks/use-toast';
 
@@ -60,6 +60,13 @@ interface Offer {
   applicablePlans: string[];
 }
 
+interface LimitDialogInfo {
+  members: number;
+  trainers: number;
+  payments?: number;
+}
+
+
 function NoBranchDialog() {
     const router = useRouter();
     return (
@@ -84,6 +91,35 @@ function NoBranchDialog() {
     )
 }
 
+function LimitReachedDialog({ isOpen, onOpenChange, limits }: { isOpen: boolean; onOpenChange: (open: boolean) => void, limits: LimitDialogInfo }) {
+  return (
+    <AlertDialog open={isOpen} onOpenChange={onOpenChange}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>You've reached the limit of your trial account</AlertDialogTitle>
+          <AlertDialogDescription className="space-y-2 pt-2">
+            <p>Members ({limits.members}/3)</p>
+            <p>Trainers ({limits.trainers}/2)</p>
+            {limits.payments !== undefined && <p>Payments ({limits.payments}/5 per member)</p>}
+            <p className="font-semibold pt-2">Upgrade to a full Account to continue managing without restrictions.</p>
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <div className="flex flex-col space-y-2">
+            <p className="font-bold text-center">Contact Strenxfit Support</p>
+            <a href="https://wa.me/917988487892" target="_blank" rel="noopener noreferrer" className="flex items-center justify-center gap-3 p-3 rounded-md hover:bg-accent transition-colors">
+                <Phone className="h-5 w-5 text-muted-foreground" />
+                <span>+91 79884 87892</span>
+            </a>
+        </div>
+        <AlertDialogFooter>
+          <AlertDialogAction onClick={() => onOpenChange(false)}>OK</AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  );
+}
+
+
 export default function AddPaymentPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [members, setMembers] = useState<Member[]>([]);
@@ -95,6 +131,9 @@ export default function AddPaymentPage() {
   const { toast } = useToast();
   const router = useRouter();
   const searchParams = useSearchParams();
+  const [isTrial, setIsTrial] = useState(false);
+  const [limitDialogOpen, setLimitDialogOpen] = useState(false);
+  const [limitInfo, setLimitInfo] = useState<LimitDialogInfo>({ members: 0, trainers: 0 });
   
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
@@ -117,6 +156,17 @@ export default function AddPaymentPage() {
   useEffect(() => {
     const branchId = localStorage.getItem('activeBranch');
     setActiveBranchId(branchId);
+    
+    const userDocId = localStorage.getItem('userDocId');
+    if (userDocId) {
+        const gymRef = doc(db, 'gyms', userDocId);
+        getDoc(gymRef).then(gymSnap => {
+            if (gymSnap.exists() && gymSnap.data().isTrial) {
+                setIsTrial(true);
+            }
+        });
+    }
+
   }, []);
 
   const fetchMembersAndOffers = async (branchId: string) => {
@@ -246,6 +296,22 @@ export default function AddPaymentPage() {
       return;
     }
     
+    if (isTrial) {
+        const membersCollection = collection(db, 'gyms', userDocId, 'branches', activeBranchId, 'members');
+        const membersSnapshot = await getDocs(membersCollection);
+        const trainersCollection = collection(db, 'gyms', userDocId, 'branches', activeBranchId, 'trainers');
+        const trainersSnapshot = await getDocs(trainersCollection);
+        const paymentsCollection = collection(db, 'gyms', userDocId, 'branches', activeBranchId, 'members', data.memberId, 'payments');
+        const paymentsSnapshot = await getDocs(paymentsCollection);
+
+        setLimitInfo({ members: membersSnapshot.size, trainers: trainersSnapshot.size, payments: paymentsSnapshot.size });
+
+        if (paymentsSnapshot.size >= 5) {
+            setLimitDialogOpen(true);
+            return;
+        }
+    }
+
     setIsLoading(true);
 
     try {
@@ -292,6 +358,7 @@ export default function AddPaymentPage() {
 
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-background p-4">
+        <LimitReachedDialog isOpen={limitDialogOpen} onOpenChange={setLimitDialogOpen} limits={limitInfo} />
         <AlertDialog open={isStatusDialogOpen} onOpenChange={setIsStatusDialogOpen}>
             <AlertDialogContent>
                 <AlertDialogHeader>
