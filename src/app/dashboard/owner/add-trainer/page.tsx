@@ -260,7 +260,7 @@ export default function AddTrainerPage() {
                             </Select><FormMessage />
                             </FormItem>
                         )} />
-                        <FormField control={form.control} name="dob" render={({ field }) => ( <FormItem className="flex flex-col"><FormLabel>Date of Birth</FormLabel><FormControl><Input type="date" value={field.value ? format(field.value, 'yyyy-MM-dd') : ''} onChange={e => field.onChange(new Date(e.target.value))} /></FormControl><FormMessage /></FormItem>)} />
+                        <FormField control={form.control} name="dob" render={({ field }) => ( <FormItem className="flex flex-col"><FormLabel>Date of Birth</FormLabel><FormControl><Input type="date" value={field.value ? format(field.value, 'yyyy-MM-dd') : ''} onChange={e => field.onChange(e.target.value ? new Date(e.target.value) : undefined)} /></FormControl><FormMessage /></FormItem>)} />
                         <FormField control={form.control} name="phone" render={({ field }) => ( <FormItem><FormLabel>Phone Number</FormLabel><FormControl><Input placeholder="9876543210" {...field} /></FormControl><FormMessage /></FormItem> )} />
                         <FormField control={form.control} name="email" render={({ field }) => ( <FormItem><FormLabel>Email Address</FormLabel><FormControl><Input type="email" placeholder="jane.s@example.com" {...field} /></FormControl><FormMessage /></FormItem> )} />
                         <FormField control={form.control} name="address" render={({ field }) => ( <FormItem><FormLabel>Address (Optional)</FormLabel><FormControl><Input placeholder="123 Wellness Way" {...field} /></FormControl><FormMessage /></FormItem> )} />
@@ -280,7 +280,7 @@ export default function AddTrainerPage() {
                             )} />
                             <FormField control={form.control} name="specialization" render={({ field }) => ( <FormItem><FormLabel>Specialization (Optional)</FormLabel><FormControl><Input placeholder="e.g., Weight Training" {...field} /></FormControl><FormMessage /></FormItem> )} />
                             <FormField control={form.control} name="experience" render={({ field }) => ( <FormItem><FormLabel>Experience (Years, Optional)</FormLabel><FormControl><Input type="number" placeholder="5" {...field} /></FormControl><FormMessage /></FormItem> )} />
-                            <FormField control={form.control} name="joiningDate" render={({ field }) => ( <FormItem className="flex flex-col"><FormLabel>Joining Date</FormLabel><FormControl><Input type="date" value={field.value ? format(field.value, 'yyyy-MM-dd') : ''} onChange={e => field.onChange(new Date(e.target.value))} /></FormControl><FormMessage /></FormItem>)} />
+                            <FormField control={form.control} name="joiningDate" render={({ field }) => ( <FormItem className="flex flex-col"><FormLabel>Joining Date</FormLabel><FormControl><Input type="date" value={field.value ? format(field.value, 'yyyy-MM-dd') : ''} onChange={e => field.onChange(e.target.value ? new Date(e.target.value) : undefined)} /></FormControl><FormMessage /></FormItem>)} />
                             <FormField control={form.control} name="shiftTiming" render={({ field }) => (
                                 <FormItem><FormLabel>Shift Timing</FormLabel>
                                 <Select onValueChange={field.onChange} defaultValue={field.value}>
@@ -334,4 +334,5 @@ export default function AddTrainerPage() {
   );
 }
 
+    
     
