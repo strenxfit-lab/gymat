@@ -24,6 +24,8 @@ interface MemberDetails {
   email?: string;
   joiningDate: string;
   loginId?: string;
+  password?: string;
+  passwordChanged: boolean;
 
   // Membership Details
   membershipType: string;
@@ -126,6 +128,8 @@ export default function MemberProfilePage() {
           email: data.email,
           joiningDate: (data.createdAt as Timestamp)?.toDate().toLocaleDateString(),
           loginId: data.loginId,
+          password: data.password,
+          passwordChanged: data.passwordChanged || false,
           membershipType: data.membershipType,
           startDate: (data.startDate as Timestamp)?.toDate().toLocaleDateString(),
           endDate: endDate?.toLocaleDateString() || 'N/A',
@@ -210,6 +214,7 @@ export default function MemberProfilePage() {
                     <DetailItem label="Email" value={member.email} icon={<Mail />} />
                     <DetailItem label="Joining Date" value={member.joiningDate} icon={<Calendar />} />
                     <DetailItem label="Login ID" value={member.loginId} icon={<KeyRound />} />
+                    <DetailItem label="Password" value={member.passwordChanged ? "Password Changed" : member.password} icon={<KeyRound />} />
                 </CardContent>
             </Card>
             
