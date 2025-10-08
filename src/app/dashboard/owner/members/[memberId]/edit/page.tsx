@@ -7,7 +7,7 @@ import { useRouter, useParams } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { doc, Timestamp, getDoc, updateDoc } from 'firebase/firestore';
+import { doc, Timestamp, getDoc, updateDoc, collection, addDoc, runTransaction } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useToast } from '@/hooks/use-toast';
 
@@ -17,12 +17,12 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
-import { Loader2, User, HeartPulse, ArrowLeft } from 'lucide-react';
+import { Loader2, User, HeartPulse, ArrowLeft, Star } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
+import { cn } from '@/lib/utils';
 
 
 const formSchema = z.object({
-  // Only health and fitness fields are editable
   height: z.string().optional(),
   weight: z.string().optional(),
   medicalConditions: z.string().optional(),
@@ -36,13 +36,16 @@ interface MemberData {
     phone?: string;
     email?: string;
     membershipType?: string;
-    // Add other non-editable fields to display them
+    assignedTrainer?: string;
 }
 
 export default function EditMemberPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [isFetching, setIsFetching] = useState(true);
   const [memberData, setMemberData] = useState<MemberData>({});
+  const [rating, setRating] = useState(0);
+  const [hoverRating, setHoverRating] = useState(0);
+  const [isSubmittingRating, setIsSubmittingRating] = useState(false);
   const { toast } = useToast();
   const router = useRouter();
   const params = useParams();
@@ -75,19 +78,18 @@ export default function EditMemberPage() {
 
         if (memberSnap.exists()) {
           const data = memberSnap.data();
-          // Set form values for editable fields
           form.reset({
             height: data.height || '',
             weight: data.weight || '',
             medicalConditions: data.medicalConditions || '',
             fitnessGoal: data.fitnessGoal || '',
           });
-          // Set state for displaying non-editable fields
           setMemberData({
             fullName: data.fullName,
             phone: data.phone,
             email: data.email,
             membershipType: data.membershipType,
+            assignedTrainer: data.assignedTrainer,
           });
         } else {
           toast({ title: 'Not Found', description: 'Member data could not be found.', variant: 'destructive' });
@@ -116,13 +118,7 @@ export default function EditMemberPage() {
 
     try {
       const memberRef = doc(db, 'gyms', userDocId, 'branches', activeBranchId, 'members', memberId);
-      
-      const healthData = {
-        ...data,
-      };
-
-      await updateDoc(memberRef, healthData);
-
+      await updateDoc(memberRef, data);
       toast({ title: 'Success!', description: 'Member health details updated successfully.' });
       router.push(`/dashboard/owner/members/${memberId}`);
     } catch (error) {
@@ -132,6 +128,48 @@ export default function EditMemberPage() {
       setIsLoading(false);
     }
   };
+
+  const handleRatingSubmit = async () => {
+    if (rating === 0 || !memberData.assignedTrainer) return;
+    setIsSubmittingRating(true);
+
+    const userDocId = localStorage.getItem('userDocId');
+    const activeBranchId = localStorage.getItem('activeBranch');
+    if (!userDocId || !activeBranchId) return;
+
+    try {
+        const trainerRef = doc(db, 'gyms', userDocId, 'branches', activeBranchId, 'trainers', memberData.assignedTrainer);
+        
+        await runTransaction(db, async (transaction) => {
+            const trainerDoc = await transaction.get(trainerRef);
+            if (!trainerDoc.exists()) {
+                throw "Trainer not found!";
+            }
+            const trainerData = trainerDoc.data();
+            const currentRatings = trainerData.ratings || { totalStars: 0, ratingCount: 0 };
+            
+            const newTotalStars = currentRatings.totalStars + rating;
+            const newRatingCount = currentRatings.ratingCount + 1;
+            const newAverageRating = newTotalStars / newRatingCount;
+
+            transaction.update(trainerRef, {
+                ratings: {
+                    totalStars: newTotalStars,
+                    ratingCount: newRatingCount,
+                    averageRating: newAverageRating,
+                }
+            });
+        });
+
+        toast({ title: 'Rating Submitted!', description: 'Thank you for your feedback.' });
+        setRating(0);
+    } catch (error) {
+        console.error("Error submitting rating: ", error);
+        toast({ title: 'Error', description: 'Could not submit rating. Please try again.', variant: 'destructive' });
+    } finally {
+        setIsSubmittingRating(false);
+    }
+  }
 
   if (isFetching) {
     return (
@@ -146,13 +184,13 @@ export default function EditMemberPage() {
     <div className="flex min-h-screen flex-col items-center justify-center bg-background p-4">
         <Card className="w-full max-w-2xl">
             <CardHeader>
-                <CardTitle>Edit Member Health Profile</CardTitle>
-                <CardDescription>Update health and fitness information for {memberData.fullName}.</CardDescription>
+                <CardTitle>Edit Member Profile</CardTitle>
+                <CardDescription>Update health, fitness, and trainer rating for {memberData.fullName}.</CardDescription>
             </CardHeader>
+            
             <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)}>
                 <CardContent className="space-y-6">
-                    {/* Display Non-Editable Info */}
                     <div className="space-y-4 rounded-md border bg-muted/50 p-4">
                         <h3 className="font-semibold flex items-center gap-2"><User /> Member Details (Read-Only)</h3>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-2 text-sm">
@@ -164,7 +202,6 @@ export default function EditMemberPage() {
                     
                     <Separator />
 
-                    {/* Health & Fitness */}
                     <div className="space-y-4">
                         <h3 className="font-semibold flex items-center gap-2"><HeartPulse /> Health & Fitness (Editable)</h3>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -192,7 +229,41 @@ export default function EditMemberPage() {
                 </CardFooter>
             </form>
             </Form>
+
+            {memberData.assignedTrainer && (
+                <>
+                <Separator className="my-4"/>
+                <CardContent>
+                    <div className="space-y-4">
+                        <h3 className="font-semibold">Rate Your Trainer</h3>
+                        <div className="flex items-center gap-2">
+                            {[...Array(5)].map((_, index) => {
+                                const starValue = index + 1;
+                                return (
+                                    <Star
+                                        key={starValue}
+                                        className={cn(
+                                            "h-8 w-8 cursor-pointer transition-colors",
+                                            starValue <= (hoverRating || rating) ? "text-yellow-400 fill-yellow-400" : "text-gray-300"
+                                        )}
+                                        onClick={() => setRating(starValue)}
+                                        onMouseEnter={() => setHoverRating(starValue)}
+                                        onMouseLeave={() => setHoverRating(0)}
+                                    />
+                                );
+                            })}
+                        </div>
+                        <Button onClick={handleRatingSubmit} disabled={isSubmittingRating || rating === 0}>
+                            {isSubmittingRating ? <Loader2 className="animate-spin" /> : "Submit Rating"}
+                        </Button>
+                    </div>
+                </CardContent>
+                </>
+            )}
+
         </Card>
     </div>
   );
 }
+
+    
