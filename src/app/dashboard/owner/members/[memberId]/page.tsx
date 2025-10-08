@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect } from 'react';
@@ -10,8 +9,9 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Loader2, ArrowLeft, User, Calendar, DollarSign, Weight, BarChart2, Edit, KeyRound, Dumbbell, HeartPulse, ShieldCheck, Mail, Phone, Briefcase } from 'lucide-react';
+import { Loader2, ArrowLeft, User, Calendar, DollarSign, Weight, BarChart2, Edit, KeyRound, Dumbbell, HeartPulse, ShieldCheck, Mail, Phone, Briefcase, Fingerprint } from 'lucide-react';
 import Link from 'next/link';
+import Image from 'next/image';
 
 type MemberStatus = 'Active' | 'Expired' | 'Pending' | 'Frozen' | 'Stopped';
 
@@ -40,6 +40,19 @@ interface MemberDetails {
   weight?: string;
   medicalConditions?: string;
   fitnessGoal?: string;
+
+  // KYC
+  kyc?: KycDetails;
+}
+
+interface KycDetails {
+    idType: 'aadhar' | 'pan';
+    idNumber: string;
+    aadharFrontUrl?: string;
+    aadharBackUrl?: string;
+    panUrl?: string;
+    selfieUrl?: string;
+    notes?: string;
 }
 
 interface Payment {
@@ -118,6 +131,14 @@ export default function MemberProfilePage() {
                 assignedTrainerName = trainerSnap.data().fullName;
             }
         }
+        
+        // Fetch KYC data
+        let kycDetails: KycDetails | undefined = undefined;
+        const kycCollection = collection(memberRef, 'kyc');
+        const kycSnap = await getDocs(kycCollection);
+        if (!kycSnap.empty) {
+            kycDetails = kycSnap.docs[0].data() as KycDetails;
+        }
 
 
         setMember({
@@ -140,6 +161,7 @@ export default function MemberProfilePage() {
           weight: data.weight,
           medicalConditions: data.medicalConditions,
           fitnessGoal: data.fitnessGoal,
+          kyc: kycDetails,
         });
         
         const paymentsRef = collection(db, 'gyms', userDocId, 'branches', activeBranchId, 'members', memberId, 'payments');
@@ -249,6 +271,49 @@ export default function MemberProfilePage() {
         </div>
 
         <div className="lg:col-span-2 space-y-6">
+            <Card>
+                <CardHeader>
+                    <CardTitle className="flex items-center gap-2"><Fingerprint /> KYC Details</CardTitle>
+                </CardHeader>
+                <CardContent>
+                    {member.kyc ? (
+                        <div className="space-y-4">
+                             <DetailItem label="ID Type" value={member.kyc.idType.toUpperCase()} />
+                             <DetailItem label="ID Number" value={member.kyc.idNumber} />
+                             <div className="grid grid-cols-2 gap-4 pt-2">
+                                {member.kyc.aadharFrontUrl && (
+                                    <div className="space-y-2">
+                                        <p className="text-sm font-medium">Aadhar Front</p>
+                                        <Image src={member.kyc.aadharFrontUrl} alt="Aadhar Front" width={200} height={120} className="rounded-md border"/>
+                                    </div>
+                                )}
+                                 {member.kyc.aadharBackUrl && (
+                                    <div className="space-y-2">
+                                        <p className="text-sm font-medium">Aadhar Back</p>
+                                        <Image src={member.kyc.aadharBackUrl} alt="Aadhar Back" width={200} height={120} className="rounded-md border"/>
+                                    </div>
+                                )}
+                                 {member.kyc.panUrl && (
+                                    <div className="space-y-2">
+                                        <p className="text-sm font-medium">PAN Card</p>
+                                        <Image src={member.kyc.panUrl} alt="PAN Card" width={200} height={120} className="rounded-md border"/>
+                                    </div>
+                                )}
+                                 {member.kyc.selfieUrl && (
+                                    <div className="space-y-2">
+                                        <p className="text-sm font-medium">Selfie</p>
+                                        <Image src={member.kyc.selfieUrl} alt="Selfie" width={200} height={120} className="rounded-md border"/>
+                                    </div>
+                                )}
+                             </div>
+                              {member.kyc.notes && <div className="pt-2"><DetailItem label="Notes" value={member.kyc.notes}/></div>}
+                        </div>
+                    ) : (
+                        <p className="text-muted-foreground">No KYC details found for this member.</p>
+                    )}
+                </CardContent>
+            </Card>
+
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2"><DollarSign /> Payment History</CardTitle>
