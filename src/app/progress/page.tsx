@@ -2,10 +2,10 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { doc, getDoc, collection, query, orderBy, onSnapshot, addDoc, serverTimestamp, where, limit, Timestamp, getDocs } from 'firebase/firestore';
+import { doc, getDoc, collection, query, orderBy, onSnapshot, addDoc, serverTimestamp, where, getDocs } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useToast } from '@/hooks/use-toast';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -26,7 +26,7 @@ interface CommunityProfile {
 interface WorkoutLog {
     workoutId: string;
     muscles: Muscle[];
-    completedAt: Timestamp;
+    completedAt: any;
 }
 
 type MuscleColor = '#FF4B4B' | '#FFA500' | '#808080';
