@@ -88,18 +88,7 @@ export default function TrainerDashboardLayout({
                               pathname.startsWith('/dashboard/trainer/activity') || 
                               pathname.startsWith('/dashboard/search');
 
-  // The /progress route is global and should not be handled by this layout's special logic
-  if (pathname.startsWith('/progress')) {
-      return <>{children}</>;
-  }
-
   if (isSpecialLayoutPage) {
-    if (pathname.startsWith('/dashboard/trainer/profile')) {
-       return <>{children}</>;
-    }
-     if (pathname.startsWith('/dashboard/search')) {
-       return <>{children}</>;
-    }
     return <>{children}</>;
   }
 
