@@ -9,14 +9,11 @@ import {
   SidebarContent,
   SidebarHeader,
   SidebarMenu,
-  SidebarMenuItem,
   SidebarTrigger,
   SidebarFooter,
-  useSidebar,
   SidebarProvider,
-  SidebarInset,
 } from '@/components/ui/sidebar';
-import { Dumbbell, Users, CreditCard, ClipboardList, BarChart3, Megaphone, Boxes, Info, Mail, Phone, Building, UserCheck, LogOut, MessageSquare, CalendarCheck, CheckSquare, Clock, KeyRound, ChevronDown } from 'lucide-react';
+import { Dumbbell, Users, CreditCard, ClipboardList, BarChart3, Megaphone, Boxes, Info, Mail, Phone, Building, UserCheck, LogOut, MessageSquare, CalendarCheck, CheckSquare, Clock, KeyRound, ChevronDown, IndianRupee } from 'lucide-react';
 import { doc, getDoc, collection, getDocs, Timestamp, query, where } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -26,13 +23,12 @@ import { cn } from '@/lib/utils';
 import { ThemeToggle } from '@/components/theme-toggle';
 import * as React from 'react';
 
-
 const SubMenu = ({ children, title, icon, isOpen, onToggle }: { children: React.ReactNode, title: string, icon: React.ReactNode, isOpen: boolean, onToggle: () => void }) => {
   const pathname = usePathname();
   const isActive = React.Children.toArray(children).some(child => {
       if (React.isValidElement(child) && child.props.href) {
         // @ts-ignore
-        return pathname === child.props.href;
+        return pathname.startsWith(child.props.href);
       }
       return false;
   });
@@ -285,6 +281,11 @@ export default function OwnerDashboardLayout({
                 <SubMenuItem href="/dashboard/owner/add-payment">Collect Fee</SubMenuItem>
                 <SubMenuItem href="/dashboard/owner/revenue-reports">Revenue Reports</SubMenuItem>
                 <SubMenuItem href="/dashboard/owner/expenses">Expenses</SubMenuItem>
+            </SubMenu>
+
+            <SubMenu title="Settlement" icon={<IndianRupee />} isOpen={openSubMenu === 'settlement'} onToggle={() => toggleSubMenu('settlement')}>
+                <SubMenuItem href="/dashboard/owner/settlement/account-details">Account Details</SubMenuItem>
+                <SubMenuItem href="/dashboard/owner/settlement/settlements">View Settlements</SubMenuItem>
             </SubMenu>
 
              <SubMenu title="Operations" icon={<ClipboardList />} isOpen={openSubMenu === 'operations'} onToggle={() => toggleSubMenu('operations')}>
