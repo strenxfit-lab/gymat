@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { collection, addDoc, getDocs, Timestamp, query, where, orderBy } from 'firebase/firestore';
+import { collection, addDoc, getDocs, Timestamp, query, where, orderBy, serverTimestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useToast } from '@/hooks/use-toast';
 
@@ -110,7 +110,7 @@ export default function TrainerComplaintsPage() {
             authorName: trainerName || "Unknown Trainer",
             authorRole: 'trainer',
             status: 'Pending',
-            submittedAt: Timestamp.now(),
+            submittedAt: serverTimestamp(),
         });
         toast({ title: 'Complaint Submitted!', description: 'Thank you for your feedback. We will look into it shortly.'});
         form.reset();
