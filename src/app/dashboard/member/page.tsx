@@ -85,7 +85,6 @@ export default function MemberDashboard() {
     const [loading, setLoading] = useState(true);
     const [hasNewDietPlan, setHasNewDietPlan] = useState(false);
     const [birthdayMessage, setBirthdayMessage] = useState<string | null>(null);
-    const [memberName, setMemberName] = useState<string | null>(null);
     const [assignedTrainer, setAssignedTrainer] = useState<AssignedTrainer | null>(null);
     const [isStartingChat, setIsStartingChat] = useState(false);
     const [isCheckedIn, setIsCheckedIn] = useState(false);
@@ -96,9 +95,7 @@ export default function MemberDashboard() {
         const userDocId = localStorage.getItem('userDocId');
         const activeBranchId = localStorage.getItem('activeBranch');
         const memberId = localStorage.getItem('memberId');
-        const name = localStorage.getItem('userName');
-        setMemberName(name);
-
+        
         const lastCheckIn = localStorage.getItem('lastCheckIn');
         if (lastCheckIn && isToday(new Date(lastCheckIn))) {
             setIsCheckedIn(true);
@@ -248,11 +245,6 @@ export default function MemberDashboard() {
         fetchAllData();
     }, [router, toast]);
 
-    const handleLogout = () => {
-        localStorage.clear();
-        router.push('/');
-    };
-    
     const handleStartChat = async () => {
         const memberUsername = localStorage.getItem('communityUsername');
         const trainerUsername = assignedTrainer?.communityUsername;
@@ -302,45 +294,17 @@ export default function MemberDashboard() {
   };
   const statusProps = getStatusProps(membershipStatus?.status);
 
-  return (
-    <div className="flex min-h-screen items-start justify-center bg-background p-4 sm:p-8">
-      <div className="w-full max-w-6xl space-y-8">
-        
-        <div className="flex justify-between items-center">
-          <div>
-            <h1 className="text-3xl font-bold">Welcome {memberName}!</h1>
-            <p className="text-muted-foreground">Here's your fitness overview.</p>
-          </div>
-          <div className="flex items-center gap-2">
-             <Link href="/dashboard/member/payment-history" passHref>
-                <Button variant="outline" size="icon" className="relative">
-                    <Bell className="h-5 w-5" />
-                    {hasNewDietPlan && <span className="absolute top-0 right-0 h-2.5 w-2.5 rounded-full bg-destructive" />}
-                    <span className="sr-only">Notifications</span>
-                </Button>
-            </Link>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outline" size="icon">
-                    <User className="h-5 w-5" />
-                    <span className="sr-only">User Menu</span>
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                 <DropdownMenuItem onSelect={() => router.push('/dashboard/member/profile')}>
-                    <User className="mr-2 h-4 w-4" />
-                    <span>View Profile</span>
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onSelect={handleLogout} className="text-destructive focus:text-destructive">
-                    <LogOut className="mr-2 h-4 w-4" />
-                    <span>Logout</span>
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
+  if (loading) {
+    return (
+        <div className="flex min-h-screen items-start justify-center bg-background p-4 sm:p-8">
+            <Loader2 className="h-8 w-8 animate-spin" />
         </div>
+    );
+  }
 
+  return (
+    <div className="w-full max-w-6xl space-y-8">
+        
         <BannerDisplay location="dashboard" />
         
         <Card>
@@ -551,11 +515,6 @@ export default function MemberDashboard() {
                 </Card>
             </div>
         </div>
-      </div>
     </div>
   );
 }
-
-    
-
-    
