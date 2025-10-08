@@ -7,7 +7,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 import * as z from 'zod';
 import { Loader2, Lock, Mail } from 'lucide-react';
-import { collection, query, where, getDocs, DocumentData } from 'firebase/firestore';
+import { collection, query, where, getDocs, DocumentData, Timestamp } from 'firebase/firestore';
 
 import { Button } from '@/components/ui/button';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
@@ -58,11 +58,8 @@ export default function LoginForm() {
             localStorage.setItem('userRole', userData.role);
             toast({ title: 'Welcome!', description: "You have been successfully logged in." });
             router.push('/dashboard/owner');
-        } else {
-            toast({ title: 'Login Failed', description: 'Incorrect password.', variant: 'destructive' });
+            return;
         }
-        setIsLoading(false);
-        return;
       }
 
       // 2. If not an owner, search for members/trainers across all gyms and branches
@@ -97,13 +94,11 @@ export default function LoginForm() {
           }
       }
       
-      // 3. Now, check the password for any found user
       const foundUser = potentialUsers.find(u => u.userData.password === values.password);
 
       if (foundUser) {
           const { gymId, branchId, userId, userData } = foundUser;
           const userRole = userData.role;
-          const userType = userRole === 'member' ? 'members' : 'trainers';
 
           localStorage.setItem('userDocId', gymId);
           localStorage.setItem('activeBranch', branchId);
@@ -117,9 +112,39 @@ export default function LoginForm() {
           } else {
               router.push(`/dashboard/${userRole}`);
           }
-      } else {
-        toast({ title: 'Login Failed', description: 'Incorrect username or password.', variant: 'destructive' });
+          return;
       }
+
+      // 3. If no standard user, check for trial key login.
+      // We assume if password is 'trial', user might be trying to log in with a key.
+      if(values.password.toLowerCase() === 'trial') {
+          const trialKeysRef = collection(db, 'trialKeys');
+          const trialQuery = query(trialKeysRef, where("key", "==", values.email));
+          const trialSnapshot = await getDocs(trialQuery);
+
+          if (!trialSnapshot.empty) {
+              const trialDoc = trialSnapshot.docs[0];
+              const trialData = trialDoc.data();
+              const now = new Date();
+              const expiresAt = (trialData.expiresAt as Timestamp)?.toDate();
+
+              if (trialData.activatedAt && trialData.gymId) {
+                  if (expiresAt && expiresAt >= now) {
+                      localStorage.setItem('userDocId', trialData.gymId);
+                      localStorage.setItem('userRole', 'owner');
+                      toast({ title: 'Welcome Back!', description: "Your trial continues." });
+                      router.push('/dashboard/owner');
+                      return;
+                  } else {
+                      toast({ title: 'Trial Expired', description: 'Your trial period has ended.', variant: 'destructive' });
+                      setIsLoading(false);
+                      return;
+                  }
+              }
+          }
+      }
+
+      toast({ title: 'Login Failed', description: 'Incorrect username or password.', variant: 'destructive' });
 
     } catch (error) {
       console.error("Error logging in:", error);
@@ -141,7 +166,7 @@ export default function LoginForm() {
           name="email"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Email or Login ID</FormLabel>
+              <FormLabel>Email, Login ID, or Trial Key</FormLabel>
               <div className="relative">
                 <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <FormControl>
