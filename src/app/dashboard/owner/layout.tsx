@@ -133,12 +133,17 @@ export default function OwnerDashboardLayout({
                     if (trialData.expiresAt) {
                         expirationDate = (trialData.expiresAt as Timestamp).toDate();
                         planTier = 'Trial';
+                         if (expirationDate < new Date()) {
+                            isValidSession = false; // Expired trial
+                        }
                     }
                 }
             } else if (gymData.expiry_at) {
                 expirationDate = (gymData.expiry_at as Timestamp).toDate();
                 planTier = gymData.membershipType;
-                isValidSession = true;
+                if (expirationDate >= new Date()) {
+                    isValidSession = true;
+                }
             } else if (gymData.tier && gymData.createdAt) {
                 const createdAt = (gymData.createdAt as Timestamp).toDate();
                 if (gymData.tier.toLowerCase() === 'monthly') {
@@ -147,7 +152,9 @@ export default function OwnerDashboardLayout({
                     expirationDate = addYears(createdAt, 1);
                 }
                 planTier = gymData.tier;
-                isValidSession = true;
+                 if (expirationDate && expirationDate >= new Date()) {
+                    isValidSession = true;
+                }
             }
 
             if (!isValidSession) {
@@ -156,10 +163,6 @@ export default function OwnerDashboardLayout({
             }
             
             if (expirationDate) {
-                 if (expirationDate < new Date()) {
-                    handleLogout();
-                    return;
-                }
                 setTierInfo({ expiresAt: expirationDate, tier: planTier });
             }
 
