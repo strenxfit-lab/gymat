@@ -8,11 +8,11 @@ import { db } from '@/lib/firebase';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Loader2, User, LogOut, Building, Cake, MessageSquare, Wrench, Utensils, Megaphone, Clock, Tags, IndianRupee, Percent } from 'lucide-react';
+import { Loader2, User, LogOut, Building, Cake, MessageSquare, Wrench, Utensils, Megaphone, Clock, Tags, IndianRupee, Percent, QrCode } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { differenceInYears, parseISO, isWithinInterval } from 'date-fns';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
@@ -176,12 +176,12 @@ export default function TrainerDashboardPage() {
         const now = new Date();
         const oneDayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
         const announcementsRef = collection(db, 'gyms', userDocId, 'branches', activeBranchId, 'announcements');
-        const qAnnouncements = query(announcementsRef, where("audience", "in", ["all", "trainers"]), orderBy("createdAt", "desc"));
-        const announcementsSnap = await getDocs(qAnnouncements);
+        const announcementsQuery = query(announcementsRef, orderBy("createdAt", "desc"));
+        const announcementsSnap = await getDocs(announcementsQuery);
         
         const announcementsList = announcementsSnap.docs
             .map(doc => ({ id: doc.id, ...doc.data(), createdAt: (doc.data().createdAt as Timestamp).toDate() } as Announcement))
-            .filter(a => a.createdAt >= oneDayAgo);
+            .filter(a => (a.audience === 'all' || a.audience === 'trainers') && a.createdAt >= oneDayAgo);
         setAnnouncements(announcementsList);
         
         // Fetch Trainer Offers
@@ -292,6 +292,20 @@ export default function TrainerDashboardPage() {
             </DropdownMenu>
         </div>
       </div>
+      
+       <Card className="mb-6">
+            <CardHeader>
+                <CardTitle>Scan QR Code</CardTitle>
+                <CardDescription>Mark attendance for yourself or a member.</CardDescription>
+            </CardHeader>
+            <CardContent>
+                <Link href="/dashboard/attendance" passHref>
+                    <Button className="w-full justify-start">
+                        <QrCode className="mr-2 h-4 w-4"/> Scan to Check In
+                    </Button>
+                </Link>
+            </CardContent>
+        </Card>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div className="md:col-span-2 space-y-6">
@@ -409,6 +423,9 @@ export default function TrainerDashboardPage() {
                          <Link href="/dashboard/trainer/complaints" passHref>
                             <Button className="w-full justify-start" variant="outline"><MessageSquare className="mr-2"/> Complaints</Button>
                          </Link>
+                         <Link href="/dashboard/owner/transactions" passHref>
+                            <Button className="w-full justify-start" variant="outline"><IndianRupee className="mr-2"/> Payments</Button>
+                         </Link>
                     </CardContent>
                 </Card>
             </div>
@@ -438,3 +455,5 @@ export default function TrainerDashboardPage() {
     </Dialog>
   );
 }
+
+    
