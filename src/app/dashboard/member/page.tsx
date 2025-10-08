@@ -5,9 +5,9 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { CalendarCheck, Tags, IndianRupee, Percent, ShieldCheck, User, LogOut, Bell, Building, Cake, Clock, Loader2, MessageSquare, Utensils, Users as UsersIcon } from "lucide-react";
+import { CalendarCheck, Tags, IndianRupee, Percent, ShieldCheck, User, LogOut, Bell, Building, Cake, Clock, Loader2, MessageSquare, Utensils, Users as UsersIcon, Megaphone } from "lucide-react";
 import Link from 'next/link';
-import { collection, getDocs, query, where, Timestamp, doc, getDoc, collectionGroup } from 'firebase/firestore';
+import { collection, getDocs, query, where, Timestamp, doc, getDoc, collectionGroup, orderBy } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { Badge } from '@/components/ui/badge';
 import { format, parseISO, isBefore, isWithinInterval, addDays } from 'date-fns';
@@ -37,6 +37,13 @@ interface BookedClass {
     dateTime: Date;
 }
 
+interface Announcement {
+    id: string;
+    message: string;
+    audience: 'all' | 'members' | 'trainers';
+    createdAt: Date;
+}
+
 
 const membershipPlans = [
     { id: "monthly", label: "Monthly" },
@@ -59,6 +66,7 @@ export default function MemberDashboard() {
     const [offers, setOffers] = useState<Offer[]>([]);
     const [equipment, setEquipment] = useState<Equipment[]>([]);
     const [bookedClasses, setBookedClasses] = useState<BookedClass[]>([]);
+    const [announcements, setAnnouncements] = useState<Announcement[]>([]);
     const [loading, setLoading] = useState(true);
     const [hasNotification, setHasNotification] = useState(false);
     const [birthdayMessage, setBirthdayMessage] = useState<string | null>(null);
@@ -124,6 +132,16 @@ export default function MemberDashboard() {
                 const equipmentSnap = await getDocs(equipmentRef);
                 const equipmentList = equipmentSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Equipment));
                 setEquipment(equipmentList);
+                
+                // Fetch Announcements
+                const oneDayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+                const announcementsRef = collection(db, 'gyms', userDocId, 'branches', activeBranchId, 'announcements');
+                const qAnnouncements = query(announcementsRef, where("createdAt", ">=", Timestamp.fromDate(oneDayAgo)), orderBy("createdAt", "desc"));
+                const announcementsSnap = await getDocs(qAnnouncements);
+                const announcementsList = announcementsSnap.docs
+                    .map(doc => ({ id: doc.id, ...doc.data() } as Announcement))
+                    .filter(a => a.audience === 'all' || a.audience === 'members');
+                setAnnouncements(announcementsList);
 
                 // Check for notifications and birthday
                 const memberRef = doc(db, 'gyms', userDocId, 'branches', activeBranchId, 'members', memberId);
@@ -166,6 +184,15 @@ export default function MemberDashboard() {
   return (
     <div className="flex min-h-screen items-start justify-center bg-background p-4 sm:p-8">
       <div className="w-full max-w-6xl space-y-8">
+        {announcements.length > 0 && (
+             <Alert>
+                <Megaphone className="h-4 w-4" />
+                <AlertTitle>Announcement</AlertTitle>
+                <AlertDescription>
+                    {announcements[0].message}
+                </AlertDescription>
+             </Alert>
+        )}
         {birthdayMessage && (
             <Alert className="border-amber-500 text-amber-700 bg-amber-50">
                 <Cake className="h-4 w-4 !text-amber-700" />
@@ -338,5 +365,3 @@ export default function MemberDashboard() {
     </div>
   );
 }
-
-    
