@@ -62,6 +62,7 @@ const steps: { id: number; title: string; icon: JSX.Element; fields: FieldName[]
 export default function AddTrainerPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [currentStep, setCurrentStep] = useState(1);
+  const [activeBranch, setActiveBranch] = useState<string | null>(null);
   const { toast } = useToast();
   const router = useRouter();
   
@@ -88,6 +89,11 @@ export default function AddTrainerPage() {
     },
   });
 
+  useEffect(() => {
+    const branch = localStorage.getItem('activeBranch');
+    setActiveBranch(branch);
+  }, []);
+
   const handleNext = async () => {
     const fieldsToValidate = steps[currentStep - 1].fields;
     const result = await form.trigger(fieldsToValidate as FieldName[]);
@@ -110,6 +116,7 @@ export default function AddTrainerPage() {
       const trainersCollection = collection(db, 'gyms', userDocId, 'trainers');
       await addDoc(trainersCollection, {
         ...data,
+        branch: activeBranch,
         dob: Timestamp.fromDate(data.dob),
         joiningDate: Timestamp.fromDate(data.joiningDate),
         createdAt: Timestamp.now(),
@@ -149,14 +156,17 @@ export default function AddTrainerPage() {
         <Card className="w-full max-w-2xl">
             <CardHeader>
                 <Progress value={progress} className="mb-4" />
-                <div className="flex items-center gap-3">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
-                        {steps[currentStep - 1].icon}
+                 <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                            {steps[currentStep - 1].icon}
+                        </div>
+                        <div>
+                            <CardTitle>{steps[currentStep - 1].title}</CardTitle>
+                            <CardDescription>Step {currentStep} of {steps.length}</CardDescription>
+                        </div>
                     </div>
-                    <div>
-                        <CardTitle>{steps[currentStep - 1].title}</CardTitle>
-                        <CardDescription>Step {currentStep} of {steps.length}</CardDescription>
-                    </div>
+                     {activeBranch && <div className="text-sm font-medium text-muted-foreground">Branch: {activeBranch}</div>}
                 </div>
             </CardHeader>
             <Form {...form}>
@@ -246,5 +256,3 @@ export default function AddTrainerPage() {
     </div>
   );
 }
-
-    
