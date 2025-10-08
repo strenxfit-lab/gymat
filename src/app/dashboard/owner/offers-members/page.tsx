@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { collection, addDoc, getDocs, Timestamp, deleteDoc, doc, updateDoc, query, where, getDoc } from 'firebase/firestore';
+import { collection, addDoc, getDocs, Timestamp, deleteDoc, doc, updateDoc, query, where, getDoc, collectionGroup } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
@@ -142,17 +142,24 @@ export default function MemberOffersPage() {
     try {
         const offersCollection = collection(db, 'gyms', userDocId, 'branches', activeBranchId, 'offers');
         const offersSnapshot = await getDocs(offersCollection);
-
-        const paymentsRef = collection(db, 'gyms', userDocId, 'branches', activeBranchId, 'payments');
-        const paymentsSnap = await getDocs(query(paymentsRef, where('appliedOfferId', '!=', null)));
-        const paymentsWithOffers = paymentsSnap.docs.map(doc => doc.data());
-
-
+        
+        const membersCollection = collection(db, 'gyms', userDocId, 'branches', activeBranchId, 'members');
+        const membersSnapshot = await getDocs(membersCollection);
+        
+        const allPayments = [];
+        for (const memberDoc of membersSnapshot.docs) {
+            const paymentsCollection = collection(memberDoc.ref, 'payments');
+            const paymentsSnapshot = await getDocs(paymentsCollection);
+            for (const paymentDoc of paymentsSnapshot.docs) {
+                allPayments.push(paymentDoc.data());
+            }
+        }
+        
         const offersList = offersSnapshot.docs.map(docSnap => {
             const data = docSnap.data();
             const offerId = docSnap.id;
 
-            const analytics = paymentsWithOffers
+            const analytics = allPayments
                 .filter(p => p.appliedOfferId === offerId)
                 .reduce((acc, p) => {
                     acc.availed += 1;
@@ -445,5 +452,3 @@ export default function MemberOffersPage() {
     </div>
   );
 }
-
-    
