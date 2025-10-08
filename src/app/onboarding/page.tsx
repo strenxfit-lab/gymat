@@ -3,10 +3,10 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { useForm, FormProvider } from 'react-hook-form';
+import { useForm, FormProvider, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { Loader2, Building, User, Ruler, Dumbbell, Wallet, BarChart, Calendar, Clock, MapPin, Phone, Mail, Users, Briefcase } from 'lucide-react';
+import { Loader2, Building, User, Ruler, Dumbbell, Wallet, BarChart, Calendar, Clock, MapPin, Phone, Mail, Users, Briefcase, Plus, Trash } from 'lucide-react';
 import { doc, setDoc, updateDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useToast } from '@/hooks/use-toast';
@@ -19,6 +19,11 @@ import { Progress } from '@/components/ui/progress';
 import { Checkbox } from '@/components/ui/checkbox';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+
+const planSchema = z.object({
+  name: z.string().min(1, 'Plan name is required'),
+  price: z.string().min(1, 'Price is required'),
+});
 
 const formSchema = z.object({
   gymName: z.string().min(1, 'Gym Name is required.'),
@@ -39,7 +44,9 @@ const formSchema = z.object({
   openingTime: z.string().optional(),
   closingTime: z.string().optional(),
   hasPlans: z.string().optional(),
-  plans: z.array(z.object({ name: z.string(), price: z.string() })).optional(),
+  plans: z.array(planSchema).optional(),
+  monthlyFee: z.string().optional(),
+  suggestedPlans: z.array(planSchema).optional(),
   freeTrial: z.string().optional(),
   facilities: z.array(z.string()).optional(),
   numMachines: z.string().optional(),
@@ -56,7 +63,7 @@ const steps: { id: number; title: string; icon: JSX.Element, fields: FieldName[]
   { id: 1, title: "Basic Gym Information", icon: <Building className="h-6 w-6" />, fields: ['gymName', 'gymAddress', 'cityStatePin', 'contactNumber', 'gymEmail', 'gymStartDate'] },
   { id: 2, title: "Owner Information", icon: <User className="h-6 w-6" />, fields: ['ownerName', 'ownerMobile', 'ownerEmail', 'ownerAlternateContact'] },
   { id: 3, title: "Gym Capacity & Setup", icon: <Ruler className="h-6 w-6" />, fields: ['gymArea', 'maxCapacity', 'numTrainers', 'numStaff', 'openDays', 'openingTime', 'closingTime'] },
-  { id: 4, title: "Membership & Plans", icon: <Wallet className="h-6 w-6" />, fields: ['hasPlans', 'plans', 'freeTrial'] },
+  { id: 4, title: "Membership & Plans", icon: <Wallet className="h-6 w-6" />, fields: ['hasPlans', 'plans', 'freeTrial', 'monthlyFee'] },
   { id: 5, title: "Facilities & Machines", icon: <Dumbbell className="h-6 w-6" />, fields: ['facilities', 'numMachines', 'keyBrands'] },
   { id: 6, title: "Goals & Insights", icon: <BarChart className="h-6 w-6" />, fields: ['primaryGoal', 'expectedMembers'] },
 ];
@@ -92,6 +99,7 @@ export default function OnboardingPage() {
       closingTime: '',
       hasPlans: '',
       freeTrial: '',
+      monthlyFee: '',
       numMachines: '',
       keyBrands: '',
       primaryGoal: '',
@@ -101,6 +109,12 @@ export default function OnboardingPage() {
       facilities: [],
     },
   });
+  
+  const { fields, append, remove } = useFieldArray({
+    control: form.control,
+    name: "plans"
+  });
+
 
   useEffect(() => {
     const docId = localStorage.getItem('userDocId');
@@ -175,7 +189,7 @@ export default function OnboardingPage() {
         </CardHeader>
         <FormProvider {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)}>
-            <CardContent className="space-y-6">
+            <CardContent className="min-h-[350px] space-y-6">
               {currentStep === 1 && (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <FormField control={form.control} name="gymName" render={({ field }) => ( <FormItem><FormLabel>Gym Name</FormLabel><FormControl><Input placeholder="Strenxfit Gym" {...field} /></FormControl><FormMessage /></FormItem> )} />
@@ -237,28 +251,54 @@ export default function OnboardingPage() {
                                     <FormItem className="flex items-center space-x-3 space-y-0"><FormControl><RadioGroupItem value="no" /></FormControl><FormLabel className="font-normal">No</FormLabel></FormItem>
                                 </RadioGroup>
                             </FormControl>
+                             <FormMessage />
                         </FormItem>
                     )} />
+
                     {form.watch('hasPlans') === 'yes' && (
                         <div>
-                            {form.watch('plans')?.map((plan, index) => (
-                                <div key={index} className="flex gap-2 mb-2 items-end">
-                                    <FormField control={form.control} name={`plans.${index}.name`} render={({ field }) => ( <FormItem className="flex-grow"><FormLabel>Plan Name</FormLabel><FormControl><Input placeholder="e.g., Monthly" {...field} /></FormControl></FormItem>)} />
-                                    <FormField control={form.control} name={`plans.${index}.price`} render={({ field }) => ( <FormItem className="flex-grow"><FormLabel>Price</FormLabel><FormControl><Input placeholder="e.g., 500" {...field} /></FormControl></FormItem>)} />
+                            <FormLabel>Enter Plans</FormLabel>
+                            {fields.map((item, index) => (
+                                <div key={item.id} className="flex gap-2 mb-2 items-center">
+                                    <FormField control={form.control} name={`plans.${index}.name`} render={({ field }) => ( <FormItem className="flex-grow"><FormControl><Input placeholder="e.g., Monthly" {...field} /></FormControl><FormMessage /></FormItem>)} />
+                                    <FormField control={form.control} name={`plans.${index}.price`} render={({ field }) => ( <FormItem className="w-24"><FormControl><Input placeholder="e.g., 500" {...field} /></FormControl><FormMessage /></FormItem>)} />
+                                    <Button type="button" variant="ghost" size="icon" onClick={() => remove(index)}><Trash className="h-4 w-4" /></Button>
                                 </div>
                             ))}
-                            <Button type="button" variant="outline" size="sm" onClick={() => form.setValue('plans', [...(form.getValues('plans') || []), {name: '', price: ''}])}>Add Plan</Button>
+                            <Button type="button" variant="outline" size="sm" onClick={() => append({name: '', price: ''})}><Plus className="mr-2 h-4 w-4"/>Add Plan</Button>
                         </div>
                     )}
-                     {form.watch('hasPlans') === 'no' && <p className="text-sm text-muted-foreground">No problem, we'll suggest some default plans for you.</p>}
+
+                    {form.watch('hasPlans') === 'no' && (
+                       <div className="space-y-4">
+                         <FormField control={form.control} name="monthlyFee" render={({ field }) => ( <FormItem><FormLabel>What is your monthly fee?</FormLabel><FormControl><Input placeholder="1500" {...field} /></FormControl><FormMessage /></FormItem> )} />
+                         {form.watch('monthlyFee') && (
+                            <Card className="bg-muted/50">
+                               <CardHeader><CardTitle className="text-base">Suggested Plans</CardTitle></CardHeader>
+                               <CardContent className="space-y-2">
+                                 <p><strong>Monthly:</strong> ₹{form.getValues('monthlyFee')}</p>
+                                 <p><strong>Quarterly:</strong> ₹{Number(form.getValues('monthlyFee'))*3}</p>
+                                 <p><strong>Yearly:</strong> ₹{Number(form.getValues('monthlyFee'))*12}</p>
+                               </CardContent>
+                               <CardFooter className="flex gap-2">
+                                 <Button type="button" size="sm">Confirm</Button>
+                                 <Button type="button" variant="outline" size="sm">Edit</Button>
+                                 <Button type="button" variant="ghost" size="sm">Cancel</Button>
+                               </CardFooter>
+                            </Card>
+                         )}
+                       </div>
+                    )}
+
                      <FormField control={form.control} name="freeTrial" render={({ field }) => (
-                        <FormItem className="space-y-3"><FormLabel>Offer a Free Trial?</FormLabel>
+                        <FormItem className="space-y-3"><FormLabel>Offer a Free Trial Option?</FormLabel>
                             <FormControl>
                                 <RadioGroup onValueChange={field.onChange} defaultValue={field.value} className="flex gap-4">
                                     <FormItem className="flex items-center space-x-3 space-y-0"><FormControl><RadioGroupItem value="yes" /></FormControl><FormLabel className="font-normal">Yes</FormLabel></FormItem>
                                     <FormItem className="flex items-center space-x-3 space-y-0"><FormControl><RadioGroupItem value="no" /></FormControl><FormLabel className="font-normal">No</FormLabel></FormItem>
                                 </RadioGroup>
                             </FormControl>
+                             <FormMessage />
                         </FormItem>
                     )} />
                 </div>
@@ -324,3 +364,5 @@ export default function OnboardingPage() {
     </div>
   );
 }
+
+    
