@@ -21,6 +21,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
+import { ThemeToggle } from '@/components/theme-toggle';
 
 interface AssignedClass {
   id: string;
@@ -216,7 +217,7 @@ export default function TrainerDashboardPage() {
         await addDoc(dietCollection, {
             ...data,
             sentByTrainerId: trainerId,
-            sentAt: Timestamp.now(),
+            sentAt: serverTimestamp(),
         });
         toast({ title: "Diet Plan Sent!", description: `A new diet plan has been sent to ${selectedMemberForDiet.fullName}.`});
         dietForm.reset();
@@ -258,25 +259,28 @@ export default function TrainerDashboardPage() {
             <h1 className="text-3xl font-bold">Trainer Dashboard</h1>
             <p className="text-muted-foreground">Welcome back, {trainerInfo?.name}! Here are your upcoming classes at {trainerInfo?.branchName}.</p>
         </div>
-        <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-            <Button variant="outline" size="icon">
-                <User className="h-5 w-5" />
-                <span className="sr-only">User Menu</span>
-            </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-                <DropdownMenuItem onSelect={() => router.push('/dashboard/trainer/profile')}>
-                <User className="mr-2 h-4 w-4" />
-                <span>View Profile</span>
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem onSelect={handleLogout} className="text-destructive focus:text-destructive">
-                <LogOut className="mr-2 h-4 w-4" />
-                <span>Logout</span>
-            </DropdownMenuItem>
-            </DropdownMenuContent>
-        </DropdownMenu>
+        <div className="flex items-center gap-2">
+            <ThemeToggle />
+            <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="icon">
+                    <User className="h-5 w-5" />
+                    <span className="sr-only">User Menu</span>
+                </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                    <DropdownMenuItem onSelect={() => router.push('/dashboard/trainer/profile')}>
+                    <User className="mr-2 h-4 w-4" />
+                    <span>View Profile</span>
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onSelect={handleLogout} className="text-destructive focus:text-destructive">
+                    <LogOut className="mr-2 h-4 w-4" />
+                    <span>Logout</span>
+                </DropdownMenuItem>
+                </DropdownMenuContent>
+            </DropdownMenu>
+        </div>
       </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
