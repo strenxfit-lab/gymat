@@ -70,7 +70,9 @@ export default function LoginForm() {
         description: "You have been successfully logged in.",
       });
 
-      if (userData.passwordChanged === false) {
+      if (userData.role === 'owner' && !userData.onboardingComplete) {
+        router.push('/onboarding');
+      } else if (userData.passwordChanged === false) {
         router.push('/change-password');
       } else if (userData.role === 'owner') {
         router.push('/dashboard/owner');
