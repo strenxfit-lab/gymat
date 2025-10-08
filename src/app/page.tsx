@@ -19,24 +19,29 @@ export default function Home() {
   const [expiredGymId, setExpiredGymId] = useState<string | null>(null);
 
   useEffect(() => {
-    const userDocId = localStorage.getItem('userDocId');
-    const userRole = localStorage.getItem('userRole');
+    // This effect should only run once on component mount
+    const checkAuthStatus = () => {
+      const userDocId = localStorage.getItem('userDocId');
+      const userRole = localStorage.getItem('userRole');
 
-    if (userDocId && userRole) {
+      if (userDocId && userRole) {
         if (userRole === 'owner') {
-            router.replace('/dashboard/owner');
+          router.replace('/dashboard/owner');
         } else if (userRole === 'member') {
-            router.replace('/dashboard/member');
+          router.replace('/dashboard/member');
         } else if (userRole === 'trainer') {
-            router.replace('/dashboard/trainer');
+          router.replace('/dashboard/trainer');
         } else if (userRole === 'superadmin') {
-            router.replace('/dashboard/superadmin');
+          router.replace('/dashboard/superadmin');
         } else {
-            setIsCheckingAuth(false);
+          setIsCheckingAuth(false);
         }
-    } else {
+      } else {
         setIsCheckingAuth(false);
-    }
+      }
+    };
+    
+    checkAuthStatus();
   }, [router]);
 
   const handleExpiredLogin = (gymId: string) => {
