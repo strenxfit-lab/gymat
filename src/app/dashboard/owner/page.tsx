@@ -392,7 +392,9 @@ export default function OwnerDashboardPage() {
                 <AlertTitle>Your Plan is Expiring Soon!</AlertTitle>
                 <AlertDescription className="flex justify-between items-center">
                     <span>Please renew your plan to continue using all features without interruption.</span>
-                    <Button variant="outline" size="sm" onClick={() => setIsSupportDialogOpen(true)}>Renew Now</Button>
+                     <Link href="/dashboard/owner/renew" passHref>
+                        <Button variant="outline" size="sm">Renew Now</Button>
+                    </Link>
                 </AlertDescription>
             </Alert>
         )}
@@ -657,7 +659,9 @@ export default function OwnerDashboardPage() {
                         <div>
                             <div className="flex justify-between items-center">
                                 <p className="text-sm font-medium text-muted-foreground">Membership Type</p>
-                                <Button variant="outline" size="sm" onClick={() => setIsSupportDialogOpen(true)}>Upgrade</Button>
+                                <Link href="/dashboard/owner/renew" passHref>
+                                    <Button variant="outline" size="sm">Upgrade</Button>
+                                </Link>
                             </div>
                             <p className="text-lg font-bold capitalize">{gymData.membershipType || 'N/A'}</p>
                         </div>
