@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { collection, addDoc, getDocs, Timestamp, deleteDoc, doc, updateDoc, getDoc } from 'firebase/firestore';
+import { collection, addDoc, getDocs, Timestamp, deleteDoc, doc, updateDoc, serverTimestamp, getDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -202,7 +202,7 @@ export default function InventoryPage() {
       const newItemRef = await addDoc(inventoryCollection, {
         ...values,
         expiryDate: values.expiryDate ? Timestamp.fromDate(new Date(values.expiryDate)) : null,
-        createdAt: Timestamp.now(),
+        createdAt: serverTimestamp(),
       });
 
       // Automatically log the purchase as an expense
@@ -212,7 +212,7 @@ export default function InventoryPage() {
           name: `Inventory Purchase: ${values.name}`,
           category: "Miscellaneous",
           amount: values.purchasePrice * values.quantity,
-          date: Timestamp.now(),
+          date: serverTimestamp(),
           description: `Added ${values.quantity} ${values.unit} of ${values.name} to inventory.`,
           inventoryItemId: newItemRef.id,
         });
@@ -434,5 +434,3 @@ export default function InventoryPage() {
     </div>
   );
 }
-
-    
