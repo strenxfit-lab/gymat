@@ -70,6 +70,9 @@ export default function OwnerDashboardLayout({
                         planTier = 'Trial';
                     }
                 }
+            } else if (gymData.expiry_at) {
+                expirationDate = (gymData.expiry_at as Timestamp).toDate();
+                planTier = gymData.membershipType;
             } else if (gymData.tier && gymData.createdAt) {
                 const createdAt = (gymData.createdAt as Timestamp).toDate();
                 if (gymData.tier.toLowerCase() === 'monthly') {
@@ -79,6 +82,7 @@ export default function OwnerDashboardLayout({
                 }
                 planTier = gymData.tier;
             }
+
 
             if (expirationDate) {
                 setTierInfo({ expiresAt: expirationDate, tier: planTier });
@@ -142,6 +146,7 @@ export default function OwnerDashboardLayout({
       if (hasMultiBranch) {
         router.push('/dashboard/owner/multi-branch');
       } else {
+        e.preventDefault();
         setIsSupportDialogOpen(true);
       }
   };
@@ -358,5 +363,3 @@ export default function OwnerDashboardLayout({
     </SidebarProvider>
   );
 }
-
-    
