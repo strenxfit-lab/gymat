@@ -655,7 +655,10 @@ export default function OwnerDashboardPage() {
                 <CardContent>
                     <div className="space-y-3">
                         <div>
-                            <p className="text-sm font-medium text-muted-foreground">Membership Type</p>
+                            <div className="flex justify-between items-center">
+                                <p className="text-sm font-medium text-muted-foreground">Membership Type</p>
+                                <Button variant="outline" size="sm" onClick={() => setIsSupportDialogOpen(true)}>Upgrade</Button>
+                            </div>
                             <p className="text-lg font-bold capitalize">{gymData.membershipType || 'N/A'}</p>
                         </div>
                          <div>
@@ -793,5 +796,3 @@ export default function OwnerDashboardPage() {
     </ScrollArea>
   );
 }
-
-    
