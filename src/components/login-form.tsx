@@ -37,7 +37,7 @@ export default function LoginForm() {
     setIsLoading(true);
     
     try {
-      // Query for gym owner
+      // Query for gym owner first
       const gymsCollection = collection(db, 'gyms');
       const ownerQuery = query(gymsCollection, where('email', '==', values.email));
       const ownerSnapshot = await getDocs(ownerQuery);
@@ -46,29 +46,30 @@ export default function LoginForm() {
         const userDoc = ownerSnapshot.docs[0];
         const userData = userDoc.data();
 
-        if (userData.password !== values.password) {
-          toast({ title: 'Login Failed', description: 'Incorrect password.', variant: 'destructive' });
-          setIsLoading(false);
-          return;
+        if (userData.password === values.password) {
+            localStorage.setItem('userDocId', userDoc.id);
+            localStorage.setItem('userRole', userData.role);
+            toast({ title: 'Welcome!', description: "You have been successfully logged in." });
+            router.push('/dashboard/owner');
+        } else {
+            toast({ title: 'Login Failed', description: 'Incorrect password.', variant: 'destructive' });
         }
-        
-        localStorage.setItem('userDocId', userDoc.id);
-        localStorage.setItem('userRole', userData.role);
-
-        toast({ title: 'Welcome!', description: "You have been successfully logged in." });
-        
-        router.push('/dashboard/owner');
+        setIsLoading(false);
         return;
       }
 
-      // If not an owner, iterate through all gyms and branches to find a member or trainer.
+      // If not an owner, search for members and trainers across all branches
       const allGymsSnapshot = await getDocs(gymsCollection);
+      let userFound = false;
+
       for (const gymDoc of allGymsSnapshot.docs) {
+        if(userFound) break;
         const gymId = gymDoc.id;
         const branchesCollection = collection(db, 'gyms', gymId, 'branches');
         const allBranchesSnapshot = await getDocs(branchesCollection);
 
         for (const branchDoc of allBranchesSnapshot.docs) {
+            if(userFound) break;
             const branchId = branchDoc.id;
 
             // Check for member
@@ -79,26 +80,22 @@ export default function LoginForm() {
             if (!memberSnapshot.empty) {
                 const memberDoc = memberSnapshot.docs[0];
                 const memberData = memberDoc.data();
+                if (memberData.password === values.password) {
+                    localStorage.setItem('userDocId', gymId);
+                    localStorage.setItem('activeBranch', branchId);
+                    localStorage.setItem('memberId', memberDoc.id);
+                    localStorage.setItem('userRole', memberData.role);
 
-                if (memberData.password !== values.password) {
-                    toast({ title: 'Login Failed', description: 'Incorrect password.', variant: 'destructive' });
-                    setIsLoading(false);
-                    return;
+                    toast({ title: 'Welcome!', description: "You have been successfully logged in." });
+
+                    if (memberData.passwordChanged === false) {
+                        router.push('/change-password');
+                    } else {
+                        router.push('/dashboard/member');
+                    }
+                    userFound = true;
+                    break;
                 }
-                
-                localStorage.setItem('userDocId', gymId);
-                localStorage.setItem('activeBranch', branchId);
-                localStorage.setItem('memberId', memberDoc.id);
-                localStorage.setItem('userRole', memberData.role);
-
-                toast({ title: 'Welcome!', description: "You have been successfully logged in." });
-
-                if (memberData.passwordChanged === false) {
-                    router.push('/change-password');
-                } else {
-                    router.push('/dashboard/member');
-                }
-                return;
             }
 
             // Check for trainer
@@ -110,31 +107,29 @@ export default function LoginForm() {
                 const trainerDoc = trainerSnapshot.docs[0];
                 const trainerData = trainerDoc.data();
 
-                if (trainerData.password !== values.password) {
-                    toast({ title: 'Login Failed', description: 'Incorrect password.', variant: 'destructive' });
-                    setIsLoading(false);
-                    return;
+                if (trainerData.password === values.password) {
+                    localStorage.setItem('userDocId', gymId);
+                    localStorage.setItem('activeBranch', branchId);
+                    localStorage.setItem('trainerId', trainerDoc.id);
+                    localStorage.setItem('userRole', trainerData.role);
+
+                    toast({ title: 'Welcome!', description: "You have been successfully logged in as a trainer." });
+
+                    if (trainerData.passwordChanged === false) {
+                        router.push('/change-password');
+                    } else {
+                        router.push('/dashboard/trainer');
+                    }
+                    userFound = true;
+                    break;
                 }
-
-                localStorage.setItem('userDocId', gymId);
-                localStorage.setItem('activeBranch', branchId);
-                localStorage.setItem('trainerId', trainerDoc.id);
-                localStorage.setItem('userRole', trainerData.role);
-
-                toast({ title: 'Welcome!', description: "You have been successfully logged in as a trainer." });
-
-                if (trainerData.passwordChanged === false) {
-                    router.push('/change-password');
-                } else {
-                    router.push('/dashboard/trainer');
-                }
-                return;
             }
         }
       }
 
-      // If no user is found in any collection
-      toast({ title: 'Login Failed', description: 'No user found with that email or login ID.', variant: 'destructive' });
+      if (!userFound) {
+        toast({ title: 'Login Failed', description: 'Incorrect username or password.', variant: 'destructive' });
+      }
 
     } catch (error) {
       console.error("Error logging in:", error);
