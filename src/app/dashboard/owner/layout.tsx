@@ -105,12 +105,14 @@ export default function OwnerDashboardLayout({
   const [activeBranchName, setActiveBranchName] = useState<string | null>(null);
   const [tierInfo, setTierInfo] = useState<{ expiresAt: Date | null, tier: string | null }>({ expiresAt: null, tier: null });
   const [timeLeft, setTimeLeft] = useState('');
+  const [isMounted, setIsMounted] = useState(false);
   const router = useRouter();
   const pathname = usePathname();
 
   const isCommunityPage = pathname === '/dashboard/owner/community';
 
   useEffect(() => {
+    setIsMounted(true);
     const fetchGymData = async () => {
       const userDocId = localStorage.getItem('userDocId');
       if (userDocId) {
@@ -394,7 +396,7 @@ export default function OwnerDashboardLayout({
         <header className="sticky top-0 z-10 flex h-16 items-center justify-between border-b bg-background/80 backdrop-blur-sm px-4 md:px-8">
             <SidebarTrigger className="md:hidden" />
             <div className='flex-1'></div>
-            <ThemeToggle />
+            {isMounted && <ThemeToggle />}
         </header>
         <main className="flex-1 p-4 md:p-8">
           {children}
