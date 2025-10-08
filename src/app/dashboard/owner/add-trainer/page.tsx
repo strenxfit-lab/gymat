@@ -83,16 +83,14 @@ export default function AddTrainerPage() {
       salaryType: '',
       salaryRate: '',
       bankDetails: '',
+      dob: new Date(),
+      joiningDate: new Date(),
     },
   });
 
-  useEffect(() => {
-    form.setValue('joiningDate', new Date());
-  }, [form]);
-
   const handleNext = async () => {
     const fieldsToValidate = steps[currentStep - 1].fields;
-    const result = await form.trigger(fieldsToValidate);
+    const result = await form.trigger(fieldsToValidate as FieldName[]);
     if(result) {
         setCurrentStep((prev) => Math.min(prev + 1, steps.length));
     }
@@ -252,3 +250,5 @@ export default function AddTrainerPage() {
     </div>
   );
 }
+
+    
