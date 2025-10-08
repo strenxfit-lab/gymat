@@ -13,7 +13,7 @@ import {
   SidebarFooter,
   SidebarProvider,
 } from '@/components/ui/sidebar';
-import { Dumbbell, Users, CreditCard, ClipboardList, BarChart3, Megaphone, Boxes, Info, Mail, Phone, Building, UserCheck, LogOut, MessageSquare, CalendarCheck, CheckSquare, Clock, KeyRound, ChevronDown, IndianRupee, LifeBuoy, Utensils, LayoutDashboard, QrCode, Activity } from 'lucide-react';
+import { Dumbbell, Users, CreditCard, ClipboardList, BarChart3, Megaphone, Boxes, Info, Mail, Phone, Building, UserCheck, LogOut, MessageSquare, CalendarCheck, CheckSquare, Clock, KeyRound, ChevronDown, IndianRupee, LifeBuoy, Utensils, LayoutDashboard, QrCode, Activity, Ruler } from 'lucide-react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -125,6 +125,7 @@ export default function MemberDashboardLayout({
             <MenuItem href="/dashboard/member/complaints" icon={<MessageSquare />}>Complaints</MenuItem>
             <MenuItem href="/dashboard/member/attendance" icon={<CheckSquare />}>Attendance</MenuItem>
             <MenuItem href="/dashboard/member/diet-plan" icon={<Utensils />}>View Diet Plan</MenuItem>
+             <MenuItem href="/dashboard/member/measurements" icon={<Ruler />}>Log Measurements</MenuItem>
             <MenuItem href="/dashboard/member/renew" icon={<CreditCard />}>Renew Membership</MenuItem>
             <MenuItem href="/dashboard/member/payment-history" icon={<IndianRupee />}>Payment History</MenuItem>
           </SidebarMenu>
