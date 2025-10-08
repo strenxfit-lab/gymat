@@ -225,7 +225,8 @@ export default function RemindersPage() {
     return message;
   }
 
-  const handleMessageSent = async (type: MessageType, member: MemberForMessage) => {
+  const handleMessageSent = async (type: MessageType, member: MemberForMessage, event: React.MouseEvent) => {
+    event.stopPropagation();
     if (!userDocId || !activeBranchId) return;
 
     const messageContent = generateMessage(form.getValues(type), member);
@@ -315,7 +316,7 @@ export default function RemindersPage() {
                             <DialogHeader>
                                 <DialogTitle>Connect to WhatsApp</DialogTitle>
                                 <DialogDescription>
-                                    Click the button below to open WhatsApp Web in a new tab. Scan the QR code with your phone to link your device.
+                                    Click the button below to open WhatsApp Web in a new tab. If you are not logged in, you will be prompted to scan a QR code with your phone to link your device.
                                 </DialogDescription>
                             </DialogHeader>
                             <DialogFooter>
@@ -404,9 +405,9 @@ export default function RemindersPage() {
                                                             href={`https://wa.me/91${member.phone}?text=${encodeURIComponent(generateMessage(form.getValues(template.value as MessageType) || template.placeholder, member))}`}
                                                             target="_blank" 
                                                             rel="noopener noreferrer"
-                                                            onClick={() => handleMessageSent(template.value, member)}
+                                                            onClick={(e) => handleMessageSent(template.value, member, e)}
                                                           >
-                                                            <Button size="sm" variant="outline"><Send className="mr-2 h-3 w-3"/>Send</Button>
+                                                            <Button type="button" size="sm" variant="outline"><Send className="mr-2 h-3 w-3"/>Send</Button>
                                                           </a>
                                                         </li>
                                                     ))}
