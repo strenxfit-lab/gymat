@@ -20,7 +20,7 @@ import {
   SidebarGroup,
   SidebarGroupLabel,
 } from '@/components/ui/sidebar';
-import { Dumbbell, Users, CreditCard, ClipboardList, BarChart3, Megaphone, Boxes, ChevronDown, Info, Mail, Phone, Building, UserCheck } from 'lucide-react';
+import { Dumbbell, Users, CreditCard, ClipboardList, BarChart3, Megaphone, Boxes, ChevronDown, Info, Mail, Phone, Building, UserCheck, LogOut } from 'lucide-react';
 import { doc, getDoc, collection, getDocs } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
@@ -80,6 +80,11 @@ export default function OwnerDashboardLayout({
   
   const handleMultiBranchClick = (e: React.MouseEvent) => {
       router.push('/dashboard/owner/multi-branch');
+  };
+
+  const handleLogout = () => {
+    localStorage.clear();
+    router.push('/');
   };
 
   const subMenuButtonClass = "text-muted-foreground hover:text-foreground font-normal";
@@ -241,7 +246,13 @@ export default function OwnerDashboardLayout({
           </SidebarMenu>
         </SidebarContent>
         <SidebarFooter>
-          {/* Footer content if any */}
+          <SidebarMenu>
+            <SidebarMenuItem>
+                <SidebarMenuButton onClick={handleLogout} className="text-red-500 hover:bg-red-500/10 hover:text-red-500">
+                    <div className="flex items-center gap-2"><LogOut /> Logout</div>
+                </SidebarMenuButton>
+            </SidebarMenuItem>
+          </SidebarMenu>
         </SidebarFooter>
       </Sidebar>
       <SidebarInset>
