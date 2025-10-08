@@ -3,7 +3,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import {
   SidebarProvider,
   Sidebar,
@@ -36,6 +36,7 @@ export default function OwnerDashboardLayout({
   const [isSupportDialogOpen, setIsSupportDialogOpen] = useState(false);
   const [activeBranchName, setActiveBranchName] = useState<string | null>(null);
   const router = useRouter();
+  const pathname = usePathname();
 
 
   useEffect(() => {
@@ -64,6 +65,11 @@ export default function OwnerDashboardLayout({
               }
               const activeBranchDoc = branches.find(b => b.id === currentBranchId);
               setActiveBranchName(activeBranchDoc?.name);
+              
+              // If we are on the main dashboard page and just set a branch, reload to fetch data
+              if (pathname === '/dashboard/owner') {
+                  router.refresh();
+              }
             } else {
               localStorage.removeItem('activeBranch');
               setActiveBranchName(null);
@@ -72,7 +78,7 @@ export default function OwnerDashboardLayout({
       }
     };
     fetchGymData();
-  }, []);
+  }, [pathname, router]);
 
   const toggleSubMenu = (name: string) => {
     setOpenSubMenu(prev => (prev === name ? null : name));
