@@ -5,12 +5,12 @@ import {getFirestore} from 'firebase/firestore';
 
 // Your web app's Firebase configuration
 const firebaseConfig = {
-  apiKey: '<your-api-key>',
-  authDomain: '<your-auth-domain>',
-  projectId: '<your-project-id>',
-  storageBucket: '<your-storage-bucket>',
-  messagingSenderId: '<your-messaging-sender-id>',
-  appId: '<your-app-id>',
+  projectId: "gymlogin-pro",
+  appId: "1:1025011579347:web:275833ca7bffe7271dd726",
+  storageBucket: "gymlogin-pro.firebasestorage.app",
+  apiKey: "AIzaSyBON5_tW9SuFrIgaOO-uJQML6VqP3GgIKI",
+  authDomain: "gymlogin-pro.firebaseapp.com",
+  messagingSenderId: "1025011579347"
 };
 
 // Initialize Firebase
