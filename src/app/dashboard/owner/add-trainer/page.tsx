@@ -9,7 +9,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { format } from 'date-fns';
 import { Loader2, User, Briefcase, Wallet, Calendar as CalendarIcon, ChevronLeft, ChevronRight, Building, KeyRound, ClipboardCopy, LayoutDashboard, Phone, Mail } from 'lucide-react';
-import { collection, addDoc, Timestamp, doc, getDoc, getDocs } from 'firebase/firestore';
+import { collection, addDoc, Timestamp, doc, getDoc, getDocs, serverTimestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useToast } from '@/hooks/use-toast';
 
@@ -219,7 +219,7 @@ export default function AddTrainerPage() {
         ...data,
         dob: Timestamp.fromDate(data.dob),
         joiningDate: Timestamp.fromDate(data.joiningDate),
-        createdAt: Timestamp.now(),
+        createdAt: serverTimestamp(),
         loginId: loginId,
         password: password,
         role: 'trainer',
