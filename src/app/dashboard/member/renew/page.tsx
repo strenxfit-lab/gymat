@@ -3,31 +3,31 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { collection, getDocs, doc, getDoc } from 'firebase/firestore';
+import { useRouter } from 'next/navigation';
+import { collection, doc, getDoc, addDoc, updateDoc, serverTimestamp, Timestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useToast } from '@/hooks/use-toast';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Loader2, ArrowLeft, Shield, Check, IndianRupee, Phone, Mail } from 'lucide-react';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
-import { Badge } from '@/components/ui/badge';
+import { Loader2, ArrowLeft, Shield, IndianRupee } from 'lucide-react';
+import { addDays } from 'date-fns';
 
 interface MembershipPlan {
   name: string;
   price: string;
 }
 
+declare global {
+    interface Window {
+        Razorpay: any;
+    }
+}
+
 export default function MemberRenewPage() {
   const [plans, setPlans] = useState<MembershipPlan[]>([]);
   const [loading, setLoading] = useState(true);
-  const [contactDetails, setContactDetails] = useState({ phone: '', email: '' });
+  const [processingPaymentFor, setProcessingPaymentFor] = useState<string | null>(null);
+  const router = useRouter();
   const { toast } = useToast();
 
   useEffect(() => {
@@ -44,15 +44,6 @@ export default function MemberRenewPage() {
         if (detailsSnap.exists() && detailsSnap.data().plans) {
           setPlans(detailsSnap.data().plans);
         }
-
-        // Fetch gym contact info
-        const gymRef = doc(db, 'gyms', userDocId);
-        const gymSnap = await getDoc(gymRef);
-        if(gymSnap.exists()){
-            const gymData = gymSnap.data();
-            setContactDetails({ phone: gymData.contactNumber, email: gymData.email });
-        }
-
       } catch (error) {
         console.error("Error fetching subscription plans:", error);
         toast({ title: "Error", description: "Could not load subscription plans.", variant: "destructive" });
@@ -62,18 +53,109 @@ export default function MemberRenewPage() {
     };
     fetchPlans();
   }, [toast]);
+  
+  const handlePayment = async (plan: MembershipPlan) => {
+    setProcessingPaymentFor(plan.name);
+    const userDocId = localStorage.getItem('userDocId');
+    const memberId = localStorage.getItem('memberId');
+    const activeBranchId = localStorage.getItem('activeBranch');
+
+    if(!userDocId || !memberId || !activeBranchId) {
+        toast({title: "Error", description: "Session invalid."});
+        setProcessingPaymentFor(null);
+        return;
+    }
+
+    const memberRef = doc(db, 'gyms', userDocId, 'branches', activeBranchId, 'members', memberId);
+    const memberSnap = await getDoc(memberRef);
+
+    if(!memberSnap.exists()) {
+         toast({title: "Error", description: "Member not found."});
+         setProcessingPaymentFor(null);
+         return;
+    }
+    const memberData = memberSnap.data();
+
+    const options = {
+        key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
+        amount: parseFloat(plan.price) * 100,
+        currency: "INR",
+        name: "Strenx Enterprises",
+        description: `Membership Renewal: ${plan.name}`,
+        handler: async (response: any) => {
+            try {
+                let currentEndDate = memberData.endDate ? (memberData.endDate as Timestamp).toDate() : new Date();
+                if (currentEndDate < new Date()) {
+                    currentEndDate = new Date();
+                }
+
+                let newEndDate;
+                switch (plan.name.toLowerCase()) {
+                    case 'monthly': newEndDate = addDays(currentEndDate, 30); break;
+                    case 'quarterly': newEndDate = addDays(currentEndDate, 90); break;
+                    case 'half-yearly': newEndDate = addDays(currentEndDate, 180); break;
+                    case 'yearly': newEndDate = addDays(currentEndDate, 365); break;
+                    case 'trial': newEndDate = addDays(currentEndDate, 7); break;
+                    default: newEndDate = addDays(currentEndDate, 30);
+                }
+
+                const paymentDate = new Date();
+
+                const paymentsCollection = collection(memberRef, 'payments');
+                await addDoc(paymentsCollection, {
+                    amountPaid: parseFloat(plan.price),
+                    paymentDate: Timestamp.fromDate(paymentDate),
+                    paymentMode: 'Razorpay',
+                    nextDueDate: Timestamp.fromDate(newEndDate),
+                    balanceDue: 0,
+                    transactionId: response.razorpay_payment_id,
+                });
+
+                await updateDoc(memberRef, {
+                    endDate: Timestamp.fromDate(newEndDate),
+                    lastPaymentDate: Timestamp.fromDate(paymentDate),
+                    membershipType: plan.name,
+                });
+                
+                toast({ title: "Payment Successful!", description: "Your membership has been renewed."});
+                router.push('/dashboard/member/payment-history');
+
+            } catch (error) {
+                console.error("Error processing successful payment:", error);
+                toast({ title: "Update Failed", description: "Payment was successful, but updating your profile failed. Please contact support.", variant: 'destructive'});
+                 setProcessingPaymentFor(null);
+            }
+        },
+        prefill: {
+            name: memberData.fullName,
+            email: memberData.email,
+            contact: memberData.phone,
+        },
+        theme: {
+            color: "#6366f1",
+        },
+    };
+
+    const rzp = new window.Razorpay(options);
+    rzp.on('payment.failed', function (response: any){
+        console.error(response);
+        toast({title: "Payment Failed", description: response.error.description, variant: "destructive"});
+        setProcessingPaymentFor(null);
+    });
+    rzp.open();
+  }
+
 
   if (loading) {
     return <div className="flex min-h-screen items-center justify-center bg-background"><Loader2 className="h-8 w-8 animate-spin" /></div>;
   }
 
   return (
-    <Dialog>
     <div className="container mx-auto py-10">
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-3xl font-bold">Renew Your Membership</h1>
-          <p className="text-muted-foreground">Choose a plan and contact the gym to finalize your renewal.</p>
+          <p className="text-muted-foreground">Choose a plan to continue your fitness journey.</p>
         </div>
         <Link href="/dashboard/member" passHref>
           <Button variant="outline"><ArrowLeft className="mr-2 h-4 w-4" /> Back to Dashboard</Button>
@@ -99,9 +181,9 @@ export default function MemberRenewPage() {
                 </p>
               </CardContent>
               <CardFooter>
-                 <DialogTrigger asChild>
-                    <Button className="w-full">Choose Plan</Button>
-                </DialogTrigger>
+                 <Button className="w-full" onClick={() => handlePayment(plan)} disabled={!!processingPaymentFor}>
+                    {processingPaymentFor === plan.name ? <Loader2 className="animate-spin" /> : 'Choose Plan & Pay'}
+                 </Button>
               </CardFooter>
             </Card>
           ))
@@ -112,31 +194,5 @@ export default function MemberRenewPage() {
         )}
       </div>
     </div>
-    
-    <DialogContent>
-        <DialogHeader>
-        <DialogTitle>Contact Gym to Finalize</DialogTitle>
-        <DialogDescription>
-            Please contact the gym administration to complete your renewal process.
-        </DialogDescription>
-        </DialogHeader>
-        <div className="flex flex-col space-y-4 py-4">
-            {contactDetails.email && (
-                <a href={`mailto:${contactDetails.email}`} className="flex items-center gap-3 p-3 rounded-md hover:bg-accent transition-colors">
-                    <Mail className="h-5 w-5 text-muted-foreground" />
-                    <span>{contactDetails.email}</span>
-                </a>
-            )}
-             {contactDetails.phone && (
-                <a href={`https://wa.me/91${contactDetails.phone}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 p-3 rounded-md hover:bg-accent transition-colors">
-                    <Phone className="h-5 w-5 text-muted-foreground" />
-                    <span>+91 {contactDetails.phone}</span>
-                </a>
-            )}
-        </div>
-    </DialogContent>
-    </Dialog>
   );
 }
-
-    
