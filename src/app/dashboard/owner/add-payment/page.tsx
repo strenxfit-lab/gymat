@@ -27,7 +27,7 @@ const formSchema = z.object({
   memberId: z.string().nonempty({ message: "Please select a member." }),
   membershipPlan: z.string().optional(),
   totalFee: z.number().positive({ message: "Fee must be positive." }),
-  discount: z.number().min(0).optional(),
+  discount: z.union([z.number().min(0), z.string()]).optional(),
   amountPaid: z.number().positive({ message: "Paid amount must be positive." }),
   balanceDue: z.number().min(0),
   paymentDate: z.date(),
@@ -66,12 +66,13 @@ export default function AddPaymentPage() {
       memberId: '',
       membershipPlan: '',
       totalFee: 0,
-      discount: 0,
+      discount: '',
       amountPaid: 0,
       balanceDue: 0,
       paymentDate: new Date(),
       paymentMode: '',
       transactionId: '',
+      nextDueDate: undefined
     },
   });
 
@@ -96,7 +97,8 @@ export default function AddPaymentPage() {
 
   useEffect(() => {
     const subscription = form.watch((values, { name }) => {
-        const { totalFee, discount = 0, amountPaid } = values;
+        const { totalFee, discount, amountPaid } = values;
+        const numericDiscount = typeof discount === 'string' ? parseFloat(discount) : discount;
 
         if (name === 'memberId' && values.memberId) {
             const member = members.find(m => m.id === values.memberId);
@@ -110,7 +112,7 @@ export default function AddPaymentPage() {
         }
         
         if (name === 'totalFee' || name === 'discount' || name === 'amountPaid') {
-            const finalPayable = (totalFee || 0) - (discount || 0);
+            const finalPayable = (totalFee || 0) - (numericDiscount || 0);
             const balance = finalPayable - (amountPaid || 0);
             form.setValue('balanceDue', balance > 0 ? balance : 0);
         }
@@ -132,6 +134,7 @@ export default function AddPaymentPage() {
       const paymentsCollection = collection(db, 'gyms', userDocId, 'members', data.memberId, 'payments');
       await addDoc(paymentsCollection, {
         ...data,
+        discount: data.discount ? parseFloat(data.discount as string) : 0,
         paymentDate: Timestamp.fromDate(data.paymentDate),
         nextDueDate: data.nextDueDate ? Timestamp.fromDate(data.nextDueDate) : null,
         createdAt: Timestamp.now(),
@@ -220,11 +223,11 @@ export default function AddPaymentPage() {
                 
                 <div className="space-y-4 border-b pb-4">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <FormField control={form.control} name="totalFee" render={({ field }) => ( <FormItem><FormLabel>Total Fee (₹)</FormLabel><FormControl><Input type="number" {...field} onChange={e => field.onChange(Number(e.target.value))} /></FormControl><FormMessage /></FormItem> )} />
-                        <FormField control={form.control} name="discount" render={({ field }) => ( <FormItem><FormLabel>Discount (₹, Optional)</FormLabel><FormControl><Input type="number" {...field} onChange={e => field.onChange(Number(e.target.value))} /></FormControl><FormMessage /></FormItem> )} />
+                        <FormField control={form.control} name="totalFee" render={({ field }) => ( <FormItem><FormLabel>Total Fee (₹)</FormLabel><FormControl><Input type="number" {...field} onChange={e => field.onChange(e.target.value === '' ? 0 : parseInt(e.target.value, 10))} /></FormControl><FormMessage /></FormItem> )} />
+                        <FormField control={form.control} name="discount" render={({ field }) => ( <FormItem><FormLabel>Discount (₹, Optional)</FormLabel><FormControl><Input type="number" placeholder="0" {...field} /></FormControl><FormMessage /></FormItem> )} />
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <FormField control={form.control} name="amountPaid" render={({ field }) => ( <FormItem><FormLabel>Amount Paid (₹)</FormLabel><FormControl><Input type="number" {...field} onChange={e => field.onChange(Number(e.target.value))} /></FormControl><FormMessage /></FormItem> )} />
+                        <FormField control={form.control} name="amountPaid" render={({ field }) => ( <FormItem><FormLabel>Amount Paid (₹)</FormLabel><FormControl><Input type="number" {...field} onChange={e => field.onChange(e.target.value === '' ? 0 : parseInt(e.target.value, 10))} /></FormControl><FormMessage /></FormItem> )} />
                         <FormField control={form.control} name="balanceDue" render={({ field }) => ( <FormItem><FormLabel>Balance Due (₹)</FormLabel><FormControl><Input type="number" {...field} readOnly disabled /></FormControl><FormMessage /></FormItem> )} />
                     </div>
                 </div>
@@ -232,19 +235,16 @@ export default function AddPaymentPage() {
                 <div className="space-y-4">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <FormField control={form.control} name="paymentDate" render={({ field }) => (
-                            <FormItem className="flex flex-col"><FormLabel>Payment Date</FormLabel>
-                            <Popover>
-                                <PopoverTrigger asChild>
+                             <FormItem className="flex flex-col">
+                                <FormLabel>Payment Date</FormLabel>
                                 <FormControl>
-                                    <Button variant={"outline"} className={cn("pl-3 text-left font-normal", !field.value && "text-muted-foreground")}>
-                                    {field.value ? format(field.value, "PPP") : <span>Pick a date</span>} <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                                    </Button>
+                                <Input
+                                    type="date"
+                                    value={field.value ? format(field.value, 'yyyy-MM-dd') : ''}
+                                    onChange={(e) => field.onChange(new Date(e.target.value))}
+                                />
                                 </FormControl>
-                                </PopoverTrigger>
-                                <PopoverContent className="p-0" align="start">
-                                <Calendar mode="single" selected={field.value} onSelect={field.onChange} initialFocus />
-                                </PopoverContent>
-                            </Popover><FormMessage />
+                                <FormMessage />
                             </FormItem>
                         )} />
                         <FormField control={form.control} name="paymentMode" render={({ field }) => (
