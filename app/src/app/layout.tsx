@@ -7,6 +7,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { ThemeProvider } from '@/components/theme-provider';
 import { cn } from '@/lib/utils';
 import { InstallPWA } from '@/components/ui/install-pwa';
+import { useEffect } from 'react';
 
 const inter = Inter({ subsets: ['latin'], variable: '--font-inter' });
 
