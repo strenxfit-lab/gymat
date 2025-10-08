@@ -126,7 +126,7 @@ export default function LoginForm() {
               <div className="relative">
                 <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <FormControl>
-                  <Input placeholder="you@example.com or your_login_id" {...field} className="pl-10"/>
+                  <Input placeholder="you@example.com or Member No." {...field} className="pl-10"/>
                 </FormControl>
               </div>
               <FormMessage />
