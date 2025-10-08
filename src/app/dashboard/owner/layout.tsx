@@ -20,7 +20,7 @@ import {
   SidebarGroup,
   SidebarGroupLabel,
 } from '@/components/ui/sidebar';
-import { Dumbbell, Users, CreditCard, ClipboardList, BarChart3, Megaphone, Boxes, ChevronDown, Info, Mail, Phone, Building, UserCheck, LogOut, MessageSquare, CalendarCheck } from 'lucide-react';
+import { Dumbbell, Users, CreditCard, ClipboardList, BarChart3, Megaphone, Boxes, ChevronDown, Info, Mail, Phone, Building, UserCheck, LogOut, MessageSquare, CalendarCheck, CheckSquare } from 'lucide-react';
 import { doc, getDoc, collection, getDocs } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
@@ -183,6 +183,22 @@ export default function OwnerDashboardLayout({
                             </Link>
                             <Link href="/dashboard/owner/complaints">
                                 <SidebarMenuSubButton className={subMenuButtonClass}>Complaints</SidebarMenuSubButton>
+                            </Link>
+                        </SidebarMenuSub>
+                    )}
+                </SidebarMenuItem>
+                 <SidebarMenuItem>
+                    <SidebarMenuButton onClick={() => toggleSubMenu('attendance')} className="justify-between">
+                        <div className="flex items-center gap-2"><CheckSquare /> Attendance</div>
+                        <ChevronDown className={`transition-transform duration-200 ${openSubMenu === 'attendance' ? 'rotate-180' : ''}`} />
+                    </SidebarMenuButton>
+                    {openSubMenu === 'attendance' && (
+                        <SidebarMenuSub className="space-y-3">
+                             <Link href="/dashboard/owner/attendance/mark">
+                                <SidebarMenuSubButton className={subMenuButtonClass}>Mark Attendance</SidebarMenuSubButton>
+                              </Link>
+                            <Link href="/dashboard/owner/attendance/log">
+                                <SidebarMenuSubButton className={subMenuButtonClass}>Attendance Log</SidebarMenuSubButton>
                             </Link>
                         </SidebarMenuSub>
                     )}
