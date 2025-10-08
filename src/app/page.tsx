@@ -8,6 +8,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Dumbbell, Loader2 } from 'lucide-react';
 import LoginForm from '@/components/login-form';
 import { Button } from '@/components/ui/button';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { KeyRound } from 'lucide-react';
 
 export default function Home() {
   const router = useRouter();
@@ -22,7 +24,10 @@ export default function Home() {
         router.replace('/dashboard/owner');
       } else if (userRole === 'member') {
         router.replace('/dashboard/member');
-      } else {
+      } else if (userRole === 'trainer') {
+        router.replace('/dashboard/trainer');
+      }
+       else {
         setIsCheckingAuth(false);
       }
     } else {
@@ -51,12 +56,19 @@ export default function Home() {
             <CardDescription className="pt-1">Sign in to your account</CardDescription>
           </CardHeader>
           <CardContent className="p-4 sm:p-6 bg-card">
+            <Alert className="mb-4">
+              <KeyRound className="h-4 w-4"/>
+              <AlertTitle>Trial User?</AlertTitle>
+              <AlertDescription>
+                Enter your trial key in the first field and the word <span className="font-bold">trial</span> as the password.
+              </AlertDescription>
+            </Alert>
             <LoginForm />
           </CardContent>
            <div className="p-6 pt-0 text-center">
             <Link href="/activate-trial" passHref>
               <Button variant="ghost" className="text-primary hover:text-primary hover:bg-primary/10">
-                Have a trial key?
+                Don't have a key? Activate Trial
               </Button>
             </Link>
           </div>
