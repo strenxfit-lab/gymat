@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { collection, addDoc, getDocs, Timestamp, deleteDoc, doc, updateDoc, serverTimestamp, getDoc } from 'firebase/firestore';
+import { collection, addDoc, getDocs, Timestamp, deleteDoc, doc, updateDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -17,7 +17,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
-import { Loader2, PlusCircle, ArrowLeft, MoreHorizontal, IndianRupee, PieChart, Edit, Trash, Boxes, Phone, Mail } from 'lucide-react';
+import { Loader2, PlusCircle, ArrowLeft, MoreHorizontal, IndianRupee, PieChart, Edit, Trash } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { ResponsiveContainer, Pie, Cell, Tooltip, Legend } from 'recharts';
@@ -40,19 +40,6 @@ interface ChartData {
     value: number;
 }
 
-interface LimitDialogInfo {
-    members?: number;
-    trainers?: number;
-    payments?: number;
-    equipment?: number;
-    classes?: number;
-    expenses?: number;
-    inventory?: number;
-    maintenance?: number;
-    offers?: number;
-    usageLogs?: number;
-}
-
 const expenseCategories = [
     "Rent/Lease",
     "Salaries",
@@ -62,42 +49,7 @@ const expenseCategories = [
     "Miscellaneous"
 ];
 
-const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#AF19FF', '#FF1943', '#FF4F81'];
-
-function LimitReachedDialog({ isOpen, onOpenChange, limits }: { isOpen: boolean; onOpenChange: (open: boolean) => void, limits: LimitDialogInfo }) {
-  return (
-    <AlertDialog open={isOpen} onOpenChange={onOpenChange}>
-      <AlertDialogContent>
-        <AlertDialogHeader>
-          <AlertDialogTitle>You've reached the limit of your trial account</AlertDialogTitle>
-          <AlertDialogDescription className="space-y-2 pt-2">
-            {limits.members !== undefined && <p>Members ({limits.members}/3)</p>}
-            {limits.trainers !== undefined && <p>Trainers ({limits.trainers}/2)</p>}
-            {limits.payments !== undefined && <p>Payments ({limits.payments}/5 per member)</p>}
-            {limits.equipment !== undefined && <p>Equipment ({limits.equipment}/1)</p>}
-            {limits.classes !== undefined && <p>Classes ({limits.classes}/1)</p>}
-            {limits.expenses !== undefined && <p>Expenses ({limits.expenses}/2)</p>}
-            {limits.inventory !== undefined && <p>Inventory ({limits.inventory}/1)</p>}
-            {limits.maintenance !== undefined && <p>Maintenance ({limits.maintenance}/1)</p>}
-            {limits.offers !== undefined && <p>Offers ({limits.offers}/1)</p>}
-            {limits.usageLogs !== undefined && <p>Usage Logs ({limits.usageLogs}/1)</p>}
-            <p className="font-semibold pt-2">Upgrade to a full Account to continue managing without restrictions.</p>
-          </AlertDialogDescription>
-        </AlertDialogHeader>
-        <div className="flex flex-col space-y-2">
-            <p className="font-bold text-center">Contact Strenxfit Support</p>
-            <a href="https://wa.me/917988487892" target="_blank" rel="noopener noreferrer" className="flex items-center justify-center gap-3 p-3 rounded-md hover:bg-accent transition-colors">
-                <Phone className="h-5 w-5 text-muted-foreground" />
-                <span>+91 79884 87892</span>
-            </a>
-        </div>
-        <AlertDialogFooter>
-          <AlertDialogAction onClick={() => onOpenChange(false)}>OK</AlertDialogAction>
-        </AlertDialogFooter>
-      </AlertDialogContent>
-    </AlertDialog>
-  );
-}
+const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#AF19FF', '#FF1943'];
 
 export default function ExpensesPage() {
   const [expenses, setExpenses] = useState<Expense[]>([]);
@@ -105,11 +57,7 @@ export default function ExpensesPage() {
   const [isFormDialogOpen, setIsFormDialogOpen] = useState(false);
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
   const [thisMonthsExpenses, setThisMonthsExpenses] = useState(0);
-  const [totalInventoryValue, setTotalInventoryValue] = useState(0);
   const [categoryChartData, setCategoryChartData] = useState<ChartData[]>([]);
-  const [isTrial, setIsTrial] = useState(false);
-  const [limitDialogOpen, setLimitDialogOpen] = useState(false);
-  const [limitInfo, setLimitInfo] = useState<LimitDialogInfo>({});
   const { toast } = useToast();
 
   const form = useForm<z.infer<typeof expenseSchema>>({
@@ -117,7 +65,7 @@ export default function ExpensesPage() {
     defaultValues: { name: '', category: '', amount: 0, date: '', description: '' },
   });
   
-  const fetchExpensesAndInventory = async () => {
+  const fetchExpenses = async () => {
     setLoading(true);
     const userDocId = localStorage.getItem('userDocId');
     const activeBranchId = localStorage.getItem('activeBranch');
@@ -127,13 +75,6 @@ export default function ExpensesPage() {
       setLoading(false);
       return;
     }
-    
-    const gymRef = doc(db, 'gyms', userDocId);
-    const gymSnap = await getDoc(gymRef);
-    if (gymSnap.exists() && gymSnap.data().isTrial) {
-        setIsTrial(true);
-    }
-    
     try {
         const expensesCollection = collection(db, 'gyms', userDocId, 'branches', activeBranchId, 'expenses');
         const expensesSnapshot = await getDocs(expensesCollection);
@@ -150,15 +91,6 @@ export default function ExpensesPage() {
         expensesList.sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime());
         setExpenses(expensesList);
 
-        const inventoryCollection = collection(db, 'gyms', userDocId, 'branches', activeBranchId, 'inventory');
-        const inventorySnapshot = await getDocs(inventoryCollection);
-        let inventoryValue = 0;
-        inventorySnapshot.forEach(doc => {
-            const item = doc.data();
-            inventoryValue += (item.purchasePrice || 0) * (item.quantity || 0);
-        });
-        setTotalInventoryValue(inventoryValue);
-
         // Calculate summaries
         const now = new Date();
         const startOfThisMonth = startOfMonth(now);
@@ -173,23 +105,18 @@ export default function ExpensesPage() {
         });
         
         setThisMonthsExpenses(monthTotal);
-        
-        const chartData = Object.entries(categoryTotals).map(([name, value]) => ({ name, value }));
-        if(inventoryValue > 0) {
-            chartData.push({ name: 'Inventory Value', value: inventoryValue });
-        }
-        setCategoryChartData(chartData);
+        setCategoryChartData(Object.entries(categoryTotals).map(([name, value]) => ({ name, value })));
 
     } catch (error) {
-        console.error("Error fetching data:", error);
-        toast({ title: "Error", description: "Failed to fetch financial data.", variant: "destructive" });
+        console.error("Error fetching expenses:", error);
+        toast({ title: "Error", description: "Failed to fetch expenses data.", variant: "destructive" });
     } finally {
         setLoading(false);
     }
   }
 
   useEffect(() => {
-    fetchExpensesAndInventory();
+    fetchExpenses();
   }, [toast]);
   
   useEffect(() => {
@@ -221,26 +148,18 @@ export default function ExpensesPage() {
     const activeBranchId = localStorage.getItem('activeBranch');
     if (!userDocId || !activeBranchId) return;
 
-    if(isTrial) {
-        if (expenses.length >= 2) {
-            setLimitInfo({ expenses: expenses.length });
-            setLimitDialogOpen(true);
-            return;
-        }
-    }
-
     try {
       const expensesCollection = collection(db, 'gyms', userDocId, 'branches', activeBranchId, 'expenses');
       
       await addDoc(expensesCollection, {
         ...values,
         date: Timestamp.fromDate(new Date(values.date)),
-        createdAt: serverTimestamp(),
+        createdAt: Timestamp.now(),
       });
 
       toast({ title: 'Success!', description: 'New expense has been added.' });
       handleFormDialogStateChange(false);
-      await fetchExpensesAndInventory();
+      await fetchExpenses();
     } catch (error) {
       console.error("Error adding expense:", error);
       toast({ title: 'Error', description: 'Could not add expense. Please try again.', variant: 'destructive' });
@@ -263,7 +182,7 @@ export default function ExpensesPage() {
         
         toast({ title: 'Success!', description: 'Expense details have been updated.' });
         handleFormDialogStateChange(false);
-        await fetchExpensesAndInventory();
+        await fetchExpenses();
       } catch (error) {
           console.error("Error updating expense:", error);
           toast({ title: 'Error', description: 'Could not update expense.', variant: 'destructive'});
@@ -279,7 +198,7 @@ export default function ExpensesPage() {
         const expenseRef = doc(db, 'gyms', userDocId, 'branches', activeBranchId, 'expenses', expenseId);
         await deleteDoc(expenseRef);
         toast({ title: "Expense Deleted", description: "The expense has been removed."});
-        await fetchExpensesAndInventory();
+        await fetchExpenses();
     } catch (error) {
         console.error("Error deleting expense:", error);
         toast({ title: "Error", description: "Could not delete expense.", variant: "destructive"});
@@ -292,11 +211,10 @@ export default function ExpensesPage() {
 
   return (
     <div className="container mx-auto py-10">
-      <LimitReachedDialog isOpen={limitDialogOpen} onOpenChange={setLimitDialogOpen} limits={limitInfo} />
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-3xl font-bold">Expense & Inventory Analytics</h1>
-          <p className="text-muted-foreground">Track and manage all your business expenses and stock value.</p>
+          <h1 className="text-3xl font-bold">Expense Management</h1>
+          <p className="text-muted-foreground">Track and manage all your business expenses.</p>
         </div>
         <Dialog open={isFormDialogOpen} onOpenChange={handleFormDialogStateChange}>
           <DialogTrigger asChild>
@@ -342,7 +260,7 @@ export default function ExpensesPage() {
       </div>
 
        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7 mb-6">
-            <Card className="col-span-full lg:col-span-2">
+            <Card className="col-span-full lg:col-span-3">
                 <CardHeader>
                     <CardTitle className="flex items-center gap-2"><IndianRupee />This Month's Expenses</CardTitle>
                 </CardHeader>
@@ -350,17 +268,9 @@ export default function ExpensesPage() {
                     <p className="text-4xl font-bold">₹{thisMonthsExpenses.toLocaleString()}</p>
                 </CardContent>
             </Card>
-             <Card className="col-span-full lg:col-span-2">
+            <Card className="col-span-full lg:col-span-4">
                 <CardHeader>
-                    <CardTitle className="flex items-center gap-2"><Boxes />Total Inventory Value</CardTitle>
-                </CardHeader>
-                <CardContent>
-                    <p className="text-4xl font-bold">₹{totalInventoryValue.toLocaleString()}</p>
-                </CardContent>
-            </Card>
-            <Card className="col-span-full lg:col-span-3">
-                <CardHeader>
-                    <CardTitle className="flex items-center gap-2"><PieChart />Financial Snapshot</CardTitle>
+                    <CardTitle className="flex items-center gap-2"><PieChart />Expenses by Category</CardTitle>
                 </CardHeader>
                 <CardContent>
                     <ResponsiveContainer width="100%" height={200}>
