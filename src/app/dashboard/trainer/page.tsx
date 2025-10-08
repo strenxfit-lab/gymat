@@ -8,7 +8,7 @@ import { db } from '@/lib/firebase';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Loader2, User, LogOut, Building, Cake, MessageSquare, Wrench, Utensils, Megaphone, Clock, Tags, IndianRupee, Percent, QrCode } from 'lucide-react';
+import { Loader2, User, LogOut, Building, Cake, MessageSquare, Wrench, Utensils, Megaphone, Clock, Tags, IndianRupee, Percent, QrCode, BarChart3 } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
@@ -187,7 +187,7 @@ export default function TrainerDashboardPage() {
             const age = dob ? differenceInYears(new Date(), dob) : 0;
             
             // Find member's community username
-            const communityQuery = query(collection(db, 'userCommunity'), where('userId', '==', docSnap.id), limit(1));
+            const communityQuery = query(collection(db, 'userCommunity'), where('userId', '==', docSnap.id));
             const communitySnap = await getDocs(communityQuery);
             const communityUsername = !communitySnap.empty ? communitySnap.docs[0].id : undefined;
 
@@ -552,11 +552,17 @@ export default function TrainerDashboardPage() {
                                         <TableCell>{member.age} yrs</TableCell>
                                         <TableCell>{member.fitnessGoal || "N/A"}</TableCell>
                                         <TableCell className="space-x-2">
+                                            <Link href={`/progress/${member.communityUsername}`} passHref>
+                                                <Button variant="outline" size="sm" disabled={!member.communityUsername}>
+                                                    <BarChart3 className="h-4 w-4 mr-2"/>
+                                                    Progress
+                                                </Button>
+                                            </Link>
                                             <Button variant="outline" size="sm" onClick={() => {setSelectedMemberForDiet(member); setIsDietDialogOpen(true);}}>
                                                 <Utensils className="h-4 w-4 mr-2"/>
                                                 Send Diet
                                             </Button>
-                                            <Button variant="outline" size="sm" onClick={() => handleStartChat(member)} disabled={isStartingChat}>
+                                            <Button variant="outline" size="sm" onClick={() => handleStartChat(member)} disabled={isStartingChat || !member.communityUsername}>
                                                {isStartingChat ? <Loader2 className="animate-spin h-4 w-4 mr-2"/> : <MessageSquare className="h-4 w-4 mr-2"/>}
                                                 Chat
                                             </Button>

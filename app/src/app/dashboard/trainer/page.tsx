@@ -659,7 +659,3 @@ export default function TrainerDashboardPage() {
     </>
   );
 }
-
-    
-
-    
