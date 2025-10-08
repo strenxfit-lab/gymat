@@ -9,7 +9,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { addDays, format } from 'date-fns';
 import { Loader2, User, Calendar as CalendarIcon, Dumbbell, HeartPulse, ChevronLeft, ChevronRight, Building, KeyRound, ClipboardCopy, IndianRupee, LayoutDashboard, Phone, Mail } from 'lucide-react';
-import { collection, addDoc, getDocs, doc, Timestamp, getDoc } from 'firebase/firestore';
+import { collection, addDoc, getDocs, doc, Timestamp, getDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useToast } from '@/hooks/use-toast';
 
@@ -270,7 +270,7 @@ export default function AddMemberPage() {
         dob: data.dob ? Timestamp.fromDate(data.dob) : null,
         startDate: data.startDate ? Timestamp.fromDate(data.startDate) : null,
         endDate: endDate ? Timestamp.fromDate(endDate) : null,
-        createdAt: Timestamp.now(),
+        createdAt: serverTimestamp(),
         loginId: loginId,
         password: password,
         role: 'member',
