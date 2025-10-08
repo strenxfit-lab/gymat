@@ -82,30 +82,25 @@ export default function MemberDashboard() {
                 const trainersSnapshot = await getDocs(trainersCollection);
                 const trainersList = trainersSnapshot.docs.map(doc => ({ id: doc.id, name: doc.data().fullName }));
                 
-                // Fetch Booked Classes
-                const bookingsQuery = query(collectionGroup(db, 'bookings'), where('__name__', '>=', `/gyms/${userDocId}/branches/${activeBranchId}/classes/`), where('__name__', '<', `/gyms/${userDocId}/branches/${activeBranchId}/classes0`));
-                const bookingsSnap = await getDocs(bookingsQuery);
-                
-                const myBookingsPromises = bookingsSnap.docs
-                    .filter(docSnap => docSnap.id === memberId)
-                    .map(async (docSnap) => {
-                        const classRef = docSnap.ref.parent.parent;
-                        if (classRef) {
-                            const classSnap = await getDoc(classRef);
-                            if (classSnap.exists()) {
-                                const classData = classSnap.data();
-                                if ((classData.dateTime as Timestamp).toDate() > new Date()) {
-                                     const trainer = trainersList.find(t => t.id === classData.trainerId);
-                                     return {
-                                        id: classSnap.id,
-                                        className: classData.className,
-                                        trainerName: trainer?.name || 'Unknown',
-                                        dateTime: (classData.dateTime as Timestamp).toDate()
-                                     };
-                                }
-                            }
+                // Fetch Booked Classes for this member by querying all booking subcollections
+                const classesRef = collection(db, 'gyms', userDocId, 'branches', activeBranchId, 'classes');
+                const classesSnap = await getDocs(classesRef);
+                const myBookingsPromises = classesSnap.docs.map(async (classDoc) => {
+                    const bookingRef = doc(db, 'gyms', userDocId, 'branches', activeBranchId, 'classes', classDoc.id, 'bookings', memberId);
+                    const bookingSnap = await getDoc(bookingRef);
+                    if (bookingSnap.exists()) {
+                        const classData = classDoc.data();
+                         if ((classData.dateTime as Timestamp).toDate() > new Date()) {
+                            const trainer = trainersList.find(t => t.id === classData.trainerId);
+                            return {
+                                id: classDoc.id,
+                                className: classData.className,
+                                trainerName: trainer?.name || 'Unknown',
+                                dateTime: (classData.dateTime as Timestamp).toDate()
+                            };
                         }
-                        return null;
+                    }
+                    return null;
                 });
                 
                 const myBookedClasses = (await Promise.all(myBookingsPromises)).filter(Boolean) as BookedClass[];
