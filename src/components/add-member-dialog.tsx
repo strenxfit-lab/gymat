@@ -51,16 +51,17 @@ const formSchema = z.object({
 });
 
 type FormData = z.infer<typeof formSchema>;
+type FieldName = keyof FormData;
 
 interface Trainer {
   id: string;
   name: string;
 }
 
-const steps = [
-  { id: 1, title: 'Basic Information', icon: <User /> },
-  { id: 2, title: 'Membership Details', icon: <Dumbbell /> },
-  { id: 3, title: 'Health & Fitness', icon: <HeartPulse /> },
+const steps: { id: number; title: string; icon: JSX.Element; fields: FieldName[] }[] = [
+    { id: 1, title: 'Basic Information', icon: <User />, fields: ['fullName', 'gender', 'dob', 'phone', 'email'] },
+    { id: 2, title: 'Membership Details', icon: <Dumbbell />, fields: ['membershipType', 'startDate', 'endDate', 'assignedTrainer', 'plan'] },
+    { id: 3, title: 'Health & Fitness', icon: <HeartPulse />, fields: ['height', 'weight', 'medicalConditions', 'fitnessGoal'] },
 ];
 
 export default function AddMemberDialog() {
@@ -73,7 +74,19 @@ export default function AddMemberDialog() {
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
     defaultValues: {
+      fullName: '',
+      gender: '',
+      phone: '',
+      email: '',
+      membershipType: '',
       startDate: new Date(),
+      endDate: addDays(new Date(), 30),
+      assignedTrainer: '',
+      plan: '',
+      height: '',
+      weight: '',
+      medicalConditions: '',
+      fitnessGoal: '',
     },
   });
 
@@ -114,7 +127,8 @@ export default function AddMemberDialog() {
   }, [form]);
 
   const handleNext = async () => {
-    const result = await form.trigger();
+    const fieldsToValidate = steps[currentStep - 1].fields;
+    const result = await form.trigger(fieldsToValidate);
     if(result) {
         setCurrentStep((prev) => Math.min(prev + 1, steps.length));
     }
@@ -208,7 +222,7 @@ export default function AddMemberDialog() {
                             </Button>
                           </FormControl>
                         </PopoverTrigger>
-                        <PopoverContent className="w-auto p-0" align="start">
+                        <PopoverContent className="p-0" align="start">
                           <Calendar mode="single" selected={field.value} onSelect={field.onChange} disabled={(date) => date > new Date() || date < new Date("1900-01-01")} initialFocus />
                         </PopoverContent>
                       </Popover><FormMessage />
@@ -239,8 +253,8 @@ export default function AddMemberDialog() {
                           </Select><FormMessage />
                         </FormItem>
                     )} />
-                    <FormField control={form.control} name="startDate" render={({ field }) => ( <FormItem className="flex flex-col"><FormLabel>Start Date</FormLabel><FormControl><Input type="date" value={format(field.value, 'yyyy-MM-dd')} onChange={e => field.onChange(new Date(e.target.value))} /></FormControl><FormMessage /></FormItem>)} />
-                    <FormField control={form.control} name="endDate" render={({ field }) => ( <FormItem className="flex flex-col"><FormLabel>End Date</FormLabel><FormControl><Input type="date" value={format(field.value, 'yyyy-MM-dd')} onChange={e => field.onChange(new Date(e.target.value))} /></FormControl><FormMessage /></FormItem>)} />
+                    <FormField control={form.control} name="startDate" render={({ field }) => ( <FormItem className="flex flex-col"><FormLabel>Start Date</FormLabel><FormControl><Input type="date" value={field.value ? format(field.value, 'yyyy-MM-dd') : ''} onChange={e => field.onChange(new Date(e.target.value))} /></FormControl><FormMessage /></FormItem>)} />
+                    <FormField control={form.control} name="endDate" render={({ field }) => ( <FormItem className="flex flex-col"><FormLabel>End Date</FormLabel><FormControl><Input type="date" value={field.value ? format(field.value, 'yyyy-MM-dd') : ''} onChange={e => field.onChange(new Date(e.target.value))} /></FormControl><FormMessage /></FormItem>)} />
                     <FormField control={form.control} name="plan" render={({ field }) => (
                         <FormItem className="md:col-span-2"><FormLabel>Plan/Package (Optional)</FormLabel>
                           <Select onValueChange={field.onChange} defaultValue={field.value}>
@@ -286,6 +300,3 @@ export default function AddMemberDialog() {
     </Dialog>
   );
 }
-
-
-    
