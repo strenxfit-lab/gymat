@@ -1,7 +1,7 @@
 
 "use client";
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { Card } from './card';
 
 declare global {
@@ -11,9 +11,19 @@ declare global {
 }
 
 const AdsenseDisplay = () => {
+  const adRef = useRef<HTMLDivElement>(null);
+  const initialized = useRef(false);
+
   useEffect(() => {
+    if (initialized.current) {
+        return;
+    }
+    
     try {
-      (window.adsbygoogle = window.adsbygoogle || []).push({});
+      if (window.adsbygoogle) {
+          (window.adsbygoogle = window.adsbygoogle || []).push({});
+          initialized.current = true;
+      }
     } catch (err) {
       console.error(err);
     }
@@ -21,7 +31,7 @@ const AdsenseDisplay = () => {
 
   return (
     <Card className="mb-4">
-        <div className="p-4">
+        <div ref={adRef} className="p-4">
             <ins className="adsbygoogle"
                 style={{ display: "block" }}
                 data-ad-client="ca-pub-XXXXXXXXXXXXXXXX"
