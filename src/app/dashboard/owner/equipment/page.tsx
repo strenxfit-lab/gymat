@@ -16,7 +16,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Loader2, PlusCircle, ArrowLeft, MoreHorizontal, Edit, Trash } from 'lucide-react';
+import { Loader2, PlusCircle, ArrowLeft, MoreHorizontal, Edit, Trash, Phone, Mail } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Badge } from '@/components/ui/badge';
@@ -33,6 +33,19 @@ const equipmentSchema = z.object({
 
 interface Equipment extends z.infer<typeof equipmentSchema> {
   id: string;
+}
+
+interface LimitDialogInfo {
+    members?: number;
+    trainers?: number;
+    payments?: number;
+    equipment?: number;
+    classes?: number;
+    expenses?: number;
+    inventory?: number;
+    maintenance?: number;
+    offers?: number;
+    usageLogs?: number;
 }
 
 const equipmentCategories = [
@@ -53,11 +66,50 @@ const getStatusVariant = (status: Equipment['status']) => {
     }
 }
 
+
+function LimitReachedDialog({ isOpen, onOpenChange, limits }: { isOpen: boolean; onOpenChange: (open: boolean) => void, limits: LimitDialogInfo }) {
+  return (
+    <AlertDialog open={isOpen} onOpenChange={onOpenChange}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>You've reached the limit of your trial account</AlertDialogTitle>
+          <AlertDialogDescription className="space-y-2 pt-2">
+            {limits.members !== undefined && <p>Members ({limits.members}/3)</p>}
+            {limits.trainers !== undefined && <p>Trainers ({limits.trainers}/2)</p>}
+            {limits.payments !== undefined && <p>Payments ({limits.payments}/5 per member)</p>}
+            {limits.equipment !== undefined && <p>Equipment ({limits.equipment}/1)</p>}
+            {limits.classes !== undefined && <p>Classes ({limits.classes}/1)</p>}
+            {limits.expenses !== undefined && <p>Expenses ({limits.expenses}/2)</p>}
+            {limits.inventory !== undefined && <p>Inventory ({limits.inventory}/1)</p>}
+            {limits.maintenance !== undefined && <p>Maintenance ({limits.maintenance}/1)</p>}
+            {limits.offers !== undefined && <p>Offers ({limits.offers}/1)</p>}
+            {limits.usageLogs !== undefined && <p>Usage Logs ({limits.usageLogs}/1)</p>}
+            <p className="font-semibold pt-2">Upgrade to a full Account to continue managing without restrictions.</p>
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <div className="flex flex-col space-y-2">
+            <p className="font-bold text-center">Contact Strenxfit Support</p>
+            <a href="https://wa.me/917988487892" target="_blank" rel="noopener noreferrer" className="flex items-center justify-center gap-3 p-3 rounded-md hover:bg-accent transition-colors">
+                <Phone className="h-5 w-5 text-muted-foreground" />
+                <span>+91 79884 87892</span>
+            </a>
+        </div>
+        <AlertDialogFooter>
+          <AlertDialogAction onClick={() => onOpenChange(false)}>OK</AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  );
+}
+
 export default function EquipmentPage() {
   const [equipmentList, setEquipmentList] = useState<Equipment[]>([]);
   const [loading, setLoading] = useState(true);
   const [isFormDialogOpen, setIsFormDialogOpen] = useState(false);
   const [editingEquipment, setEditingEquipment] = useState<Equipment | null>(null);
+  const [isTrial, setIsTrial] = useState(false);
+  const [limitDialogOpen, setLimitDialogOpen] = useState(false);
+  const [limitInfo, setLimitInfo] = useState<LimitDialogInfo>({});
   const { toast } = useToast();
 
   const form = useForm<z.infer<typeof equipmentSchema>>({
@@ -75,6 +127,13 @@ export default function EquipmentPage() {
       setLoading(false);
       return;
     }
+    
+    const gymRef = doc(db, 'gyms', userDocId);
+    const gymSnap = await getDoc(gymRef);
+    if (gymSnap.exists() && gymSnap.data().isTrial) {
+        setIsTrial(true);
+    }
+    
     try {
         const equipmentCollection = collection(db, 'gyms', userDocId, 'branches', activeBranchId, 'equipment');
         const equipmentSnapshot = await getDocs(equipmentCollection);
@@ -132,6 +191,14 @@ export default function EquipmentPage() {
     const userDocId = localStorage.getItem('userDocId');
     const activeBranchId = localStorage.getItem('activeBranch');
     if (!userDocId || !activeBranchId) return;
+
+    if (isTrial) {
+        if(equipmentList.length >= 1) {
+            setLimitInfo({ equipment: equipmentList.length });
+            setLimitDialogOpen(true);
+            return;
+        }
+    }
 
     try {
       const equipmentCollection = collection(db, 'gyms', userDocId, 'branches', activeBranchId, 'equipment');
@@ -198,6 +265,7 @@ export default function EquipmentPage() {
 
   return (
     <div className="container mx-auto py-10">
+      <LimitReachedDialog isOpen={limitDialogOpen} onOpenChange={setLimitDialogOpen} limits={limitInfo} />
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-3xl font-bold">Equipment Inventory</h1>
@@ -337,3 +405,5 @@ export default function EquipmentPage() {
     </div>
   );
 }
+
+    
