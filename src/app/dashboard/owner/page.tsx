@@ -363,10 +363,6 @@ export default function OwnerDashboardPage() {
         <div className="flex items-center justify-between space-y-2">
           <h2 className="text-3xl font-bold tracking-tight">{gymData.activeBranchName || 'Trial Dashboard'}</h2>
           <div className="flex items-center space-x-2">
-            <Button>
-              <Calendar className="mr-2 h-4 w-4" />
-              View Calendar
-            </Button>
             <Button variant="outline">
                 <Bell className="h-4 w-4" />
             </Button>
@@ -589,10 +585,12 @@ export default function OwnerDashboardPage() {
                             {gymData.runningOffers.length === 0 && <p className="text-muted-foreground text-sm">No running offers.</p>}
                         </ul>
                     </div>
-                    <Button variant="outline">
-                        <PlusCircle className="mr-2 h-4 w-4" />
-                        Create an offer
-                    </Button>
+                    <Link href="/dashboard/owner/make-offers" passHref>
+                        <Button variant="outline">
+                            <PlusCircle className="mr-2 h-4 w-4" />
+                            Create an offer
+                        </Button>
+                    </Link>
                 </CardContent>
             </Card>
         </div>
@@ -625,7 +623,7 @@ export default function OwnerDashboardPage() {
                             <Mail className="h-5 w-5 text-muted-foreground" />
                             <span>strenxfit@gmail.com</span>
                         </a>
-                        <a href="https://wa.me/917988487892" target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 p-3 rounded-md hover:bg-accent transition-colors">
+                        <a href="https://wa.me/917988487892" target="_blank" rel="noopener noreferrer" className="flex items-center justify-center gap-3 p-3 rounded-md hover:bg-accent transition-colors">
                             <Phone className="h-5 w-5 text-muted-foreground" />
                             <span>+91 79884 87892</span>
                         </a>
