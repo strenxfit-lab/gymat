@@ -242,10 +242,10 @@ export default function AddPaymentPage() {
 
     useEffect(() => {
         const subscription = form.watch((values, { name }) => {
-            let { totalFee, discount, amountPaid, membershipPlan, paymentDate, appliedOfferId, nextDueDate } = values;
+            const { memberId, membershipPlan, paymentDate, appliedOfferId, totalFee, discount, amountPaid } = values;
 
-            if (name === 'memberId' && values.memberId) {
-                const member = members.find(m => m.id === values.memberId);
+            if (name === 'memberId' && memberId) {
+                const member = members.find(m => m.id === memberId);
                 if (member) {
                     if (member.status === 'Frozen' || member.status === 'Stopped') {
                         setStatusDialogMessage(`This member's account is currently ${member.status}. To collect payment, please reactivate their account from the Member Status page.`);
@@ -253,69 +253,88 @@ export default function AddPaymentPage() {
                         return;
                     }
                     setSelectedMember(member);
-                    form.setValue('membershipPlan', member.membershipType);
-                    form.setValue('totalFee', member.totalFee);
-                    totalFee = member.totalFee;
+                    form.reset({
+                        ...form.getValues(),
+                        membershipPlan: member.membershipType,
+                        totalFee: member.totalFee || 0,
+                        amountPaid: member.totalFee || 0,
+                        balanceDue: 0,
+                        appliedOfferId: 'none',
+                        appliedOfferTitle: '',
+                        discount: '',
+                    });
                 }
             }
             
             if (name === 'membershipPlan' && membershipPlan) {
-                const planDetails = membershipPlans.find(p => p.name === membershipPlan);
+                const planDetails = membershipPlans.find(p => p.name.toLowerCase() === membershipPlan.toLowerCase());
+                let newFee = selectedMember?.totalFee || 0;
                 if (planDetails && planDetails.price) {
-                    const newFee = parseFloat(planDetails.price);
-                    form.setValue('totalFee', newFee);
-                    totalFee = newFee;
-                } else if (selectedMember) {
-                    form.setValue('totalFee', selectedMember.totalFee);
-                    totalFee = selectedMember.totalFee;
+                    newFee = parseFloat(planDetails.price);
+                }
+                if(newFee !== totalFee){
+                    form.reset({
+                        ...form.getValues(),
+                        totalFee: newFee,
+                        appliedOfferId: 'none',
+                        appliedOfferTitle: '',
+                        discount: '',
+                        amountPaid: newFee,
+                        balanceDue: 0,
+                    });
                 }
             }
-            
+
             if ((name === 'membershipPlan' || name === 'paymentDate') && membershipPlan && paymentDate) {
                 let newEndDate = new Date(paymentDate);
-                 switch (membershipPlan) {
+                switch (membershipPlan) {
                     case 'trial': newEndDate = addDays(newEndDate, 7); break;
                     case 'monthly': newEndDate = addDays(newEndDate, 30); break;
                     case 'quarterly': newEndDate = addDays(newEndDate, 90); break;
                     case 'half-yearly': newEndDate = addDays(newEndDate, 180); break;
                     case 'yearly': newEndDate = addDays(newEndDate, 365); break;
                 }
-                if (!nextDueDate || !isSameDay(newEndDate, nextDueDate)) {
+                if (form.getValues('nextDueDate') !== newEndDate) {
                     form.setValue('nextDueDate', newEndDate, { shouldValidate: true });
                 }
             }
             
-            let originalFee = totalFee || 0;
-            let finalDiscount = typeof discount === 'string' ? parseFloat(discount) || 0 : (discount || 0);
-
-            if (name === 'appliedOfferId') {
-                const offer = offers.find(o => o.id === appliedOfferId);
-                if (offer) {
-                    let offerDiscount = 0;
-                    if (offer.discountType === 'percentage') {
-                        offerDiscount = (originalFee * offer.discountValue) / 100;
-                    } else { // flat
-                        offerDiscount = offer.discountValue;
+            if (['totalFee', 'discount', 'appliedOfferId'].includes(name!)) {
+                let currentDiscount = typeof discount === 'string' ? parseFloat(discount) || 0 : (discount || 0);
+                
+                if (name === 'appliedOfferId') {
+                    const offer = offers.find(o => o.id === appliedOfferId);
+                    if (offer) {
+                        currentDiscount = offer.discountType === 'percentage'
+                            ? (totalFee! * offer.discountValue) / 100
+                            : offer.discountValue;
+                        if (form.getValues('discount') !== currentDiscount) {
+                            form.setValue('discount', currentDiscount);
+                            form.setValue('appliedOfferTitle', offer.title);
+                        }
+                    } else if (appliedOfferId === 'none') {
+                        currentDiscount = 0;
+                        if (form.getValues('discount') !== '') {
+                            form.setValue('discount', '');
+                            form.setValue('appliedOfferTitle', '');
+                        }
                     }
-                    form.setValue('discount', offerDiscount);
-                    form.setValue('appliedOfferTitle', offer.title);
-                } else if (appliedOfferId === 'none') {
-                     form.setValue('discount', '');
-                     form.setValue('appliedOfferTitle', '');
+                }
+                
+                const finalPayable = totalFee! - currentDiscount;
+                const newAmountPaid = finalPayable > 0 ? finalPayable : 0;
+                if (amountPaid !== newAmountPaid) {
+                     form.setValue('amountPaid', newAmountPaid, { shouldValidate: true });
                 }
             }
-            
-            const finalPayable = originalFee - finalDiscount;
 
-            if (name === 'totalFee' || name === 'discount' || name === 'appliedOfferId' || name === 'membershipPlan') {
-                const newAmountPaid = finalPayable > 0 ? finalPayable : 0;
-                form.setValue('amountPaid', newAmountPaid, { shouldValidate: true });
-                amountPaid = newAmountPaid;
-            }
-
-            const newBalanceDue = (finalPayable > 0 ? finalPayable : 0) - (amountPaid || 0);
-             if ((newBalanceDue > 0 ? newBalanceDue : 0) !== values.balanceDue) {
-                form.setValue('balanceDue', newBalanceDue > 0 ? newBalanceDue : 0);
+            if(['totalFee', 'discount', 'appliedOfferId', 'amountPaid'].includes(name!)) {
+                let currentDiscount = typeof discount === 'string' ? parseFloat(discount) || 0 : (discount || 0);
+                const finalPayable = totalFee! - currentDiscount;
+                const newBalanceDue = (finalPayable > 0 ? finalPayable : 0) - (amountPaid || 0);
+                if (form.getValues('balanceDue') !== newBalanceDue) {
+                    form.setValue('balanceDue', newBalanceDue > 0 ? newBalanceDue : 0);
+                }
             }
         });
         return () => subscription.unsubscribe();
@@ -351,6 +370,7 @@ export default function AddPaymentPage() {
       const paymentsCollection = collection(db, 'gyms', userDocId, 'branches', activeBranchId, 'members', data.memberId, 'payments');
       await addDoc(paymentsCollection, {
         ...data,
+        appliedOfferId: data.appliedOfferId === 'none' ? '' : data.appliedOfferId,
         discount: data.discount ? parseFloat(data.discount as string) : 0,
         paymentDate: Timestamp.fromDate(data.paymentDate),
         nextDueDate: data.nextDueDate ? Timestamp.fromDate(data.nextDueDate) : null,
@@ -383,7 +403,7 @@ export default function AddPaymentPage() {
     }
   };
   
-  const applicableOffers = selectedMember ? offers.filter(o => o.applicablePlans.includes(selectedMember.membershipType)) : [];
+  const applicableOffers = selectedMember ? offers.filter(o => o.applicablePlans.includes(form.watch('membershipPlan') ?? '')) : [];
   
   const combinedPlans = [...new Set([...membershipPlans.map(p => p.name.toLowerCase()), ...defaultPlans])];
 
@@ -548,3 +568,5 @@ export default function AddPaymentPage() {
     </div>
   );
 }
+
+    
