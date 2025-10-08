@@ -2,14 +2,13 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { addDays, format } from 'date-fns';
-import { Loader2, User, Calendar as CalendarIcon, Dumbbell, HeartPulse, ChevronLeft, ChevronRight, Building, KeyRound, ClipboardCopy, IndianRupee, LayoutDashboard, Phone, Mail } from 'lucide-react';
-import { collection, addDoc, getDocs, doc, Timestamp, getDoc, serverTimestamp, setDoc, query, where, deleteDoc } from 'firebase/firestore';
+import { Loader2, User, Calendar as CalendarIcon, Dumbbell, HeartPulse, ChevronLeft, ChevronRight } from 'lucide-react';
+import { collection, addDoc, getDocs, doc, Timestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useToast } from '@/hooks/use-toast';
 
@@ -18,30 +17,22 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter }
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar } from '@/components/ui/calendar';
 import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
 import { Progress } from '@/components/ui/progress';
-import { Label } from '@/components/ui/label';
 
 const formSchema = z.object({
   fullName: z.string().min(2, { message: 'Full name must be at least 2 characters.' }),
+  gender: z.string().nonempty({ message: 'Please select a gender.' }),
+  dob: z.date({ required_error: 'Date of birth is required.' }),
   phone: z.string().length(10, { message: 'Phone number must be 10 digits.' }),
-  gender: z.string().optional(),
-  dob: z.date().optional(),
   email: z.string().email().optional().or(z.literal('')),
   
-  membershipType: z.string().nonempty({ message: "Membership type is required." }),
+  membershipType: z.string().nonempty({ message: 'Please select a membership type.' }),
   startDate: z.date({ required_error: 'Start date is required.' }),
-  totalFee: z.string().min(1, { message: "Total fee is required." }),
+  endDate: z.date({ required_error: 'End date is required.' }),
   assignedTrainer: z.string().optional(),
   plan: z.string().optional(),
 
@@ -59,93 +50,19 @@ interface Trainer {
   name: string;
 }
 
-interface MembershipPlan {
-  name: string;
-  price: string;
-}
-
-interface LimitDialogInfo {
-  members: number;
-  trainers: number;
-  payments?: number;
-}
-
 const steps: { id: number; title: string; icon: JSX.Element; fields: FieldName[] }[] = [
     { id: 1, title: 'Basic Information', icon: <User />, fields: ['fullName', 'gender', 'dob', 'phone', 'email'] },
-    { id: 2, title: 'Membership Details', icon: <Dumbbell />, fields: ['membershipType', 'startDate', 'totalFee', 'assignedTrainer', 'plan'] },
+    { id: 2, title: 'Membership Details', icon: <Dumbbell />, fields: ['membershipType', 'startDate', 'endDate', 'assignedTrainer', 'plan'] },
     { id: 3, title: 'Health & Fitness', icon: <HeartPulse />, fields: ['height', 'weight', 'medicalConditions', 'fitnessGoal'] },
 ];
 
-const defaultPlans = ["monthly", "quarterly", "half-yearly", "yearly"];
-
-function NoBranchDialog() {
-    const router = useRouter();
-    return (
-        <div className="flex min-h-screen flex-col items-center justify-center bg-background p-4">
-            <AlertDialog open={true}>
-                <AlertDialogContent>
-                <AlertDialogHeader>
-                    <AlertDialogTitle>No Branch Found</AlertDialogTitle>
-                    <AlertDialogDescription>
-                    You need to create a branch before you can add a new member. Please go to the branch management page to add your first branch.
-                    </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                    <Link href="/dashboard/owner" passHref>
-                        <Button variant="outline">Go to Dashboard</Button>
-                    </Link>
-                    <Button onClick={() => router.push('/dashboard/owner/multi-branch')}>Create Branch</Button>
-                </AlertDialogFooter>
-                </AlertDialogContent>
-            </AlertDialog>
-        </div>
-    )
-}
-
-function LimitReachedDialog({ isOpen, onOpenChange, limits }: { isOpen: boolean; onOpenChange: (open: boolean) => void, limits: LimitDialogInfo }) {
-  return (
-    <AlertDialog open={isOpen} onOpenChange={onOpenChange}>
-      <AlertDialogContent>
-        <AlertDialogHeader>
-          <AlertDialogTitle>You've reached the limit of your trial account</AlertDialogTitle>
-          <AlertDialogDescription className="space-y-2 pt-2">
-            <p>Members ({limits.members}/3)</p>
-            <p>Trainers ({limits.trainers}/2)</p>
-            {limits.payments !== undefined && <p>Payments ({limits.payments}/5 per member)</p>}
-            <p className="font-semibold pt-2">Upgrade to a full Account to continue managing without restrictions.</p>
-          </AlertDialogDescription>
-        </AlertDialogHeader>
-        <div className="flex flex-col space-y-2">
-            <p className="font-bold text-center">Contact Strenx Support</p>
-            <a href="https://wa.me/917988487892" target="_blank" rel="noopener noreferrer" className="flex items-center justify-center gap-3 p-3 rounded-md hover:bg-accent transition-colors">
-                <Phone className="h-5 w-5 text-muted-foreground" />
-                <span>+91 79884 87892</span>
-            </a>
-        </div>
-        <AlertDialogFooter>
-          <AlertDialogAction onClick={() => onOpenChange(false)}>OK</AlertDialogAction>
-        </AlertDialogFooter>
-      </AlertDialogContent>
-    </AlertDialog>
-  );
-}
-
 export default function AddMemberPage() {
   const [isLoading, setIsLoading] = useState(false);
-  const [isMounted, setIsMounted] = useState(false);
   const [currentStep, setCurrentStep] = useState(1);
   const [trainers, setTrainers] = useState<Trainer[]>([]);
-  const [membershipPlans, setMembershipPlans] = useState<MembershipPlan[]>([]);
   const { toast } = useToast();
   const router = useRouter();
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [newMember, setNewMember] = useState<{ id: string; name: string; loginId?: string; password?: string; existing: boolean; } | null>(null);
-  const [activeBranchId, setActiveBranchId] = useState<string | null>(null);
-  const [activeBranchName, setActiveBranchName] = useState<string | null>(null);
-  const [isTrial, setIsTrial] = useState(false);
-  const [limitDialogOpen, setLimitDialogOpen] = useState(false);
-  const [limitInfo, setLimitInfo] = useState<LimitDialogInfo>({ members: 0, trainers: 0 });
-
+  
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -154,7 +71,8 @@ export default function AddMemberPage() {
       phone: '',
       email: '',
       membershipType: '',
-      totalFee: '',
+      startDate: new Date(),
+      endDate: addDays(new Date(), 30),
       assignedTrainer: '',
       plan: '',
       height: '',
@@ -165,56 +83,42 @@ export default function AddMemberPage() {
   });
 
   useEffect(() => {
-    setIsMounted(true);
-    const branchId = localStorage.getItem('activeBranch');
-    setActiveBranchId(branchId);
-    
-    if (branchId) {
-        const userDocId = localStorage.getItem('userDocId');
-        if (!userDocId) return;
-
-        const gymRef = doc(db, 'gyms', userDocId);
-        getDoc(gymRef).then(gymSnap => {
-            if (gymSnap.exists() && gymSnap.data().isTrial) {
-                setIsTrial(true);
-            }
-        });
-
-        const branchRef = doc(db, 'gyms', userDocId, 'branches', branchId);
-        getDoc(branchRef).then(docSnap => {
-            if (docSnap.exists()) {
-                setActiveBranchName(docSnap.data().name);
-            }
-        });
-        
-        const detailsRef = doc(db, 'gyms', userDocId, 'details', 'onboarding');
-        getDoc(detailsRef).then(detailsSnap => {
-            if(detailsSnap.exists() && detailsSnap.data().plans) {
-                setMembershipPlans(detailsSnap.data().plans);
-            }
-        });
-    }
-  }, []);
-  
-  useEffect(() => {
     const fetchTrainers = async () => {
       const userDocId = localStorage.getItem('userDocId');
-      if (!userDocId || !activeBranchId) return;
+      if (!userDocId) return;
       
-      const trainersCollection = collection(db, 'gyms', userDocId, 'branches', activeBranchId, 'trainers');
+      const trainersCollection = collection(db, 'gyms', userDocId, 'trainers');
       const trainersSnapshot = await getDocs(trainersCollection);
       const trainersList = trainersSnapshot.docs.map(doc => ({ id: doc.id, name: doc.data().fullName }));
       setTrainers(trainersList);
     };
-    if (activeBranchId) {
-        fetchTrainers();
-    }
-  }, [activeBranchId]);
 
+    fetchTrainers();
+  }, []);
+
+  useEffect(() => {
+    const subscription = form.watch((value, { name }) => {
+      if (name === 'membershipType' || name === 'startDate') {
+        const { membershipType, startDate } = value;
+        if (membershipType && startDate) {
+          let endDate = new Date(startDate);
+          switch (membershipType) {
+            case 'monthly': endDate = addDays(endDate, 30); break;
+            case 'quarterly': endDate = addDays(endDate, 90); break;
+            case 'half-yearly': endDate = addDays(endDate, 180); break;
+            case 'yearly': endDate = addDays(endDate, 365); break;
+            case 'trial': endDate = addDays(endDate, 7); break;
+          }
+          form.setValue('endDate', endDate);
+        }
+      }
+    });
+    return () => subscription.unsubscribe();
+  }, [form]);
 
   const handleNext = async () => {
     const fieldsToValidate = steps[currentStep - 1].fields;
-    const result = await form.trigger(fieldsToValidate as FieldName[]);
+    const result = await form.trigger(fieldsToValidate);
     if(result) {
         setCurrentStep((prev) => Math.min(prev + 1, steps.length));
     }
@@ -223,98 +127,33 @@ export default function AddMemberPage() {
 
   const onSubmit = async (data: FormData) => {
     const userDocId = localStorage.getItem('userDocId');
-    if (!userDocId || !activeBranchId) {
-      toast({ title: 'Error', description: 'Gym owner session or branch not found.', variant: 'destructive' });
+    if (!userDocId) {
+      toast({ title: 'Error', description: 'Gym owner session not found.', variant: 'destructive' });
       return;
-    }
-
-    if (isTrial) {
-        const membersCollection = collection(db, 'gyms', userDocId, 'branches', activeBranchId, 'members');
-        const membersSnapshot = await getDocs(membersCollection);
-        const trainersCollection = collection(db, 'gyms', userDocId, 'branches', activeBranchId, 'trainers');
-        const trainersSnapshot = await getDocs(trainersCollection);
-
-        setLimitInfo({ members: membersSnapshot.size, trainers: trainersSnapshot.size });
-
-        if (membersSnapshot.size >= 3) {
-            setLimitDialogOpen(true);
-            return;
-        }
     }
     
     setIsLoading(true);
 
     try {
-      const removedUserRef = doc(db, 'removedUsers', data.phone);
-      const removedUserSnap = await getDoc(removedUserRef);
-      
-      let memberData: any;
-      let newDocRefId: string;
-      let existingUser = false;
+      const membersCollection = collection(db, 'gyms', userDocId, 'members');
+      await addDoc(membersCollection, {
+        ...data,
+        dob: Timestamp.fromDate(data.dob),
+        startDate: Timestamp.fromDate(data.startDate),
+        endDate: Timestamp.fromDate(data.endDate),
+        createdAt: Timestamp.now(),
+      });
 
-      const endDate = data.membershipType && data.startDate ? addDays(new Date(data.startDate), {
-          'monthly': 30, 'quarterly': 90, 'half-yearly': 180, 'yearly': 365, 'trial': 7
-      }[data.membershipType] || 30) : undefined;
-
-      if (removedUserSnap.exists()) {
-          // Re-activate existing user
-          const existingData = removedUserSnap.data();
-          memberData = {
-              ...existingData, // Keep original credentials and some details
-              ...data, // Overwrite with new gym-specific data
-              totalFee: data.totalFee ? parseFloat(data.totalFee) : 0,
-              dob: data.dob ? Timestamp.fromDate(data.dob) : existingData.dob || null,
-              startDate: data.startDate ? Timestamp.fromDate(data.startDate) : null,
-              endDate: endDate ? Timestamp.fromDate(endDate) : null,
-              createdAt: serverTimestamp(),
-              status: 'Active',
-              role: 'member'
-          };
-          
-          const newMemberRef = doc(collection(db, 'gyms', userDocId, 'branches', activeBranchId, 'members'));
-          await setDoc(newMemberRef, memberData);
-          await deleteDoc(removedUserRef); // Remove from removedUsers
-          newDocRefId = newMemberRef.id;
-          existingUser = true;
-
-          setNewMember({ id: newDocRefId, name: data.fullName, loginId: data.phone, existing: true });
-
-      } else {
-          // Add new user
-          const loginId = data.phone;
-          const password = Math.random().toString(36).slice(-8);
-
-          memberData = {
-            ...data,
-            totalFee: data.totalFee ? parseFloat(data.totalFee) : 0,
-            dob: data.dob ? Timestamp.fromDate(data.dob) : null,
-            startDate: data.startDate ? Timestamp.fromDate(data.startDate) : null,
-            endDate: endDate ? Timestamp.fromDate(endDate) : null,
-            createdAt: serverTimestamp(),
-            loginId: loginId,
-            password: password,
-            role: 'member',
-            passwordChanged: false,
-            status: 'Active',
-          };
-           if (data.membershipType === 'trial') {
-               memberData.isTrial = true;
-           }
-
-          const membersCollection = collection(db, 'gyms', userDocId, 'branches', activeBranchId, 'members');
-          const newDocRef = await addDoc(membersCollection, memberData);
-          newDocRefId = newDocRef.id;
-
-          setNewMember({ id: newDocRefId, name: data.fullName, loginId, password, existing: false });
-      }
-
-      setIsDialogOpen(true);
-
+      toast({
+        title: 'Member Added!',
+        description: `${data.fullName} has been successfully registered.`,
+      });
+      router.push('/dashboard/owner');
     } catch (error) {
-      console.error("Error adding/re-activating member:", error);
+      console.error("Error adding member:", error);
       toast({
         title: 'Error',
-        description: 'Could not process member. Please try again.',
+        description: 'Could not add member. Please try again.',
         variant: 'destructive',
       });
     } finally {
@@ -322,94 +161,21 @@ export default function AddMemberPage() {
     }
   };
 
-  const handleGoToDashboard = () => {
-    window.location.href = '/dashboard/owner';
-  };
-  
-  const handleGoToPayment = () => {
-      if(newMember) {
-        router.push(`/dashboard/owner/add-payment?memberId=${newMember.id}`);
-      }
-  }
-
-  const copyToClipboard = (text: string) => {
-    navigator.clipboard.writeText(text);
-    toast({ title: 'Copied!', description: 'Credentials copied to clipboard.' });
-  }
-
   const progress = (currentStep / steps.length) * 100;
-  
-  const combinedPlans = [...new Set([...membershipPlans.map(p => p.name.toLowerCase()), ...defaultPlans])];
-  if (isTrial && !combinedPlans.includes('trial')) {
-      combinedPlans.unshift('trial');
-  }
-
-  if (!isMounted) {
-    return null; // Or a loading spinner
-  }
-
-  if (!activeBranchId) {
-    return <NoBranchDialog />;
-  }
 
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-background p-4">
-      <LimitReachedDialog isOpen={limitDialogOpen} onOpenChange={setLimitDialogOpen} limits={limitInfo} />
-
-      <AlertDialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>{newMember?.existing ? 'Member Re-activated!' : 'Member Added Successfully!'}</AlertDialogTitle>
-            <AlertDialogDescription>
-              {newMember?.existing 
-                ? `${newMember.name} already has an account. They can use their existing credentials to log in.`
-                : `Login credentials for ${newMember?.name} have been created.`
-              }
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-            <div className="space-y-4 my-4">
-                <div className="space-y-2">
-                    <Label htmlFor="loginId">Login ID (Phone No.)</Label>
-                    <div className="flex items-center gap-2">
-                        <Input id="loginId" value={newMember?.loginId || ''} readOnly />
-                         <Button variant="outline" size="icon" onClick={() => copyToClipboard(newMember?.loginId || '')}><ClipboardCopy className="h-4 w-4" /></Button>
-                    </div>
-                </div>
-                 <div className="space-y-2">
-                    <Label htmlFor="password">Password</Label>
-                     <div className="flex items-center gap-2">
-                        <Input id="password" value={newMember?.existing ? 'Account Already Created' : newMember?.password || ''} readOnly disabled={newMember?.existing} />
-                        {!newMember?.existing && <Button variant="outline" size="icon" onClick={() => copyToClipboard(newMember?.password || '')}><ClipboardCopy className="h-4 w-4" /></Button>}
-                    </div>
-                </div>
-            </div>
-          <AlertDialogFooter>
-            <Button variant="outline" onClick={handleGoToDashboard}>
-              <LayoutDashboard className="mr-2 h-4 w-4" />
-              Go to Dashboard
-            </Button>
-            <Button onClick={handleGoToPayment}>
-                <IndianRupee className="mr-2 h-4 w-4" />
-                Collect Payment
-            </Button>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
         <Card className="w-full max-w-2xl">
             <CardHeader>
                 <Progress value={progress} className="mb-4" />
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                      <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
-                          {steps[currentStep - 1].icon}
-                      </div>
-                      <div>
-                          <CardTitle>{steps[currentStep - 1].title}</CardTitle>
-                          <CardDescription>Step {currentStep} of {steps.length}</CardDescription>
-                      </div>
-                  </div>
-                  {activeBranchName && <div className="text-sm font-medium text-muted-foreground">Branch: {activeBranchName}</div>}
+                <div className="flex items-center gap-3">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                        {steps[currentStep - 1].icon}
+                    </div>
+                    <div>
+                        <CardTitle>{steps[currentStep - 1].title}</CardTitle>
+                        <CardDescription>Step {currentStep} of {steps.length}</CardDescription>
+                    </div>
                 </div>
             </CardHeader>
             <Form {...form}>
@@ -427,7 +193,22 @@ export default function AddMemberPage() {
                         </Select><FormMessage />
                         </FormItem>
                     )} />
-                    <FormField control={form.control} name="dob" render={({ field }) => ( <FormItem className="flex flex-col"><FormLabel>Date of Birth</FormLabel><FormControl><Input type="date" value={field.value ? format(field.value, 'yyyy-MM-dd') : ''} onChange={e => field.onChange(e.target.value ? new Date(e.target.value) : undefined)} /></FormControl><FormMessage /></FormItem>)} />
+                    <FormField control={form.control} name="dob" render={({ field }) => (
+                        <FormItem className="flex flex-col"><FormLabel>Date of Birth</FormLabel>
+                        <Popover>
+                            <PopoverTrigger asChild>
+                            <FormControl>
+                                <Button variant={"outline"} className={cn("pl-3 text-left font-normal", !field.value && "text-muted-foreground")}>
+                                {field.value ? format(field.value, "PPP") : <span>Pick a date</span>} <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                                </Button>
+                            </FormControl>
+                            </PopoverTrigger>
+                            <PopoverContent className="p-0" align="start">
+                            <Calendar mode="single" selected={field.value} onSelect={field.onChange} disabled={(date) => date > new Date() || date < new Date("1900-01-01")} initialFocus />
+                            </PopoverContent>
+                        </Popover><FormMessage />
+                        </FormItem>
+                    )} />
                     <FormField control={form.control} name="phone" render={({ field }) => ( <FormItem><FormLabel>Phone Number</FormLabel><FormControl><Input placeholder="9876543210" {...field} /></FormControl><FormMessage /></FormItem> )} />
                     <FormField control={form.control} name="email" render={({ field }) => ( <FormItem className="md:col-span-2"><FormLabel>Email (Optional)</FormLabel><FormControl><Input type="email" placeholder="john.doe@example.com" {...field} /></FormControl><FormMessage /></FormItem> )} />
                     </div>
@@ -438,17 +219,10 @@ export default function AddMemberPage() {
                             <FormItem><FormLabel>Membership Type</FormLabel>
                             <Select onValueChange={field.onChange} defaultValue={field.value}>
                                 <FormControl><SelectTrigger><SelectValue placeholder="Select type" /></SelectTrigger></FormControl>
-                                <SelectContent>
-                                    {combinedPlans.map(plan => (
-                                        <SelectItem key={plan} value={plan} className="capitalize">{plan}</SelectItem>
-                                    ))}
-                                </SelectContent>
+                                <SelectContent><SelectItem value="trial">Trial</SelectItem><SelectItem value="monthly">Monthly</SelectItem><SelectItem value="quarterly">Quarterly</SelectItem><SelectItem value="half-yearly">Half-Yearly</SelectItem><SelectItem value="yearly">Yearly</SelectItem></SelectContent>
                             </Select><FormMessage />
                             </FormItem>
                         )} />
-                        <FormField control={form.control} name="totalFee" render={({ field }) => ( <FormItem><FormLabel>Total Fee (₹)</FormLabel><FormControl><Input type="number" placeholder="1500" {...field} /></FormControl><FormMessage /></FormItem> )} />
-                        <FormField control={form.control} name="startDate" render={({ field }) => ( <FormItem className="flex flex-col"><FormLabel>Start Date</FormLabel><FormControl><Input type="date" value={field.value ? format(field.value, 'yyyy-MM-dd') : ''} onChange={e => field.onChange(e.target.value ? new Date(e.target.value) : undefined)} /></FormControl><FormMessage /></FormItem>)} />
-                        
                         <FormField control={form.control} name="assignedTrainer" render={({ field }) => (
                             <FormItem><FormLabel>Assigned Trainer (Optional)</FormLabel>
                             <Select onValueChange={field.onChange} defaultValue={field.value}>
@@ -460,6 +234,8 @@ export default function AddMemberPage() {
                             </Select><FormMessage />
                             </FormItem>
                         )} />
+                        <FormField control={form.control} name="startDate" render={({ field }) => ( <FormItem className="flex flex-col"><FormLabel>Start Date</FormLabel><FormControl><Input type="date" value={field.value ? format(field.value, 'yyyy-MM-dd') : ''} onChange={e => field.onChange(new Date(e.target.value))} /></FormControl><FormMessage /></FormItem>)} />
+                        <FormField control={form.control} name="endDate" render={({ field }) => ( <FormItem className="flex flex-col"><FormLabel>End Date</FormLabel><FormControl><Input type="date" value={field.value ? format(field.value, 'yyyy-MM-dd') : ''} onChange={e => field.onChange(new Date(e.target.value))} /></FormControl><FormMessage /></FormItem>)} />
                         <FormField control={form.control} name="plan" render={({ field }) => (
                             <FormItem className="md:col-span-2"><FormLabel>Plan/Package (Optional)</FormLabel>
                             <Select onValueChange={field.onChange} defaultValue={field.value}>
