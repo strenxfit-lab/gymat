@@ -231,7 +231,9 @@ export default function OwnerDashboardLayout({
                             <Link href="/dashboard/owner/equipment-maintenance" passHref>
                                 <SidebarMenuSubButton className={subMenuButtonClass}>Equipment maintenance</SidebarMenuSubButton>
                             </Link>
-                            <SidebarMenuSubButton className={subMenuButtonClass}>Inventory tracking</SidebarMenuSubButton>
+                            <Link href="/dashboard/owner/inventory-tracking" passHref>
+                                <SidebarMenuSubButton className={subMenuButtonClass}>Inventory tracking</SidebarMenuSubButton>
+                             </Link>
                         </SidebarMenuSub>
                     )}
                 </SidebarMenuItem>
