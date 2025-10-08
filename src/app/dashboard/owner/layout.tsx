@@ -167,7 +167,7 @@ export default function OwnerDashboardLayout({
                             <Link href="/dashboard/owner/member-status">
                                 <SidebarMenuSubButton className={subMenuButtonClass}>Membership pause/freeze</SidebarMenuSubButton>
                             </Link>
-                            <Link href="/dashboard/owner/reminders">
+                            <Link href="/dashboard/owner/automated-messages">
                                 <SidebarMenuSubButton className={subMenuButtonClass}>Reminders</SidebarMenuSubButton>
                             </Link>
                         </SidebarMenuSub>
