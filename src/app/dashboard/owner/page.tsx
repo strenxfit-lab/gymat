@@ -4,7 +4,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { doc, getDoc, collection, getDocs, Timestamp, query, orderBy, limit, where, addDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, getDoc, collection, getDocs, Timestamp, query, orderBy, limit, where, addDoc, serverTimestamp, updateDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -123,8 +123,6 @@ export default function OwnerDashboardPage() {
           }
         }
         
-        setQrValue(JSON.stringify({ gymId: userDocId, branchId: activeBranchId }));
-
         const now = new Date();
         const expiryAt = (gym.expiry_at as Timestamp)?.toDate();
         if (expiryAt) {
@@ -167,6 +165,15 @@ export default function OwnerDashboardPage() {
         const branchRef = doc(db, 'gyms', userDocId, 'branches', activeBranchId);
         const branchSnap = await getDoc(branchRef);
         const branchName = branchSnap.exists() ? branchSnap.data().name : gym.name;
+        
+        // Handle QR Code value
+        let qrCodeData = branchSnap.exists() ? branchSnap.data().qrCodeValue : null;
+        if (!qrCodeData) {
+            qrCodeData = JSON.stringify({ gymId: userDocId, branchId: activeBranchId });
+            await updateDoc(branchRef, { qrCodeValue: qrCodeData });
+        }
+        setQrValue(qrCodeData);
+
 
         const membersRef = collection(db, 'gyms', userDocId, 'branches', activeBranchId, 'members');
         const membersSnap = await getDocs(membersRef);
