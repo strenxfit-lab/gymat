@@ -20,9 +20,6 @@ function AuthChecker({ children }: { children: React.ReactNode }) {
     const userRole = localStorage.getItem('userRole');
     if (userRole) {
       router.replace(`/dashboard/${userRole}`);
-      // The redirect will cause the component to unmount, but we set this
-      // for cases where the redirect might be slow or interrupted.
-      setTimeout(() => setIsChecking(false), 500); 
     } else {
       setIsChecking(false);
     }
@@ -46,8 +43,8 @@ export default function Home() {
   const [expiredGymId, setExpiredGymId] = useState<string | null>(null);
 
   const handleExpiredLogin = (gymId: string) => {
-      setExpiredGymId(gymId);
-      setIsExpiredDialogOpen(true);
+    setExpiredGymId(gymId);
+    setIsExpiredDialogOpen(true);
   }
 
   return (
@@ -88,7 +85,7 @@ export default function Home() {
               </Alert>
               <LoginForm onExpired={handleExpiredLogin} />
             </CardContent>
-             <div className="p-6 pt-0 text-center">
+            <div className="p-6 pt-0 text-center">
               <Link href="/activate-trial" passHref>
                 <Button variant="ghost" className="text-primary hover:text-primary hover:bg-primary/10">
                   Don't have a key? Activate Trial
