@@ -16,7 +16,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Loader2, PlusCircle, Building, ArrowLeft, Phone, Mail } from 'lucide-react';
 import Link from 'next/link';
-import { AlertDialog, AlertDialogAction } from '@/components/ui/alert-dialog';
+import { AlertDialog, AlertDialogAction, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 
 
 interface Branch {
@@ -42,28 +42,36 @@ const addBranchSchema = z.object({
   name: z.string().min(1, 'Branch name is required.'),
 });
 
-function LimitReachedDialog({ isOpen, onOpenChange, limits }: { isOpen: boolean; onOpenChange: (open: boolean) => void, limits: LimitDialogInfo }) {
+function LimitReachedDialog({ isOpen, onOpenChange, limits, isMultiBranchError = false }: { isOpen: boolean; onOpenChange: (open: boolean) => void, limits: LimitDialogInfo, isMultiBranchError?: boolean }) {
   return (
     <AlertDialog open={isOpen} onOpenChange={onOpenChange}>
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>You've reached the limit of your trial account</AlertDialogTitle>
-          <AlertDialogDescription className="space-y-2 pt-2">
-            {limits.members !== undefined && <p>Members ({limits.members}/3)</p>}
-            {limits.trainers !== undefined && <p>Trainers ({limits.trainers}/2)</p>}
-            {limits.payments !== undefined && <p>Payments ({limits.payments}/5 per member)</p>}
-            {limits.equipment !== undefined && <p>Equipment ({limits.equipment}/1)</p>}
-            {limits.classes !== undefined && <p>Classes ({limits.classes}/1)</p>}
-            {limits.expenses !== undefined && <p>Expenses ({limits.expenses}/2)</p>}
-            {limits.inventory !== undefined && <p>Inventory ({limits.inventory}/1)</p>}
-            {limits.maintenance !== undefined && <p>Maintenance ({limits.maintenance}/1)</p>}
-            {limits.offers !== undefined && <p>Offers ({limits.offers}/1)</p>}
-            {limits.usageLogs !== undefined && <p>Usage Logs ({limits.usageLogs}/1)</p>}
-            {limits.branches !== undefined && <p>Branches ({limits.branches}/1)</p>}
-            <p className="font-semibold pt-2">Upgrade to a full Account to continue managing without restrictions.</p>
+          <AlertDialogTitle>{isMultiBranchError ? "Multi-Branch Feature Not Enabled" : "You've reached the limit of your trial account"}</AlertDialogTitle>
+          <AlertDialogDescription>
+            {isMultiBranchError
+              ? "Your current plan only supports one branch. To add more locations, please upgrade your plan."
+              : "Upgrade to a full Account to continue managing without restrictions."}
           </AlertDialogDescription>
         </AlertDialogHeader>
-        <div className="flex flex-col space-y-2">
+        
+        {!isMultiBranchError && (
+            <div className="text-sm text-muted-foreground space-y-2">
+                {limits.branches !== undefined && <p>Branches ({limits.branches}/1)</p>}
+                {limits.members !== undefined && <p>Members ({limits.members}/3)</p>}
+                {limits.trainers !== undefined && <p>Trainers ({limits.trainers}/2)</p>}
+                {limits.payments !== undefined && <p>Payments ({limits.payments}/5 per member)</p>}
+                {limits.equipment !== undefined && <p>Equipment ({limits.equipment}/1)</p>}
+                {limits.classes !== undefined && <p>Classes ({limits.classes}/1)</p>}
+                {limits.expenses !== undefined && <p>Expenses ({limits.expenses}/2)</p>}
+                {limits.inventory !== undefined && <p>Inventory ({limits.inventory}/1)</p>}
+                {limits.maintenance !== undefined && <p>Maintenance ({limits.maintenance}/1)</p>}
+                {limits.offers !== undefined && <p>Offers ({limits.offers}/1)</p>}
+                {limits.usageLogs !== undefined && <p>Usage Logs ({limits.usageLogs}/1)</p>}
+            </div>
+        )}
+
+        <div className="flex flex-col space-y-2 pt-2">
             <p className="font-bold text-center">Contact Strenxfit Support</p>
             <a href="https://wa.me/917988487892" target="_blank" rel="noopener noreferrer" className="flex items-center justify-center gap-3 p-3 rounded-md hover:bg-accent transition-colors">
                 <Phone className="h-5 w-5 text-muted-foreground" />
@@ -84,7 +92,9 @@ export default function MultiBranchPage() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [userDocId, setUserDocId] = useState<string | null>(null);
   const [isTrial, setIsTrial] = useState(false);
+  const [hasMultiBranch, setHasMultiBranch] = useState(false);
   const [limitDialogOpen, setLimitDialogOpen] = useState(false);
+  const [isMultiBranchLimitError, setIsMultiBranchLimitError] = useState(false);
   const router = useRouter();
   const { toast } = useToast();
 
@@ -106,8 +116,10 @@ export default function MultiBranchPage() {
         try {
             const gymRef = doc(db, 'gyms', docId);
             const gymSnap = await getDoc(gymRef);
-            if(gymSnap.exists() && gymSnap.data().isTrial) {
-                setIsTrial(true);
+            if(gymSnap.exists()){
+                const gymData = gymSnap.data();
+                setIsTrial(gymData.isTrial || false);
+                setHasMultiBranch(gymData.multiBranch || false);
             }
 
             const branchesCollection = collection(db, 'gyms', docId, 'branches');
@@ -129,7 +141,8 @@ export default function MultiBranchPage() {
   const onAddBranch = async (values: z.infer<typeof addBranchSchema>) => {
     if (!userDocId) return;
     
-    if (isTrial && branches.length >= 1) {
+    if ((isTrial || !hasMultiBranch) && branches.length >= 1) {
+        setIsMultiBranchLimitError(!hasMultiBranch && !isTrial);
         setLimitDialogOpen(true);
         return;
     }
@@ -155,7 +168,8 @@ export default function MultiBranchPage() {
   }
 
   const handleAddBranchClick = () => {
-    if (isTrial && branches.length >= 1) {
+    if ((isTrial || !hasMultiBranch) && branches.length >= 1) {
+        setIsMultiBranchLimitError(!hasMultiBranch && !isTrial);
         setLimitDialogOpen(true);
     } else {
         setIsDialogOpen(true);
@@ -173,7 +187,12 @@ export default function MultiBranchPage() {
 
   return (
     <div className="container mx-auto py-10">
-        <LimitReachedDialog isOpen={limitDialogOpen} onOpenChange={setLimitDialogOpen} limits={{ branches: branches.length }} />
+        <LimitReachedDialog 
+            isOpen={limitDialogOpen} 
+            onOpenChange={setLimitDialogOpen} 
+            limits={{ branches: branches.length }}
+            isMultiBranchError={isMultiBranchLimitError}
+        />
       <Card className="w-full max-w-2xl mx-auto">
         <CardHeader className="flex flex-row items-center justify-between">
             <div>
