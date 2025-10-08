@@ -4,18 +4,25 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { doc, getDoc, collection, getDocs, Timestamp, query, orderBy, limit, where } from 'firebase/firestore';
+import { doc, getDoc, collection, getDocs, Timestamp, query, orderBy, limit, where, addDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Bell, Building, Calendar, DollarSign, PlusCircle, Send, Users, UserPlus, TrendingUp, AlertCircle, Sparkles, LifeBuoy, BarChart3, IndianRupee, Mail, Phone, Loader2, Star, ClockIcon } from 'lucide-react';
+import { Bell, Building, Calendar, DollarSign, PlusCircle, Send, Users, UserPlus, TrendingUp, AlertCircle, Sparkles, LifeBuoy, BarChart3, IndianRupee, Mail, Phone, Loader2, Star, ClockIcon, BellRing } from 'lucide-react';
 import { ResponsiveContainer, BarChart, XAxis, YAxis, Tooltip, Bar, Legend } from 'recharts';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { cn } from '@/lib/utils';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import * as z from 'zod';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { Textarea } from '@/components/ui/textarea';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+
 
 interface Member {
   id: string;
@@ -56,14 +63,25 @@ interface GymData {
   trialKey?: string;
 }
 
+const announcementSchema = z.object({
+  message: z.string().min(10, { message: "Announcement must be at least 10 characters."}),
+  audience: z.enum(['all', 'members', 'trainers'], { required_error: "You must select an audience."}),
+});
+type AnnouncementFormData = z.infer<typeof announcementSchema>;
+
 export default function OwnerDashboardPage() {
   const [gymData, setGymData] = useState<GymData | null>(null);
   const [loading, setLoading] = useState(true);
   const [isSupportDialogOpen, setIsSupportDialogOpen] = useState(false);
+  const [isAnnouncementDialogOpen, setIsAnnouncementDialogOpen] = useState(false);
   const [trialExpiresAt, setTrialExpiresAt] = useState<Date | null>(null);
   const [timeLeft, setTimeLeft] = useState('');
   const router = useRouter();
   const { toast } = useToast();
+
+  const announcementForm = useForm<AnnouncementFormData>({
+    resolver: zodResolver(announcementSchema),
+  });
 
   useEffect(() => {
     const userDocId = localStorage.getItem('userDocId');
@@ -309,6 +327,33 @@ export default function OwnerDashboardPage() {
       return () => clearInterval(intervalId);
     }
   }, [trialExpiresAt]);
+  
+  const onAnnouncementSubmit = async (data: AnnouncementFormData) => {
+    const userDocId = localStorage.getItem('userDocId');
+    const activeBranchId = localStorage.getItem('activeBranch');
+
+    if (!userDocId || !activeBranchId) {
+        toast({ title: "Error", description: "No active branch found.", variant: "destructive"});
+        return;
+    }
+
+    try {
+        const announcementsRef = collection(db, 'gyms', userDocId, 'branches', activeBranchId, 'announcements');
+        await addDoc(announcementsRef, {
+            ...data,
+            createdAt: Timestamp.now(),
+            gymId: userDocId,
+            branchId: activeBranchId,
+            status: 'active'
+        });
+        toast({ title: "Announcement Sent!", description: "Your announcement has been published."});
+        setIsAnnouncementDialogOpen(false);
+        announcementForm.reset();
+    } catch(error) {
+        console.error("Error sending announcement: ", error);
+        toast({ title: "Error", description: "Could not send announcement.", variant: "destructive"});
+    }
+  }
 
 
   if (loading) {
@@ -413,18 +458,73 @@ export default function OwnerDashboardPage() {
                     </Link>
                 </CardContent>
             </Card>
-            <Card className="hover:bg-card/90 transition-colors">
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">Send Notification</CardTitle>
-                    <Send className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                    <Button className="w-full mt-2">
-                        <Send className="mr-2 h-4 w-4" />
-                        Notify All
-                    </Button>
-                </CardContent>
-            </Card>
+            <Dialog open={isAnnouncementDialogOpen} onOpenChange={setIsAnnouncementDialogOpen}>
+                <Card className="hover:bg-card/90 transition-colors">
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                        <CardTitle className="text-sm font-medium">Make Announcement</CardTitle>
+                        <Send className="h-4 w-4 text-muted-foreground" />
+                    </CardHeader>
+                    <CardContent>
+                        <DialogTrigger asChild>
+                            <Button className="w-full mt-2">
+                                <BellRing className="mr-2 h-4 w-4" />
+                                Notify All
+                            </Button>
+                        </DialogTrigger>
+                    </CardContent>
+                </Card>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Make an Announcement</DialogTitle>
+                        <DialogDescription>
+                            Send a message to your members, trainers, or everyone.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <Form {...announcementForm}>
+                        <form onSubmit={announcementForm.handleSubmit(onAnnouncementSubmit)} className="space-y-4">
+                            <FormField
+                                control={announcementForm.control}
+                                name="audience"
+                                render={({ field }) => (
+                                    <FormItem className="space-y-3">
+                                    <FormLabel>Select Audience</FormLabel>
+                                    <FormControl>
+                                        <RadioGroup onValueChange={field.onChange} value={field.value} className="flex gap-4">
+                                            <FormItem className="flex items-center space-x-3 space-y-0"><FormControl><RadioGroupItem value="all" /></FormControl><FormLabel className="font-normal">All</FormLabel></FormItem>
+                                            <FormItem className="flex items-center space-x-3 space-y-0"><FormControl><RadioGroupItem value="members" /></FormControl><FormLabel className="font-normal">Members Only</FormLabel></FormItem>
+                                            <FormItem className="flex items-center space-x-3 space-y-0"><FormControl><RadioGroupItem value="trainers" /></FormControl><FormLabel className="font-normal">Trainers Only</FormLabel></FormItem>
+                                        </RadioGroup>
+                                    </FormControl>
+                                        <FormMessage />
+                                    </FormItem>
+                                )} />
+                             <FormField
+                                control={announcementForm.control}
+                                name="message"
+                                render={({ field }) => (
+                                    <FormItem>
+                                    <FormLabel>Message</FormLabel>
+                                    <FormControl>
+                                        <Textarea
+                                            placeholder="e.g., The gym will be closed tomorrow for maintenance."
+                                            className="min-h-[120px]"
+                                            {...field}
+                                        />
+                                    </FormControl>
+                                    <FormMessage />
+                                    </FormItem>
+                                )}
+                            />
+                            <DialogFooter>
+                                <Button type="button" variant="outline" onClick={() => setIsAnnouncementDialogOpen(false)}>Cancel</Button>
+                                <Button type="submit" disabled={announcementForm.formState.isSubmitting}>
+                                    {announcementForm.formState.isSubmitting ? <Loader2 className="animate-spin" /> : 'Send Announcement'}
+                                </Button>
+                            </DialogFooter>
+                        </form>
+                    </Form>
+                </DialogContent>
+            </Dialog>
         </div>
 
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
