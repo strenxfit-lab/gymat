@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState } from 'react';
@@ -64,6 +65,8 @@ export default function LoginForm() {
       }
       
       localStorage.setItem('userDocId', userDoc.id);
+      localStorage.setItem('userRole', userData.role);
+
 
       toast({
         title: 'Welcome!',
