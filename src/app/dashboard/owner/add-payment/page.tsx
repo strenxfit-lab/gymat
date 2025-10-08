@@ -36,7 +36,8 @@ const formSchema = z.object({
   balanceDue: z.number().min(0),
   paymentDate: z.date(),
   paymentMode: z.string().nonempty({ message: "Please select a payment mode." }),
-  transactionId: z.string().optional(), // This will be removed from the form but keep in schema for now
+  transactionId: z.string().optional(),
+  nextDueDate: z.date().optional(),
 });
 
 type FormData = z.infer<typeof formSchema>;
@@ -517,7 +518,7 @@ export default function AddPaymentPage() {
                         <FormField control={form.control} name="discount" render={({ field }) => ( <FormItem><FormLabel>Discount (₹, Optional)</FormLabel><FormControl><Input type="number" placeholder="0" {...field} value={field.value ?? ''} onChange={e => field.onChange(e.target.value)} disabled={!!form.watch('appliedOfferId') && form.watch('appliedOfferId') !== 'none'} /></FormControl><FormMessage /></FormItem> )} />
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <FormField control={form.control} name="amountPaid" render={({ field }) => ( <FormItem><FormLabel>Amount Paid (₹)</FormLabel><FormControl><Input type="number" {...field} onChange={e => field.onChange(e.target.value === '' ? '' : parseInt(e.target.value, 10))} /></FormControl><FormMessage /></FormItem> )} />
+                        <FormField control={form.control} name="amountPaid" render={({ field }) => ( <FormItem><FormLabel>Amount Paid (₹)</FormLabel><FormControl><Input type="number" {...field} onChange={e => field.onChange(e.target.value === '' ? 0 : parseInt(e.target.value, 10))} /></FormControl><FormMessage /></FormItem> )} />
                         <FormField control={form.control} name="balanceDue" render={({ field }) => ( <FormItem><FormLabel>Balance Due (₹)</FormLabel><FormControl><Input type="number" {...field} readOnly disabled /></FormControl><FormMessage /></FormItem> )} />
                     </div>
                 </div>
@@ -561,3 +562,5 @@ export default function AddPaymentPage() {
     </div>
   );
 }
+
+    
