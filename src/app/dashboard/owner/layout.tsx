@@ -19,18 +19,19 @@ import {
   SidebarGroupLabel,
 } from '@/components/ui/sidebar';
 import { Dumbbell, Users, CreditCard, ClipboardList, BarChart3, Megaphone, Boxes, ChevronDown } from 'lucide-react';
-import { Button } from '@/components/ui/button';
 
 export default function OwnerDashboardLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const [openSubMenus, setOpenSubMenus] = useState<{[key: string]: boolean}>({});
+  const [openSubMenu, setOpenSubMenu] = useState<string | null>(null);
 
   const toggleSubMenu = (name: string) => {
-    setOpenSubMenus(prev => ({...prev, [name]: !prev[name]}));
+    setOpenSubMenu(prev => (prev === name ? null : name));
   };
+
+  const subMenuButtonClass = "text-muted-foreground hover:text-foreground font-normal";
 
   return (
     <SidebarProvider defaultOpen={false}>
@@ -48,81 +49,81 @@ export default function OwnerDashboardLayout({
                 <SidebarMenuItem>
                     <SidebarMenuButton onClick={() => toggleSubMenu('member')} className="justify-between">
                         <div className="flex items-center gap-2"><Users /> Member Management</div>
-                        <ChevronDown className={`transition-transform duration-200 ${openSubMenus['member'] ? 'rotate-180' : ''}`} />
+                        <ChevronDown className={`transition-transform duration-200 ${openSubMenu === 'member' ? 'rotate-180' : ''}`} />
                     </SidebarMenuButton>
-                    {openSubMenus['member'] && (
-                        <SidebarMenuSub>
-                            <SidebarMenuSubButton>Multi-branch support</SidebarMenuSubButton>
-                            <SidebarMenuSubButton>Member profile with history</SidebarMenuSubButton>
-                            <SidebarMenuSubButton>Membership pause/freeze</SidebarMenuSubButton>
-                            <SidebarMenuSubButton>Automated messages</SidebarMenuSubButton>
+                    {openSubMenu === 'member' && (
+                        <SidebarMenuSub className="space-y-3">
+                            <SidebarMenuSubButton className={subMenuButtonClass}>Multi-branch support</SidebarMenuSubButton>
+                            <SidebarMenuSubButton className={subMenuButtonClass}>Member profile with history</SidebarMenuSubButton>
+                            <SidebarMenuSubButton className={subMenuButtonClass}>Membership pause/freeze</SidebarMenuSubButton>
+                            <SidebarMenuSubButton className={subMenuButtonClass}>Automated messages</SidebarMenuSubButton>
                         </SidebarMenuSub>
                     )}
                 </SidebarMenuItem>
                 <SidebarMenuItem>
                     <SidebarMenuButton onClick={() => toggleSubMenu('billing')} className="justify-between">
                         <div className="flex items-center gap-2"><CreditCard /> Payment & Billing</div>
-                        <ChevronDown className={`transition-transform duration-200 ${openSubMenus['billing'] ? 'rotate-180' : ''}`} />
+                        <ChevronDown className={`transition-transform duration-200 ${openSubMenu === 'billing' ? 'rotate-180' : ''}`} />
                     </SidebarMenuButton>
-                    {openSubMenus['billing'] && (
-                        <SidebarMenuSub>
-                            <SidebarMenuSubButton>Recurring billing</SidebarMenuSubButton>
+                    {openSubMenu === 'billing' && (
+                        <SidebarMenuSub className="space-y-3">
+                            <SidebarMenuSubButton className={subMenuButtonClass}>Recurring billing</SidebarMenuSubButton>
                         </SidebarMenuSub>
                     )}
                 </SidebarMenuItem>
                 <SidebarMenuItem>
                     <SidebarMenuButton onClick={() => toggleSubMenu('class')} className="justify-between">
                         <div className="flex items-center gap-2"><ClipboardList /> Class & Trainer Management</div>
-                        <ChevronDown className={`transition-transform duration-200 ${openSubMenus['class'] ? 'rotate-180' : ''}`} />
+                        <ChevronDown className={`transition-transform duration-200 ${openSubMenu === 'class' ? 'rotate-180' : ''}`} />
                     </SidebarMenuButton>
-                     {openSubMenus['class'] && (
-                        <SidebarMenuSub>
-                            <SidebarMenuSubButton>Class scheduling</SidebarMenuSubButton>
-                            <SidebarMenuSubButton>Waitlist management</SidebarMenuSubButton>
-                            <SidebarMenuSubButton>Trainer assignments</SidebarMenuSubButton>
-                            <SidebarMenuSubButton>Session tracking</SidebarMenuSubButton>
-                            <SidebarMenuSubButton>Trainer performance</SidebarMenuSubButton>
+                     {openSubMenu === 'class' && (
+                        <SidebarMenuSub className="space-y-3">
+                            <SidebarMenuSubButton className={subMenuButtonClass}>Class scheduling</SidebarMenuSubButton>
+                            <SidebarMenuSubButton className={subMenuButtonClass}>Waitlist management</SidebarMenuSubButton>
+                            <SidebarMenuSubButton className={subMenuButtonClass}>Trainer assignments</SidebarMenuSubButton>
+                            <SidebarMenuSubButton className={subMenuButtonClass}>Session tracking</SidebarMenuSubButton>
+                            <SidebarMenuSubButton className={subMenuButtonClass}>Trainer performance</SidebarMenuSubButton>
                         </SidebarMenuSub>
                     )}
                 </SidebarMenuItem>
                 <SidebarMenuItem>
                      <SidebarMenuButton onClick={() => toggleSubMenu('reports')} className="justify-between">
                         <div className="flex items-center gap-2"><BarChart3 /> Reporting & Analytics</div>
-                        <ChevronDown className={`transition-transform duration-200 ${openSubMenus['reports'] ? 'rotate-180' : ''}`} />
+                        <ChevronDown className={`transition-transform duration-200 ${openSubMenu === 'reports' ? 'rotate-180' : ''}`} />
                     </SidebarMenuButton>
-                     {openSubMenus['reports'] && (
-                        <SidebarMenuSub>
-                            <SidebarMenuSubButton>Revenue reports</SidebarMenuSubButton>
-                            <SidebarMenuSubButton>Attendance trends</SidebarMenuSubButton>
-                            <SidebarMenuSubButton>Trainer performance</SidebarMenuSubButton>
+                     {openSubMenu === 'reports' && (
+                        <SidebarMenuSub className="space-y-3">
+                            <SidebarMenuSubButton className={subMenuButtonClass}>Revenue reports</SidebarMenuSubButton>
+                            <SidebarMenuSubButton className={subMenuButtonClass}>Attendance trends</SidebarMenuSubButton>
+                            <SidebarMenuSubButton className={subMenuButtonClass}>Trainer performance</SidebarMenuSubButton>
                         </SidebarMenuSub>
                     )}
                 </SidebarMenuItem>
                 <SidebarMenuItem>
                      <SidebarMenuButton onClick={() => toggleSubMenu('comms')} className="justify-between">
                         <div className="flex items-center gap-2"><Megaphone /> Communication & Marketing</div>
-                        <ChevronDown className={`transition-transform duration-200 ${openSubMenus['comms'] ? 'rotate-180' : ''}`} />
+                        <ChevronDown className={`transition-transform duration-200 ${openSubMenu === 'comms' ? 'rotate-180' : ''}`} />
                     </SidebarMenuButton>
-                     {openSubMenus['comms'] && (
-                        <SidebarMenuSub>
-                            <SidebarMenuSubButton>SMS, WhatsApp, Email</SidebarMenuSubButton>
-                            <SidebarMenuSubButton>Referral programs</SidebarMenuSubButton>
-                            <SidebarMenuSubButton>Event management</SidebarMenuSubButton>
-                            <SidebarMenuSubButton>Social media integration</SidebarMenuSubButton>
+                     {openSubMenu === 'comms' && (
+                        <SidebarMenuSub className="space-y-3">
+                            <SidebarMenuSubButton className={subMenuButtonClass}>SMS, WhatsApp, Email</SidebarMenuSubButton>
+                            <SidebarMenuSubButton className={subMenuButtonClass}>Referral programs</SidebarMenuSubButton>
+                            <SidebarMenuSubButton className={subMenuButtonClass}>Event management</SidebarMenuSubButton>
+                            <SidebarMenuSubButton className={subMenuButtonClass}>Social media integration</SidebarMenuSubButton>
                         </SidebarMenuSub>
                     )}
                 </SidebarMenuItem>
                  <SidebarMenuItem>
                      <SidebarMenuButton onClick={() => toggleSubMenu('inventory')} className="justify-between">
                         <div className="flex items-center gap-2"><Boxes /> Inventory & Facility</div>
-                        <ChevronDown className={`transition-transform duration-200 ${openSubMenus['inventory'] ? 'rotate-180' : ''}`} />
+                        <ChevronDown className={`transition-transform duration-200 ${openSubMenu === 'inventory' ? 'rotate-180' : ''}`} />
                     </SidebarMenuButton>
-                     {openSubMenus['inventory'] && (
-                        <SidebarMenuSub>
-                            <SidebarMenuSubButton>Equipment maintenance</SidebarMenuSubButton>
-                            <SidebarMenuSubButton>Inventory tracking</SidebarMenuSubButton>
-                            <SidebarMenuSubButton>Low-stock alerts</SidebarMenuSubButton>
-                            <SidebarMenuSubButton>Room/class booking</SidebarMenuSubButton>
+                     {openSubMenu === 'inventory' && (
+                        <SidebarMenuSub className="space-y-3">
+                            <SidebarMenuSubButton className={subMenuButtonClass}>Equipment maintenance</SidebarMenuSubButton>
+                            <SidebarMenuSubButton className={subMenuButtonClass}>Inventory tracking</SidebarMenuSubButton>
+                            <SidebarMenuSubButton className={subMenuButtonClass}>Low-stock alerts</SidebarMenuSubButton>
+                            <SidebarMenuSubButton className={subMenuButtonClass}>Room/class booking</SidebarMenuSubButton>
                         </SidebarMenuSub>
                     )}
                 </SidebarMenuItem>
