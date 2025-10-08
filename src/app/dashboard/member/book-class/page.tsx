@@ -3,7 +3,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { collection, getDocs, Timestamp, doc, addDoc, setDoc, getDoc, serverTimestamp, deleteDoc } from 'firebase/firestore';
+import { collection, getDocs, Timestamp, doc, addDoc, setDoc, getDoc, serverTimestamp, deleteDoc, query, where } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
@@ -49,12 +49,11 @@ export default function BookClassPage() {
       const trainersList = trainersSnapshot.docs.map(doc => ({ id: doc.id, name: doc.data().fullName }));
 
       const classesCollection = collection(db, 'gyms', userDocId, 'branches', activeBranchId, 'classes');
-      const q = collection(classesCollection);
+      const now = new Date();
+      const q = query(classesCollection, where("dateTime", ">", Timestamp.fromDate(now)));
       const classesSnapshot = await getDocs(q);
 
-      const now = new Date();
       const classesListPromises = classesSnapshot.docs
-        .filter(docSnap => (docSnap.data().dateTime as Timestamp).toDate() > now)
         .map(async (docSnap) => {
           const data = docSnap.data();
           const trainer = trainersList.find(t => t.id === data.trainerId);
