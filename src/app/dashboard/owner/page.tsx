@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Bell, Building, Calendar, DollarSign, PlusCircle, Send, Users, UserPlus, TrendingUp, AlertCircle, Sparkles, LifeBuoy, BarChart3, IndianRupee } from 'lucide-react';
 import { ResponsiveContainer, BarChart, XAxis, YAxis, Tooltip, Bar, Legend } from 'recharts';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Separator } from '@/components/ui/separator';
 
 interface Member {
   id: string;
@@ -19,7 +20,7 @@ interface Member {
   endDate: Date;
   plan: string;
   phone: string;
-  pendingAmount: number;
+  totalFee: number;
 }
 
 interface Trainer {
@@ -41,6 +42,7 @@ interface GymData {
   expiredMembers: number;
   trainers: Trainer[];
   upcomingExpiries: Member[];
+  upcomingExpiriesTotal: number;
   todaysCheckIns: number;
   newTrialMembers: number;
   runningOffers: string[];
@@ -87,13 +89,14 @@ export default function OwnerDashboardPage() {
         let activeMembers = 0;
         let expiredMembers = 0;
         let upcomingExpiries: Member[] = [];
+        let upcomingExpiriesTotal = 0;
         const activePackages = new Set<string>();
         
         let todaysCollection = 0;
         let thisMonthsRevenue = 0;
         let pendingDues = 0;
         
-        const members: {id: string, plan: string, totalFee: number}[] = [];
+        const members: {id: string, plan: string, assignedTrainer?: string, totalFee: number}[] = [];
 
         for (const memberDoc of membersSnap.docs) {
             const data = memberDoc.data();
@@ -110,6 +113,7 @@ export default function OwnerDashboardPage() {
                 plan: data.plan,
                 totalFee: memberTotalFee,
                 phone: data.phone,
+                assignedTrainer: data.assignedTrainer
             };
             members.push(memberInfo);
 
@@ -145,15 +149,14 @@ export default function OwnerDashboardPage() {
                       endDate: expiry, 
                       plan: data.plan,
                       phone: data.phone,
-                      pendingAmount: memberPendingDue > 0 ? memberPendingDue : ((memberTotalFee - totalPaidForCurrentTerm > 0) ? (memberTotalFee - totalPaidForCurrentTerm) : 0),
+                      totalFee: memberTotalFee
                     });
+                    upcomingExpiriesTotal += memberTotalFee;
                 }
             } else {
                 expiredMembers++;
                 const outstandingForExpired = memberTotalFee - totalPaidForCurrentTerm;
                 if(outstandingForExpired > 0 && !paymentsSnap.empty) {
-                     // This logic is tricky. We'll rely on balanceDue from records for active members.
-                     // For expired, we will add the diff if it wasn't already part of pendingDues from a record.
                      if (memberPendingDue === 0) {
                         pendingDues += outstandingForExpired;
                      }
@@ -171,8 +174,7 @@ export default function OwnerDashboardPage() {
             return {
                 id: doc.id,
                 name: data.fullName,
-                // assignedMembers count would need to be calculated based on member data
-                assignedMembers: members.filter(m => m.plan === data.specialization).length 
+                assignedMembers: members.filter(m => m.assignedTrainer === doc.id).length 
             };
         });
 
@@ -189,6 +191,7 @@ export default function OwnerDashboardPage() {
           expiredMembers: expiredMembers,
           trainers: trainersData,
           upcomingExpiries: upcomingExpiries,
+          upcomingExpiriesTotal: upcomingExpiriesTotal,
           todaysCheckIns: 0, // Needs attendance data
           newTrialMembers: 0, // Needs member sign-up date
           runningOffers: gym.runningOffers || [],
@@ -265,7 +268,7 @@ export default function OwnerDashboardPage() {
                     </Link>
                 </CardContent>
             </Card>
-            <Card className="hover:bg-card/90 transition-colors">
+            <Card className="hover_bg-card/90 transition-colors">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                     <CardTitle className="text-sm font-medium">Collect Fees</CardTitle>
                     <DollarSign className="h-4 w-4 text-muted-foreground" />
@@ -373,21 +376,35 @@ export default function OwnerDashboardPage() {
                     </CardTitle>
                 </CardHeader>
                 <CardContent>
-                    <ul className="space-y-3">
-                        {gymData.upcomingExpiries.map(member => (
-                            <li key={member.id} className="flex justify-between items-center text-sm">
-                                <div>
-                                    <p className="font-semibold">{member.name} <span className="font-normal text-muted-foreground">({member.plan})</span></p>
-                                    <p className="text-xs text-muted-foreground">{member.phone}</p>
-                                </div>
-                                <div className="text-right">
-                                  <p className="font-semibold text-destructive">₹{member.pendingAmount.toLocaleString()}</p>
-                                  <p className="text-xs text-muted-foreground">Expires: {member.endDate.toLocaleDateString()}</p>
-                                </div>
-                            </li>
-                        ))}
-                         {gymData.upcomingExpiries.length === 0 && <p className="text-muted-foreground text-sm">No upcoming expiries.</p>}
-                    </ul>
+                    <ScrollArea className="h-[150px]">
+                        <ul className="space-y-3 pr-4">
+                            {gymData.upcomingExpiries.map(member => (
+                                <li key={member.id} className="flex justify-between items-center text-sm">
+                                    <div className="flex-1">
+                                        <p className="font-semibold">{member.name} <span className="font-normal text-muted-foreground">({member.plan})</span></p>
+                                        <p className="text-xs text-muted-foreground">{member.phone}</p>
+                                        <p className="text-xs text-muted-foreground">Expires: {member.endDate.toLocaleDateString()}</p>
+                                    </div>
+                                    <div className="text-right ml-4">
+                                      <p className="font-semibold">₹{member.totalFee.toLocaleString()}</p>
+                                      <Link href={`/dashboard/owner/add-payment?memberId=${member.id}&memberName=${encodeURIComponent(member.name)}`} passHref>
+                                        <Button variant="link" size="sm" className="h-auto p-0 text-primary">Collect</Button>
+                                      </Link>
+                                    </div>
+                                </li>
+                            ))}
+                             {gymData.upcomingExpiries.length === 0 && <p className="text-muted-foreground text-sm">No upcoming expiries.</p>}
+                        </ul>
+                    </ScrollArea>
+                    {gymData.upcomingExpiries.length > 0 && (
+                        <>
+                            <Separator className="my-4" />
+                            <div className="flex justify-between items-center font-bold">
+                                <span>Total Upcoming Revenue</span>
+                                <span>₹{gymData.upcomingExpiriesTotal.toLocaleString()}</span>
+                            </div>
+                        </>
+                    )}
                 </CardContent>
             </Card>
         </div>
@@ -455,5 +472,3 @@ export default function OwnerDashboardPage() {
     </ScrollArea>
   );
 }
-
-    
