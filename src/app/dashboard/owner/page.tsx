@@ -3,18 +3,16 @@
 "use client";
 
 import { useState, useEffect } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { doc, getDoc, collection, getDocs, Timestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Bell, Building, Calendar, DollarSign, PlusCircle, Send, Users, UserPlus, TrendingUp, AlertCircle, Sparkles, LifeBuoy, BarChart3 } from 'lucide-react';
+import { Bell, Building, Calendar, DollarSign, PlusCircle, Send, Users, UserPlus, TrendingUp, AlertCircle, Sparkles, LifeBuoy, BarChart3, IndianRupee } from 'lucide-react';
 import { ResponsiveContainer, BarChart, XAxis, YAxis, Tooltip, Bar, Legend } from 'recharts';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import AddMemberDialog from '@/components/add-member-dialog';
-import AddTrainerDialog from '@/components/add-trainer-dialog';
-import AddPaymentDialog from '@/components/add-payment-dialog';
 
 interface Member {
   id: string;
@@ -92,7 +90,7 @@ export default function OwnerDashboardPage() {
         
         const members: Member[] = membersSnap.docs.map(doc => {
             const data = doc.data();
-            if (!data.endDate) {
+            if (!data.endDate || !(data.endDate instanceof Timestamp)) {
               return null;
             }
             const expiry = (data.endDate as Timestamp).toDate();
@@ -195,7 +193,12 @@ export default function OwnerDashboardPage() {
                     <UserPlus className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
-                    <AddMemberDialog />
+                    <Link href="/dashboard/owner/add-member" passHref>
+                        <Button className="w-full mt-2">
+                            <PlusCircle className="mr-2 h-4 w-4" />
+                            New Member
+                        </Button>
+                    </Link>
                 </CardContent>
             </Card>
              <Card className="hover:bg-card/90 transition-colors">
@@ -204,7 +207,12 @@ export default function OwnerDashboardPage() {
                     <UserPlus className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
-                    <AddTrainerDialog />
+                    <Link href="/dashboard/owner/add-trainer" passHref>
+                        <Button className="w-full mt-2">
+                            <PlusCircle className="mr-2 h-4 w-4" />
+                            New Trainer
+                        </Button>
+                    </Link>
                 </CardContent>
             </Card>
             <Card className="hover:bg-card/90 transition-colors">
@@ -213,7 +221,12 @@ export default function OwnerDashboardPage() {
                     <DollarSign className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
-                    <AddPaymentDialog />
+                     <Link href="/dashboard/owner/add-payment" passHref>
+                        <Button className="w-full mt-2">
+                            <IndianRupee className="mr-2 h-4 w-4" />
+                            Add Payment
+                        </Button>
+                    </Link>
                 </CardContent>
             </Card>
             <Card className="hover:bg-card/90 transition-colors">
