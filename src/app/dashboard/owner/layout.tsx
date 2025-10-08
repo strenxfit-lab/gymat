@@ -167,8 +167,8 @@ export default function OwnerDashboardLayout({
                             <Link href="/dashboard/owner/member-status">
                                 <SidebarMenuSubButton className={subMenuButtonClass}>Membership pause/freeze</SidebarMenuSubButton>
                             </Link>
-                            <Link href="/dashboard/owner/automated-messages">
-                                <SidebarMenuSubButton className={subMenuButtonClass}>Automated</SidebarMenuSubButton>
+                            <Link href="/dashboard/owner/reminders">
+                                <SidebarMenuSubButton className={subMenuButtonClass}>Reminders</SidebarMenuSubButton>
                             </Link>
                         </SidebarMenuSub>
                     )}
@@ -180,7 +180,9 @@ export default function OwnerDashboardLayout({
                     </SidebarMenuButton>
                      {openSubMenu === 'class' && (
                         <SidebarMenuSub className="space-y-3">
-                            <SidebarMenuSubButton className={subMenuButtonClass}>Class scheduling</SidebarMenuSubButton>
+                            <Link href="/dashboard/owner/class-scheduling">
+                                <SidebarMenuSubButton className={subMenuButtonClass}>Class scheduling</SidebarMenuSubButton>
+                            </Link>
                             <SidebarMenuSubButton className={subMenuButtonClass}>Waitlist management</SidebarMenuSubButton>
                             <SidebarMenuSubButton className={subMenuButtonClass}>Trainer assignments</SidebarMenuSubButton>
                             <SidebarMenuSubButton className={subMenuButtonClass}>Session tracking</SidebarMenuSubButton>
