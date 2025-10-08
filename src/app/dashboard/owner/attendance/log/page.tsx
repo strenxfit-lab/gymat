@@ -44,22 +44,21 @@ export default function AttendanceLogPage() {
         const attendanceCollection = collection(db, 'attendance');
         const q = query(
             attendanceCollection,
-            where('branchId', '==', activeBranchId)
+            where('gymId', '==', userDocId),
+            where('branchId', '==', activeBranchId),
+            where('scanTime', '>=', Timestamp.fromDate(startOfThisMonth)),
+            orderBy('scanTime', 'desc')
         );
 
         try {
             const querySnapshot = await getDocs(q);
-            const records = querySnapshot.docs
-            .map(doc => ({
+            const records = querySnapshot.docs.map(doc => ({
                 id: doc.id,
-                ...doc.data(),
+                userName: doc.data().userName,
+                userRole: doc.data().userRole,
                 scanTime: (doc.data().scanTime as Timestamp).toDate(),
-            }))
-            .filter(record => record.gymId === userDocId && record.scanTime >= startOfThisMonth);
-            
-            records.sort((a, b) => b.scanTime.getTime() - a.scanTime.getTime());
-
-            setAllAttendance(records as AttendanceRecord[]);
+            }));
+            setAllAttendance(records);
         } catch (error) {
             console.error("Error fetching attendance log:", error);
             toast({ title: "Error", description: "Failed to fetch attendance log.", variant: "destructive" });
