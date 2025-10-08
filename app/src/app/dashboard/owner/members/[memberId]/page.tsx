@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect } from 'react';
@@ -113,7 +114,7 @@ export default function MemberProfilePage() {
         if (!memberSnap.exists()) {
           toast({ title: 'Error', description: 'Member not found.', variant: 'destructive' });
           router.push('/dashboard/owner/members');
-          // Do not proceed with rendering, allow the redirect to happen.
+          // Important: return early and don't try to set state
           return;
         }
 
