@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import { useState, useEffect } from 'react';
@@ -7,9 +8,9 @@ import Link from 'next/link';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { format } from 'date-fns';
+import { format, addDays } from 'date-fns';
 import { Loader2, Calendar as CalendarIcon, Search, Check } from 'lucide-react';
-import { collection, addDoc, getDocs, Timestamp } from 'firebase/firestore';
+import { collection, addDoc, getDocs, Timestamp, doc, updateDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useToast } from '@/hooks/use-toast';
 
@@ -44,21 +45,13 @@ interface Member {
   phone: string;
   membershipType: string;
   totalFee: number;
+  startDate: Date;
 }
-
-const planDurations: Record<string, number> = {
-    'trial': 0.25, // 1 week
-    'monthly': 1,
-    'quarterly': 3,
-    'half-yearly': 6,
-    'yearly': 12,
-};
 
 export default function AddPaymentPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [members, setMembers] = useState<Member[]>([]);
   const [selectedMember, setSelectedMember] = useState<Member | null>(null);
-  const [baseMonthlyFee, setBaseMonthlyFee] = useState<number>(0);
   const { toast } = useToast();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -91,6 +84,7 @@ export default function AddPaymentPage() {
       phone: doc.data().phone,
       membershipType: doc.data().membershipType,
       totalFee: doc.data().totalFee,
+      startDate: doc.data().startDate.toDate(),
     }));
     setMembers(membersList);
     return membersList;
@@ -105,7 +99,6 @@ export default function AddPaymentPage() {
         if (memberId && memberName && fetchedMembers) {
             const member = fetchedMembers.find(m => m.id === memberId);
             if(member) {
-                // This will trigger the watch effect below
                 form.setValue('memberId', memberId);
             }
         }
@@ -115,28 +108,29 @@ export default function AddPaymentPage() {
 
   useEffect(() => {
     const subscription = form.watch((values, { name }) => {
-        const { totalFee, discount, amountPaid, membershipPlan } = values;
+        const { totalFee, discount, amountPaid, membershipPlan, paymentDate } = values;
         const numericDiscount = typeof discount === 'string' ? parseFloat(discount) : discount;
 
         if (name === 'memberId' && values.memberId) {
             const member = members.find(m => m.id === values.memberId);
             if (member) {
                 setSelectedMember(member);
-                const originalDuration = planDurations[member.membershipType] || 1;
-                const monthlyFee = originalDuration > 0 ? member.totalFee / originalDuration : member.totalFee;
-                setBaseMonthlyFee(monthlyFee);
-                
                 form.setValue('membershipPlan', member.membershipType);
                 form.setValue('totalFee', member.totalFee);
                 form.setValue('amountPaid', member.totalFee);
             }
         }
         
-        if (name === 'membershipPlan' && membershipPlan && baseMonthlyFee > 0) {
-            const newDuration = planDurations[membershipPlan] || 1;
-            const newFee = Math.round(baseMonthlyFee * newDuration);
-            form.setValue('totalFee', newFee);
-            form.setValue('amountPaid', newFee);
+        if ((name === 'membershipPlan' || name === 'paymentDate') && membershipPlan && paymentDate) {
+            let newEndDate = new Date(paymentDate);
+             switch (membershipPlan) {
+                case 'trial': newEndDate = addDays(newEndDate, 7); break;
+                case 'monthly': newEndDate = addDays(newEndDate, 30); break;
+                case 'quarterly': newEndDate = addDays(newEndDate, 90); break;
+                case 'half-yearly': newEndDate = addDays(newEndDate, 180); break;
+                case 'yearly': newEndDate = addDays(newEndDate, 365); break;
+            }
+            form.setValue('nextDueDate', newEndDate);
         }
 
         if (name === 'totalFee' || name === 'discount' || name === 'amountPaid') {
@@ -146,13 +140,13 @@ export default function AddPaymentPage() {
         }
     });
     return () => subscription.unsubscribe();
-  }, [form, members, selectedMember, baseMonthlyFee]);
+  }, [form, members, selectedMember]);
 
 
   const onSubmit = async (data: FormData) => {
     const userDocId = localStorage.getItem('userDocId');
-    if (!userDocId) {
-      toast({ title: 'Error', description: 'Gym owner session not found.', variant: 'destructive' });
+    if (!userDocId || !selectedMember) {
+      toast({ title: 'Error', description: 'Session or member not found.', variant: 'destructive' });
       return;
     }
     
@@ -167,6 +161,14 @@ export default function AddPaymentPage() {
         nextDueDate: data.nextDueDate ? Timestamp.fromDate(data.nextDueDate) : null,
         createdAt: Timestamp.now(),
       });
+      
+      const memberRef = doc(db, 'gyms', userDocId, 'members', data.memberId);
+      await updateDoc(memberRef, {
+          endDate: data.nextDueDate ? Timestamp.fromDate(data.nextDueDate) : null,
+          membershipType: data.membershipPlan,
+          totalFee: data.totalFee
+      });
+
 
       toast({
         title: 'Payment Added!',
