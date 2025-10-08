@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect, useRef } from "react";
@@ -8,7 +7,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Loader2, Send, Plus, Image as ImageIcon, Video, X, ThumbsUp, MessageSquare, MoreVertical, Flag, Repeat, Share2, Search, User, Rss, LayoutDashboard, Edit, Trash, Activity, RefreshCcw } from "lucide-react";
+import { Loader2, Send, Plus, Image as ImageIcon, Video, X, ThumbsUp, MessageSquare, MoreVertical, Flag, Repeat, Share2, Search, User, Rss, LayoutDashboard, Edit, Trash, Activity, RefreshCcw, BarChart } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { formatDistanceToNow } from 'date-fns';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -27,7 +26,7 @@ import { UserSearch } from "@/components/user-search";
 import { useRouter } from "next/navigation";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import Link from "next/link";
-import { BannerDisplay } from "@/components/ui/banner-display";
+import { BannerDisplay } from '@/components/ui/banner-display';
 import AdsenseDisplay from "@/components/ui/adsense-display";
 
 
@@ -983,7 +982,7 @@ export default function CommunityPage() {
                   </form>
               </Form>
           </DialogContent>
-          </Tabs>
+          </div>
         </Dialog>
       
       <BottomNavbar
@@ -992,6 +991,7 @@ export default function CommunityPage() {
           { label: "Search", href: "/dashboard/search", icon: <Search /> },
           { label: "Feed", href: "/dashboard/owner/community", icon: <Rss /> },
           { label: "Activity", href: "/dashboard/owner/activity", icon: <Activity /> },
+          { label: "My Progress", href: "/progress", icon: <BarChart /> },
           { label: "Profile", href: "/dashboard/owner/profile", icon: <User /> },
         ]}
       />
