@@ -71,6 +71,7 @@ interface LimitDialogInfo {
   payments?: number;
 }
 
+const defaultPlans = ["monthly", "quarterly", "half-yearly", "yearly", "trial"];
 
 function NoBranchDialog() {
     const router = useRouter();
@@ -140,6 +141,7 @@ export default function AddPaymentPage() {
   const [isTrial, setIsTrial] = useState(false);
   const [limitDialogOpen, setLimitDialogOpen] = useState(false);
   const [limitInfo, setLimitInfo] = useState<LimitDialogInfo>({ members: 0, trainers: 0 });
+  const [isMemberDropdownOpen, setIsMemberDropdownOpen] = useState(false);
   
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
@@ -232,6 +234,13 @@ export default function AddPaymentPage() {
   }, [searchParams, form, activeBranchId]);
 
     useEffect(() => {
+        if (isMemberDropdownOpen && activeBranchId) {
+            fetchMembersAndOffers(activeBranchId);
+        }
+    }, [isMemberDropdownOpen, activeBranchId]);
+
+
+    useEffect(() => {
         const subscription = form.watch((values, { name }) => {
             let { totalFee, discount, amountPaid, membershipPlan, paymentDate, appliedOfferId, nextDueDate } = values;
 
@@ -272,7 +281,7 @@ export default function AddPaymentPage() {
                     case 'yearly': newEndDate = addDays(newEndDate, 365); break;
                 }
                 if (!nextDueDate || !isSameDay(newEndDate, nextDueDate)) {
-                    form.setValue('nextDueDate', newEndDate);
+                    form.setValue('nextDueDate', newEndDate, { shouldValidate: true });
                 }
             }
             
@@ -375,6 +384,8 @@ export default function AddPaymentPage() {
   };
   
   const applicableOffers = selectedMember ? offers.filter(o => o.applicablePlans.includes(selectedMember.membershipType)) : [];
+  
+  const combinedPlans = [...new Set([...membershipPlans.map(p => p.name.toLowerCase()), ...defaultPlans])];
 
   if (!activeBranchId) {
       return <NoBranchDialog />;
@@ -411,7 +422,7 @@ export default function AddPaymentPage() {
                         render={({ field }) => (
                             <FormItem className="flex flex-col">
                             <FormLabel>Select Member</FormLabel>
-                            <Popover>
+                            <Popover open={isMemberDropdownOpen} onOpenChange={setIsMemberDropdownOpen}>
                                 <PopoverTrigger asChild>
                                 <FormControl>
                                     <Button variant="outline" role="combobox" className={cn("w-full justify-between", !field.value && "text-muted-foreground")}>
@@ -430,7 +441,10 @@ export default function AddPaymentPage() {
                                                     <CommandItem
                                                         value={`${member.fullName} ${member.phone}`}
                                                         key={member.id}
-                                                        onSelect={() => form.setValue('memberId', member.id)}
+                                                        onSelect={() => {
+                                                            form.setValue('memberId', member.id);
+                                                            setIsMemberDropdownOpen(false);
+                                                        }}
                                                     >
                                                     <Check className={cn("mr-2 h-4 w-4", member.id === field.value ? "opacity-100" : "opacity-0")} />
                                                         {member.fullName} ({member.phone})
@@ -453,14 +467,9 @@ export default function AddPaymentPage() {
                                 <Select onValueChange={field.onChange} value={field.value}>
                                     <FormControl><SelectTrigger><SelectValue placeholder="Select type" /></SelectTrigger></FormControl>
                                     <SelectContent>
-                                        {membershipPlans.map(plan => (
-                                          <SelectItem key={plan.name} value={plan.name}>{plan.name}</SelectItem>
-                                        ))}
-                                        <SelectItem value="trial">Trial</SelectItem>
-                                        <SelectItem value="monthly">Monthly</SelectItem>
-                                        <SelectItem value="quarterly">Quarterly</SelectItem>
-                                        <SelectItem value="half-yearly">Half-Yearly</SelectItem>
-                                        <SelectItem value="yearly">Yearly</SelectItem>
+                                       {combinedPlans.map(plan => (
+                                           <SelectItem key={plan} value={plan} className="capitalize">{plan}</SelectItem>
+                                       ))}
                                     </SelectContent>
                                 </Select><FormMessage />
                                 </FormItem>
@@ -539,4 +548,3 @@ export default function AddPaymentPage() {
     </div>
   );
 }
-
