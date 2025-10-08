@@ -739,11 +739,14 @@ export default function CommunityPage() {
             <header className="p-4 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-10">
               <div className="flex items-center justify-between">
                   <h1 className="text-2xl font-bold">Community</h1>
-                  <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-2">
                       <TabsList className="bg-orange-500/20 text-orange-700 dark:text-orange-300">
                           <TabsTrigger value="your_gym">Your Gym</TabsTrigger>
                           <TabsTrigger value="global">Global</TabsTrigger>
                       </TabsList>
+                      <Button variant="ghost" size="icon" onClick={() => toast({ title: "Coming Soon!", description: "Direct messaging will be available in a future update."})}>
+                           <MessageSquare className="h-6 w-6"/>
+                       </Button>
                       <DialogTrigger asChild>
                       <Button>
                           <Plus className="h-4 w-4 mr-2" />
