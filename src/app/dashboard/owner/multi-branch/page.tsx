@@ -14,23 +14,77 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
-import { Loader2, PlusCircle, Building, ArrowLeft } from 'lucide-react';
+import { Loader2, PlusCircle, Building, ArrowLeft, Phone, Mail } from 'lucide-react';
 import Link from 'next/link';
+import { AlertDialog, AlertDialogAction } from '@/components/ui/alert-dialog';
+
 
 interface Branch {
   id: string;
   name: string;
 }
 
+interface LimitDialogInfo {
+    members?: number;
+    trainers?: number;
+    payments?: number;
+    equipment?: number;
+    classes?: number;
+    expenses?: number;
+    inventory?: number;
+    maintenance?: number;
+    offers?: number;
+    usageLogs?: number;
+    branches?: number;
+}
+
 const addBranchSchema = z.object({
   name: z.string().min(1, 'Branch name is required.'),
 });
+
+function LimitReachedDialog({ isOpen, onOpenChange, limits }: { isOpen: boolean; onOpenChange: (open: boolean) => void, limits: LimitDialogInfo }) {
+  return (
+    <AlertDialog open={isOpen} onOpenChange={onOpenChange}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>You've reached the limit of your trial account</AlertDialogTitle>
+          <AlertDialogDescription className="space-y-2 pt-2">
+            {limits.members !== undefined && <p>Members ({limits.members}/3)</p>}
+            {limits.trainers !== undefined && <p>Trainers ({limits.trainers}/2)</p>}
+            {limits.payments !== undefined && <p>Payments ({limits.payments}/5 per member)</p>}
+            {limits.equipment !== undefined && <p>Equipment ({limits.equipment}/1)</p>}
+            {limits.classes !== undefined && <p>Classes ({limits.classes}/1)</p>}
+            {limits.expenses !== undefined && <p>Expenses ({limits.expenses}/2)</p>}
+            {limits.inventory !== undefined && <p>Inventory ({limits.inventory}/1)</p>}
+            {limits.maintenance !== undefined && <p>Maintenance ({limits.maintenance}/1)</p>}
+            {limits.offers !== undefined && <p>Offers ({limits.offers}/1)</p>}
+            {limits.usageLogs !== undefined && <p>Usage Logs ({limits.usageLogs}/1)</p>}
+            {limits.branches !== undefined && <p>Branches ({limits.branches}/1)</p>}
+            <p className="font-semibold pt-2">Upgrade to a full Account to continue managing without restrictions.</p>
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <div className="flex flex-col space-y-2">
+            <p className="font-bold text-center">Contact Strenxfit Support</p>
+            <a href="https://wa.me/917988487892" target="_blank" rel="noopener noreferrer" className="flex items-center justify-center gap-3 p-3 rounded-md hover:bg-accent transition-colors">
+                <Phone className="h-5 w-5 text-muted-foreground" />
+                <span>+91 79884 87892</span>
+            </a>
+        </div>
+        <AlertDialogFooter>
+          <AlertDialogAction onClick={() => onOpenChange(false)}>OK</AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  );
+}
 
 export default function MultiBranchPage() {
   const [branches, setBranches] = useState<Branch[]>([]);
   const [loading, setLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [userDocId, setUserDocId] = useState<string | null>(null);
+  const [isTrial, setIsTrial] = useState(false);
+  const [limitDialogOpen, setLimitDialogOpen] = useState(false);
   const router = useRouter();
   const { toast } = useToast();
 
@@ -50,6 +104,12 @@ export default function MultiBranchPage() {
     
     const fetchBranches = async (docId: string) => {
         try {
+            const gymRef = doc(db, 'gyms', docId);
+            const gymSnap = await getDoc(gymRef);
+            if(gymSnap.exists() && gymSnap.data().isTrial) {
+                setIsTrial(true);
+            }
+
             const branchesCollection = collection(db, 'gyms', docId, 'branches');
             const branchesSnapshot = await getDocs(branchesCollection);
             const allBranches = branchesSnapshot.docs.map(doc => ({ id: doc.id, name: doc.data().name }));
@@ -68,6 +128,11 @@ export default function MultiBranchPage() {
 
   const onAddBranch = async (values: z.infer<typeof addBranchSchema>) => {
     if (!userDocId) return;
+    
+    if (isTrial && branches.length >= 1) {
+        setLimitDialogOpen(true);
+        return;
+    }
 
     const newBranch = { name: values.name };
     
@@ -89,6 +154,14 @@ export default function MultiBranchPage() {
     router.push('/dashboard/owner');
   }
 
+  const handleAddBranchClick = () => {
+    if (isTrial && branches.length >= 1) {
+        setLimitDialogOpen(true);
+    } else {
+        setIsDialogOpen(true);
+    }
+  }
+
   if (loading) {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center bg-background p-4">
@@ -100,6 +173,7 @@ export default function MultiBranchPage() {
 
   return (
     <div className="container mx-auto py-10">
+        <LimitReachedDialog isOpen={limitDialogOpen} onOpenChange={setLimitDialogOpen} limits={{ branches: branches.length }} />
       <Card className="w-full max-w-2xl mx-auto">
         <CardHeader className="flex flex-row items-center justify-between">
             <div>
@@ -130,12 +204,10 @@ export default function MultiBranchPage() {
             )}
           </div>
           <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-            <DialogTrigger asChild>
-              <Button className="mt-6 w-full">
+            <Button className="mt-6 w-full" onClick={handleAddBranchClick}>
                 <PlusCircle className="mr-2 h-4 w-4" />
                 Add New Branch
-              </Button>
-            </DialogTrigger>
+            </Button>
             <DialogContent>
               <DialogHeader>
                 <DialogTitle>Add a New Branch</DialogTitle>
