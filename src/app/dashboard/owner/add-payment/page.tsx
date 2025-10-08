@@ -8,8 +8,8 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { format, addDays } from 'date-fns';
-import { Loader2, Calendar as CalendarIcon, Search, Check, Building } from 'lucide-react';
-import { collection, addDoc, getDocs, Timestamp, doc, updateDoc } from 'firebase/firestore';
+import { Loader2, Calendar as CalendarIcon, Search, Check, Building, AlertTriangle } from 'lucide-react';
+import { collection, addDoc, getDocs, Timestamp, doc, updateDoc, getDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useToast } from '@/hooks/use-toast';
 
@@ -22,7 +22,7 @@ import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { cn } from '@/lib/utils';
 import { Calendar } from '@/components/ui/calendar';
-import { AlertDialog, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
+import { AlertDialog, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogAction } from '@/components/ui/alert-dialog';
 
 
 const formSchema = z.object({
@@ -47,6 +47,7 @@ interface Member {
   membershipType: string;
   totalFee: number;
   startDate?: Date;
+  status?: 'Active' | 'Frozen' | 'Stopped' | 'Expired';
 }
 
 function NoBranchDialog() {
@@ -78,6 +79,8 @@ export default function AddPaymentPage() {
   const [members, setMembers] = useState<Member[]>([]);
   const [selectedMember, setSelectedMember] = useState<Member | null>(null);
   const [activeBranchId, setActiveBranchId] = useState<string | null>(null);
+  const [isStatusDialogOpen, setIsStatusDialogOpen] = useState(false);
+  const [statusDialogMessage, setStatusDialogMessage] = useState('');
   const { toast } = useToast();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -117,6 +120,7 @@ export default function AddPaymentPage() {
           phone: data.phone,
           membershipType: data.membershipType,
           totalFee: data.totalFee,
+          status: data.status || 'Active',
           startDate: data.startDate ? (data.startDate as Timestamp).toDate() : undefined,
         };
     });
@@ -149,6 +153,11 @@ export default function AddPaymentPage() {
         if (name === 'memberId' && values.memberId) {
             const member = members.find(m => m.id === values.memberId);
             if (member) {
+                if (member.status === 'Frozen' || member.status === 'Stopped') {
+                    setStatusDialogMessage(`This member's account is currently ${member.status}. To collect payment, please reactivate their account from the Member Status page.`);
+                    setIsStatusDialogOpen(true);
+                    return;
+                }
                 setSelectedMember(member);
                 form.setValue('membershipPlan', member.membershipType);
                 form.setValue('totalFee', member.totalFee);
@@ -228,6 +237,18 @@ export default function AddPaymentPage() {
 
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-background p-4">
+        <AlertDialog open={isStatusDialogOpen} onOpenChange={setIsStatusDialogOpen}>
+            <AlertDialogContent>
+                <AlertDialogHeader>
+                    <AlertDialogTitle className="flex items-center gap-2"><AlertTriangle className="text-destructive"/> Account Inactive</AlertDialogTitle>
+                    <AlertDialogDescription>{statusDialogMessage}</AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                    <Button variant="outline" onClick={() => { setIsStatusDialogOpen(false); form.reset(); }}>Cancel</Button>
+                    <AlertDialogAction onClick={() => router.push('/dashboard/owner/member-status')}>Go to Member Status</AlertDialogAction>
+                </AlertDialogFooter>
+            </AlertDialogContent>
+        </AlertDialog>
         <Card className="w-full max-w-2xl">
             <CardHeader>
             <CardTitle>Collect Fee</CardTitle>
