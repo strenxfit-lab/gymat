@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { collection, addDoc, getDocs, Timestamp, deleteDoc, doc, updateDoc, serverTimestamp, getDoc } from 'firebase/firestore';
+import { collection, addDoc, getDocs, Timestamp, deleteDoc, doc, updateDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -16,15 +16,13 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Loader2, PlusCircle, ArrowLeft, MoreHorizontal, Edit, Trash, Phone, Mail } from 'lucide-react';
+import { Loader2, PlusCircle, ArrowLeft, MoreHorizontal, Edit, Trash } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-import { Badge } from '@/components/ui/badge';
 
 const equipmentSchema = z.object({
   name: z.string().min(1, 'Equipment name is required.'),
   category: z.string().min(1, 'Please select a category.'),
-  status: z.enum(['Active', 'Under Maintenance', 'Out of Order']).default('Active'),
   purchaseDate: z.string().optional(),
   vendor: z.string().optional(),
   warrantyExpiryDate: z.string().optional(),
@@ -33,19 +31,6 @@ const equipmentSchema = z.object({
 
 interface Equipment extends z.infer<typeof equipmentSchema> {
   id: string;
-}
-
-interface LimitDialogInfo {
-    members?: number;
-    trainers?: number;
-    payments?: number;
-    equipment?: number;
-    classes?: number;
-    expenses?: number;
-    inventory?: number;
-    maintenance?: number;
-    offers?: number;
-    usageLogs?: number;
 }
 
 const equipmentCategories = [
@@ -57,64 +42,16 @@ const equipmentCategories = [
     "Other"
 ];
 
-const getStatusVariant = (status: Equipment['status']) => {
-    switch (status) {
-        case 'Active': return 'default';
-        case 'Under Maintenance': return 'secondary';
-        case 'Out of Order': return 'destructive';
-        default: return 'outline';
-    }
-}
-
-
-function LimitReachedDialog({ isOpen, onOpenChange, limits }: { isOpen: boolean; onOpenChange: (open: boolean) => void, limits: LimitDialogInfo }) {
-  return (
-    <AlertDialog open={isOpen} onOpenChange={onOpenChange}>
-      <AlertDialogContent>
-        <AlertDialogHeader>
-          <AlertDialogTitle>You've reached the limit of your trial account</AlertDialogTitle>
-          <AlertDialogDescription className="space-y-2 pt-2">
-            {limits.members !== undefined && <p>Members ({limits.members}/3)</p>}
-            {limits.trainers !== undefined && <p>Trainers ({limits.trainers}/2)</p>}
-            {limits.payments !== undefined && <p>Payments ({limits.payments}/5 per member)</p>}
-            {limits.equipment !== undefined && <p>Equipment ({limits.equipment}/1)</p>}
-            {limits.classes !== undefined && <p>Classes ({limits.classes}/1)</p>}
-            {limits.expenses !== undefined && <p>Expenses ({limits.expenses}/2)</p>}
-            {limits.inventory !== undefined && <p>Inventory ({limits.inventory}/1)</p>}
-            {limits.maintenance !== undefined && <p>Maintenance ({limits.maintenance}/1)</p>}
-            {limits.offers !== undefined && <p>Offers ({limits.offers}/1)</p>}
-            {limits.usageLogs !== undefined && <p>Usage Logs ({limits.usageLogs}/1)</p>}
-            <p className="font-semibold pt-2">Upgrade to a full Account to continue managing without restrictions.</p>
-          </AlertDialogDescription>
-        </AlertDialogHeader>
-        <div className="flex flex-col space-y-2">
-            <p className="font-bold text-center">Contact Strenxfit Support</p>
-            <a href="https://wa.me/917988487892" target="_blank" rel="noopener noreferrer" className="flex items-center justify-center gap-3 p-3 rounded-md hover:bg-accent transition-colors">
-                <Phone className="h-5 w-5 text-muted-foreground" />
-                <span>+91 79884 87892</span>
-            </a>
-        </div>
-        <AlertDialogFooter>
-          <AlertDialogAction onClick={() => onOpenChange(false)}>OK</AlertDialogAction>
-        </AlertDialogFooter>
-      </AlertDialogContent>
-    </AlertDialog>
-  );
-}
-
 export default function EquipmentPage() {
   const [equipmentList, setEquipmentList] = useState<Equipment[]>([]);
   const [loading, setLoading] = useState(true);
   const [isFormDialogOpen, setIsFormDialogOpen] = useState(false);
   const [editingEquipment, setEditingEquipment] = useState<Equipment | null>(null);
-  const [isTrial, setIsTrial] = useState(false);
-  const [limitDialogOpen, setLimitDialogOpen] = useState(false);
-  const [limitInfo, setLimitInfo] = useState<LimitDialogInfo>({});
   const { toast } = useToast();
 
   const form = useForm<z.infer<typeof equipmentSchema>>({
     resolver: zodResolver(equipmentSchema),
-    defaultValues: { name: '', category: '', status: 'Active', purchaseDate: '', vendor: '', warrantyExpiryDate: '', serialNumber: '' },
+    defaultValues: { name: '', category: '', purchaseDate: '', vendor: '', warrantyExpiryDate: '', serialNumber: '' },
   });
   
   const fetchEquipment = async () => {
@@ -127,13 +64,6 @@ export default function EquipmentPage() {
       setLoading(false);
       return;
     }
-    
-    const gymRef = doc(db, 'gyms', userDocId);
-    const gymSnap = await getDoc(gymRef);
-    if (gymSnap.exists() && gymSnap.data().isTrial) {
-        setIsTrial(true);
-    }
-    
     try {
         const equipmentCollection = collection(db, 'gyms', userDocId, 'branches', activeBranchId, 'equipment');
         const equipmentSnapshot = await getDocs(equipmentCollection);
@@ -168,7 +98,7 @@ export default function EquipmentPage() {
         form.reset(editingEquipment);
         setIsFormDialogOpen(true);
     } else {
-        form.reset({ name: '', category: '', status: 'Active', purchaseDate: '', vendor: '', warrantyExpiryDate: '', serialNumber: '' });
+        form.reset({ name: '', category: '', purchaseDate: '', vendor: '', warrantyExpiryDate: '', serialNumber: '' });
     }
   }, [editingEquipment, form]);
 
@@ -192,14 +122,6 @@ export default function EquipmentPage() {
     const activeBranchId = localStorage.getItem('activeBranch');
     if (!userDocId || !activeBranchId) return;
 
-    if (isTrial) {
-        if(equipmentList.length >= 1) {
-            setLimitInfo({ equipment: equipmentList.length });
-            setLimitDialogOpen(true);
-            return;
-        }
-    }
-
     try {
       const equipmentCollection = collection(db, 'gyms', userDocId, 'branches', activeBranchId, 'equipment');
       
@@ -207,7 +129,7 @@ export default function EquipmentPage() {
         ...values,
         purchaseDate: values.purchaseDate ? Timestamp.fromDate(new Date(values.purchaseDate)) : null,
         warrantyExpiryDate: values.warrantyExpiryDate ? Timestamp.fromDate(new Date(values.warrantyExpiryDate)) : null,
-        createdAt: serverTimestamp(),
+        createdAt: Timestamp.now(),
       });
 
       toast({ title: 'Success!', description: 'New equipment has been added.' });
@@ -265,7 +187,6 @@ export default function EquipmentPage() {
 
   return (
     <div className="container mx-auto py-10">
-      <LimitReachedDialog isOpen={limitDialogOpen} onOpenChange={setLimitDialogOpen} limits={limitInfo} />
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-3xl font-bold">Equipment Inventory</h1>
@@ -290,30 +211,16 @@ export default function EquipmentPage() {
                 <Form {...form}>
                 <form onSubmit={form.handleSubmit(handleFormSubmit)} className="space-y-4 py-4">
                     <FormField control={form.control} name="name" render={({ field }) => ( <FormItem><FormLabel>Equipment Name</FormLabel><FormControl><Input placeholder="e.g., Treadmill" {...field} /></FormControl><FormMessage /></FormItem> )} />
-                    <div className="grid grid-cols-2 gap-4">
-                        <FormField control={form.control} name="category" render={({ field }) => (
-                        <FormItem><FormLabel>Category</FormLabel>
-                            <Select onValueChange={field.onChange} value={field.value}>
-                            <FormControl><SelectTrigger><SelectValue placeholder="Select a category" /></SelectTrigger></FormControl>
-                            <SelectContent>
-                                {equipmentCategories.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
-                            </SelectContent>
-                            </Select>
-                        <FormMessage /></FormItem>
-                        )} />
-                         <FormField control={form.control} name="status" render={({ field }) => (
-                        <FormItem><FormLabel>Status</FormLabel>
-                            <Select onValueChange={field.onChange} value={field.value}>
-                            <FormControl><SelectTrigger><SelectValue placeholder="Select a status" /></SelectTrigger></FormControl>
-                            <SelectContent>
-                                <SelectItem value="Active">Active</SelectItem>
-                                <SelectItem value="Under Maintenance">Under Maintenance</SelectItem>
-                                <SelectItem value="Out of Order">Out of Order</SelectItem>
-                            </SelectContent>
-                            </Select>
-                        <FormMessage /></FormItem>
-                        )} />
-                    </div>
+                    <FormField control={form.control} name="category" render={({ field }) => (
+                    <FormItem><FormLabel>Category</FormLabel>
+                        <Select onValueChange={field.onChange} value={field.value}>
+                        <FormControl><SelectTrigger><SelectValue placeholder="Select a category" /></SelectTrigger></FormControl>
+                        <SelectContent>
+                            {equipmentCategories.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                        </SelectContent>
+                        </Select>
+                    <FormMessage /></FormItem>
+                    )} />
                     <FormField control={form.control} name="vendor" render={({ field }) => ( <FormItem><FormLabel>Vendor / Manufacturer</FormLabel><FormControl><Input placeholder="e.g., StrenxFit" {...field} /></FormControl><FormMessage /></FormItem> )} />
                     <div className="grid grid-cols-2 gap-4">
                         <FormField control={form.control} name="purchaseDate" render={({ field }) => ( <FormItem><FormLabel>Purchase Date</FormLabel><FormControl><Input type="date" {...field} /></FormControl><FormMessage /></FormItem> )} />
@@ -345,7 +252,6 @@ export default function EquipmentPage() {
               <TableRow>
                 <TableHead>Name</TableHead>
                 <TableHead>Category</TableHead>
-                <TableHead>Status</TableHead>
                 <TableHead>Purchase Date</TableHead>
                 <TableHead>Warranty Expiry</TableHead>
                 <TableHead><span className="sr-only">Actions</span></TableHead>
@@ -357,7 +263,6 @@ export default function EquipmentPage() {
                   <TableRow key={item.id}>
                     <TableCell className="font-medium">{item.name}</TableCell>
                     <TableCell>{item.category}</TableCell>
-                    <TableCell><Badge variant={getStatusVariant(item.status)}>{item.status}</Badge></TableCell>
                     <TableCell>{item.purchaseDate ? new Date(item.purchaseDate).toLocaleDateString() : 'N/A'}</TableCell>
                     <TableCell>{item.warrantyExpiryDate ? new Date(item.warrantyExpiryDate).toLocaleDateString() : 'N/A'}</TableCell>
                     <TableCell className="text-right">
@@ -393,7 +298,7 @@ export default function EquipmentPage() {
                 ))
               ) : (
                 <TableRow>
-                  <TableCell colSpan={6} className="h-24 text-center">
+                  <TableCell colSpan={5} className="h-24 text-center">
                     No equipment added yet.
                   </TableCell>
                 </TableRow>
