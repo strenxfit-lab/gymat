@@ -46,7 +46,7 @@ interface Announcement {
 }
 
 interface MembershipStatus {
-    status: 'Active' | 'Expired' | 'Expiring Soon';
+    status: 'Active' | 'Expired' | 'Expiring Soon' | 'Trial';
     daysLeft: number;
 }
 
@@ -95,12 +95,50 @@ export default function MemberDashboard() {
 
         if (!userDocId || !activeBranchId || !memberId) {
             setLoading(false);
+            router.push('/');
             return;
         }
 
         const fetchAllData = async () => {
             setLoading(true);
             try {
+                 // Check for notifications and birthday
+                const memberRef = doc(db, 'gyms', userDocId, 'branches', activeBranchId, 'members', memberId);
+                const memberSnap = await getDoc(memberRef);
+                if (!memberSnap.exists()) {
+                    router.push('/');
+                    return;
+                }
+                
+                const memberData = memberSnap.data();
+                setHasNewDietPlan(memberData.hasNewDietPlan || false);
+
+                // Check gym's trial status first
+                const gymRef = doc(db, 'gyms', userDocId);
+                const gymSnap = await getDoc(gymRef);
+                const isGymTrial = gymSnap.exists() && gymSnap.data().isTrial;
+
+                if (isGymTrial) {
+                     setMembershipStatus({ status: 'Trial', daysLeft: Infinity });
+                } else {
+                    const endDate = (memberData.endDate as Timestamp)?.toDate();
+                    if (endDate) {
+                        const daysLeft = differenceInDays(endDate, new Date());
+                        let status: MembershipStatus['status'] = 'Active';
+                        if (daysLeft < 0) {
+                            status = 'Expired';
+                        } else if (daysLeft <= 7) {
+                            status = 'Expiring Soon';
+                        }
+                        setMembershipStatus({ status, daysLeft });
+                    } else {
+                        // If not a trial gym and no end date, the session might be invalid.
+                        router.push('/');
+                        return;
+                    }
+                }
+
+
                 // Fetch Trainers for class mapping
                 const trainersCollection = collection(db, 'gyms', userDocId, 'branches', activeBranchId, 'trainers');
                 const trainersSnapshot = await getDocs(trainersCollection);
@@ -156,34 +194,15 @@ export default function MemberDashboard() {
                     .filter(a => a.audience === 'all' || a.audience === 'members');
                 setAnnouncements(announcementsList);
 
-                // Check for notifications and birthday
-                const memberRef = doc(db, 'gyms', userDocId, 'branches', activeBranchId, 'members', memberId);
-                const memberSnap = await getDoc(memberRef);
-                if (memberSnap.exists()) {
-                    const memberData = memberSnap.data();
-                    setHasNewDietPlan(memberData.hasNewDietPlan || false);
-                    const endDate = (memberData.endDate as Timestamp)?.toDate();
-                    if (endDate) {
-                        const daysLeft = differenceInDays(endDate, now);
-                        let status: MembershipStatus['status'] = 'Active';
-                        if (daysLeft < 0) {
-                            status = 'Expired';
-                        } else if (daysLeft <= 7) {
-                            status = 'Expiring Soon';
-                        }
-                        setMembershipStatus({ status, daysLeft });
-                    }
-
-                    const dob = (memberData.dob as Timestamp)?.toDate();
-                    if (dob) {
-                        if (dob.getDate() === now.getDate() && dob.getMonth() === now.getMonth()) {
-                            const gymRef = doc(db, 'gyms', userDocId);
-                            const gymSnap = await getDoc(gymRef);
-                            const gymName = gymSnap.exists() ? gymSnap.data().name : "the gym";
-                            setBirthdayMessage(`Happy Birthday! ${memberData.fullName} 🎂💪 Wishing you another year of strength, health, and success—both inside and outside the gym! From ${gymName}`);
-                        }
+                
+                const dob = (memberData.dob as Timestamp)?.toDate();
+                if (dob) {
+                    if (dob.getDate() === now.getDate() && dob.getMonth() === now.getMonth()) {
+                        const gymName = gymSnap.exists() ? gymSnap.data().name : "the gym";
+                        setBirthdayMessage(`Happy Birthday! ${memberData.fullName} 🎂💪 Wishing you another year of strength, health, and success—both inside and outside the gym! From ${gymName}`);
                     }
                 }
+                
             } catch (error) {
                 console.error("Failed to fetch dashboard data:", error);
             } finally {
@@ -207,6 +226,8 @@ export default function MemberDashboard() {
         return { variant: 'secondary', text: 'Expiring Soon' };
       case 'Expired':
         return { variant: 'destructive', text: 'Expired' };
+      case 'Trial':
+        return { variant: 'default', text: 'Trial' };
       default:
         return { variant: 'outline', text: 'Unknown' };
     }
@@ -323,7 +344,7 @@ export default function MemberDashboard() {
                                      <div>
                                         <Badge variant={statusProps.variant}>{statusProps.text}</Badge>
                                         <p className="text-2xl font-bold mt-1">
-                                            {membershipStatus.daysLeft > 0 ? `${membershipStatus.daysLeft} days left` : 'Expired'}
+                                            {membershipStatus.status !== 'Trial' && membershipStatus.daysLeft > 0 ? `${membershipStatus.daysLeft} days left` : membershipStatus.status === 'Trial' ? 'Active Trial' : 'Expired'}
                                         </p>
                                     </div>
                                     <Link href="/dashboard/member/renew" passHref>
@@ -435,9 +456,3 @@ export default function MemberDashboard() {
     </div>
   );
 }
-
-  
-
-    
-
-    
