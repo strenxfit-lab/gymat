@@ -13,8 +13,7 @@ import {
   SidebarFooter,
   SidebarProvider,
 } from '@/components/ui/sidebar';
-import { Dumbbell, Users, CreditCard, ClipboardList, BarChart3, Megaphone, Boxes, Info, Mail, Phone, Building, UserCheck, LogOut, MessageSquare, CalendarCheck, CheckSquare, Clock, KeyRound, ChevronDown, IndianRupee, LifeBuoy, Utensils, LayoutDashboard, QrCode, Wrench, Activity } from 'lucide-react';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dumbbell, Users, IndianRupee, UserCheck, LogOut, MessageSquare, CheckSquare, Wrench, Activity, LayoutDashboard } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { ThemeToggle } from '@/components/theme-toggle';
@@ -83,18 +82,15 @@ export default function TrainerDashboardLayout({
     router.push('/');
   };
   
-  const isSpecialLayoutPage = pathname.startsWith('/dashboard/trainer/community') || 
-                              pathname.startsWith('/dashboard/trainer/profile') || 
-                              pathname.startsWith('/dashboard/trainer/activity') || 
-                              pathname.startsWith('/dashboard/search');
+  const isSpecialLayoutPage = 
+      pathname === '/dashboard/trainer/community' || 
+      pathname === '/dashboard/trainer/profile' || 
+      pathname === '/dashboard/trainer/activity' || 
+      pathname === '/dashboard/search' ||
+      pathname === '/dashboard/messages' ||
+      pathname.startsWith('/dashboard/messages/');
 
   if (isSpecialLayoutPage) {
-    if (pathname.startsWith('/dashboard/trainer/profile')) {
-       return <>{children}</>;
-    }
-     if (pathname.startsWith('/dashboard/search')) {
-       return <>{children}</>;
-    }
     return <>{children}</>;
   }
 
