@@ -5,15 +5,18 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Dumbbell, Loader2 } from 'lucide-react';
+import { Dumbbell, Loader2, Clock } from 'lucide-react';
 import LoginForm from '@/components/login-form';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { KeyRound } from 'lucide-react';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 
 export default function Home() {
   const router = useRouter();
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
+  const [isExpiredDialogOpen, setIsExpiredDialogOpen] = useState(false);
+  const [expiredGymId, setExpiredGymId] = useState<string | null>(null);
 
   useEffect(() => {
     const userDocId = localStorage.getItem('userDocId');
@@ -35,6 +38,11 @@ export default function Home() {
     }
   }, [router]);
 
+  const handleExpiredLogin = (gymId: string) => {
+      setExpiredGymId(gymId);
+      setIsExpiredDialogOpen(true);
+  }
+
   if (isCheckingAuth) {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center bg-background">
@@ -46,6 +54,22 @@ export default function Home() {
 
   return (
     <div className="relative flex min-h-screen flex-col items-center justify-center bg-background p-4 font-body">
+      <Dialog open={isExpiredDialogOpen} onOpenChange={setIsExpiredDialogOpen}>
+        <DialogContent>
+            <DialogHeader>
+                <DialogTitle className="flex items-center gap-2"><Clock className="text-destructive"/> Membership Expired</DialogTitle>
+                <DialogDescription>
+                    Your gym owner plan has expired. Please renew your subscription to regain access to your dashboard and continue managing your gym.
+                </DialogDescription>
+            </DialogHeader>
+            <DialogFooter>
+                <Button variant="outline" onClick={() => setIsExpiredDialogOpen(false)}>Close</Button>
+                <Link href={`/renew?gymId=${expiredGymId}`} passHref>
+                    <Button>Renew Now</Button>
+                </Link>
+            </DialogFooter>
+        </DialogContent>
+      </Dialog>
       <main>
         <Card className="w-full max-w-md overflow-hidden rounded-xl shadow-lg">
           <CardHeader className="text-center bg-card p-6">
@@ -63,7 +87,7 @@ export default function Home() {
                 Enter your trial key in the first field and the word <span className="font-bold">trial</span> as the password.
               </AlertDescription>
             </Alert>
-            <LoginForm />
+            <LoginForm onExpired={handleExpiredLogin} />
           </CardContent>
            <div className="p-6 pt-0 text-center">
             <Link href="/activate-trial" passHref>
