@@ -2,14 +2,14 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { collection, addDoc, query, onSnapshot, serverTimestamp, Timestamp, where, getDocs, doc, setDoc } from "firebase/firestore";
+import { collection, addDoc, query, onSnapshot, serverTimestamp, Timestamp, where, getDocs, doc, setDoc, updateDoc, arrayUnion, arrayRemove } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useToast } from "@/hooks/use-toast";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Loader2, Send, Plus, Image as ImageIcon, Video, X } from "lucide-react";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Loader2, Send, Plus, Image as ImageIcon, Video, X, ThumbsUp, MessageSquare, MoreVertical, Flag, Repeat } from "lucide-react";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { formatDistanceToNow } from 'date-fns';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
@@ -21,17 +21,34 @@ import * as z from 'zod';
 import Image from 'next/image';
 import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 
+interface Comment {
+    id: string;
+    authorId: string;
+    authorName: string;
+    text: string;
+    createdAt: Date;
+}
 
 interface Post {
     id: string;
     authorName: string;
     authorId: string;
+    authorPhotoUrl?: string;
     gymId: string;
     text: string;
     mediaUrls?: { url: string, type: 'image' | 'video' }[];
     createdAt: Date;
     visibility: 'local' | 'global';
+    likes?: string[];
+    comments?: Comment[];
+    repost?: {
+        originalAuthorName: string;
+        originalAuthorId: string;
+        originalText?: string;
+        originalMediaUrls?: { url: string, type: 'image' | 'video' }[];
+    }
 }
 
 const postSchema = z.object({
@@ -53,6 +70,17 @@ const usernameSchema = z.object({
 });
 type UsernameFormData = z.infer<typeof usernameSchema>;
 
+const commentSchema = z.object({
+    text: z.string().min(1, "Comment cannot be empty."),
+});
+type CommentFormData = z.infer<typeof commentSchema>;
+
+const repostSchema = z.object({
+  caption: z.string().optional(),
+  visibility: z.enum(['local', 'global']),
+});
+type RepostFormData = z.infer<typeof repostSchema>;
+
 
 export default function CommunityPage() {
   const [posts, setPosts] = useState<Post[]>([]);
@@ -60,14 +88,17 @@ export default function CommunityPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isPostDialogOpen, setIsPostDialogOpen] = useState(false);
   const [activeTab, setActiveTab] = useState('global');
-  const [hasCommunityProfile, setHasCommunityProfile] = useState(true);
+  const [hasCommunityProfile, setHasCommunityProfile] = useState<boolean | null>(null);
   const [isUsernameDialogOpen, setIsUsernameDialogOpen] = useState(false);
-
   const { toast } = useToast();
   
   const [mediaPreviews, setMediaPreviews] = useState<{url: string, type: 'image' | 'video'}[]>([]);
   const imageInputRef = useRef<HTMLInputElement>(null);
   const videoInputRef = useRef<HTMLInputElement>(null);
+  const [openComments, setOpenComments] = useState<Record<string, boolean>>({});
+  
+  const [repostingPost, setRepostingPost] = useState<Post | null>(null);
+  const [isRepostDialogOpen, setIsRepostDialogOpen] = useState(false);
 
 
   const postForm = useForm<PostFormData>({
@@ -83,21 +114,49 @@ export default function CommunityPage() {
     resolver: zodResolver(usernameSchema),
     defaultValues: { username: "" },
   });
+
+  const commentForm = useForm<CommentFormData>({
+      resolver: zodResolver(commentSchema),
+      defaultValues: { text: "" },
+  });
+
+  const repostForm = useForm<RepostFormData>({
+    resolver: zodResolver(repostSchema),
+    defaultValues: { caption: '', visibility: "local" },
+  });
   
   useEffect(() => {
-    const communityUsername = localStorage.getItem('communityUsername');
-    const role = localStorage.getItem('userRole');
-    if (!communityUsername && role) {
+    const checkCommunityProfile = async () => {
+      const userId = localStorage.getItem('userDocId');
+      if (!userId) {
+        setHasCommunityProfile(false);
+        return;
+      }
+      
+      const storedUsername = localStorage.getItem('communityUsername');
+      if (storedUsername) {
+        setHasCommunityProfile(true);
+        return;
+      }
+
+      const q = query(collection(db, 'userCommunity'), where('userId', '==', userId));
+      const querySnapshot = await getDocs(q);
+
+      if (!querySnapshot.empty) {
+        const username = querySnapshot.docs[0].id;
+        localStorage.setItem('communityUsername', username);
+        setHasCommunityProfile(true);
+      } else {
         setHasCommunityProfile(false);
         setIsUsernameDialogOpen(true);
-    } else {
-        setHasCommunityProfile(true);
-    }
+      }
+    };
+    checkCommunityProfile();
   }, []);
-
+  
   useEffect(() => {
-    if (!hasCommunityProfile) return;
-
+    if (hasCommunityProfile !== true) return;
+    
     setIsLoading(true);
     const gymId = localStorage.getItem('userDocId');
     if (!gymId) {
@@ -116,7 +175,7 @@ export default function CommunityPage() {
       const postsData: Post[] = [];
       querySnapshot.forEach((doc) => {
         const data = doc.data();
-        if (data.createdAt) { 
+        if (data.createdAt) { // Ensure createdAt exists before processing
           postsData.push({
             id: doc.id,
             ...data,
@@ -124,6 +183,7 @@ export default function CommunityPage() {
           } as Post);
         }
       });
+      // Sort posts on the client-side
       postsData.sort((a, b) => {
           if (!a.createdAt || !b.createdAt) return 0;
           return b.createdAt.getTime() - a.createdAt.getTime()
@@ -215,6 +275,8 @@ export default function CommunityPage() {
             visibility: values.visibility,
             mediaUrls: values.mediaUrls || [],
             createdAt: serverTimestamp(),
+            likes: [],
+            comments: [],
         });
         toast({ title: "Success!", description: "Your post has been published."});
         postForm.reset();
@@ -242,6 +304,7 @@ export default function CommunityPage() {
         const usernameSnap = await getDoc(usernameRef);
         if (usernameSnap.exists()) {
             usernameForm.setError('username', { type: 'manual', message: 'Username already taken.'});
+            setIsSubmitting(false);
             return;
         }
 
@@ -253,11 +316,102 @@ export default function CommunityPage() {
     } catch (error) {
         console.error("Error setting username:", error);
         toast({ title: 'Error', description: 'Could not set username. Please try again.', variant: 'destructive'});
+        setIsSubmitting(false);
     } finally {
         setIsSubmitting(false);
     }
   }
   
+  const handleLike = async (postId: string) => {
+    const userId = localStorage.getItem('userDocId');
+    if (!userId) return;
+
+    const postRef = doc(db, 'gymRats', postId);
+    const post = posts.find(p => p.id === postId);
+    const isLiked = post?.likes?.includes(userId);
+
+    try {
+        await updateDoc(postRef, {
+            likes: isLiked ? arrayRemove(userId) : arrayUnion(userId)
+        });
+    } catch (error) {
+        console.error("Error liking post:", error);
+        toast({ title: 'Error', description: 'Could not update like status.', variant: 'destructive' });
+    }
+  };
+
+  const handleCommentSubmit = async (postId: string, data: CommentFormData) => {
+    const authorId = localStorage.getItem('userDocId');
+    const authorName = localStorage.getItem('communityUsername') || 'Gym Owner';
+    if (!authorId) return;
+
+    const postRef = doc(db, 'gymRats', postId);
+    const newComment = {
+        id: new Date().toISOString(), // Simple unique ID
+        authorId,
+        authorName,
+        text: data.text,
+        createdAt: new Date(),
+    };
+
+    try {
+        await updateDoc(postRef, {
+            comments: arrayUnion(newComment)
+        });
+        commentForm.reset();
+    } catch (error) {
+        console.error("Error adding comment:", error);
+        toast({ title: 'Error', description: 'Could not post comment.', variant: 'destructive' });
+    }
+  };
+  
+  const handleReportPost = async (postId: string) => {
+    toast({ title: "Post Reported", description: "Thank you for your feedback. We will review this post."});
+  }
+
+  const handleRepostSubmit = async (values: RepostFormData) => {
+    if (!repostingPost) return;
+    setIsSubmitting(true);
+
+    const gymId = localStorage.getItem('userDocId');
+    const authorName = localStorage.getItem('communityUsername') || "Gym Owner";
+    const authorId = localStorage.getItem('userDocId');
+    if (!gymId || !authorId) {
+      toast({ title: "Error", description: "You must be logged in to repost.", variant: "destructive" });
+      setIsSubmitting(false);
+      return;
+    }
+
+    try {
+      await addDoc(collection(db, "gymRats"), {
+        authorName,
+        authorId,
+        gymId,
+        text: values.caption || '',
+        visibility: values.visibility,
+        createdAt: serverTimestamp(),
+        likes: [],
+        comments: [],
+        repost: {
+            originalAuthorName: repostingPost.authorName,
+            originalAuthorId: repostingPost.authorId,
+            originalText: repostingPost.text,
+            originalMediaUrls: repostingPost.mediaUrls || [],
+        }
+      });
+      toast({ title: "Success!", description: "Post has been reposted." });
+      setIsRepostDialogOpen(false);
+      setRepostingPost(null);
+      repostForm.reset();
+    } catch (error) {
+      console.error("Error reposting post: ", error);
+      toast({ title: "Error", description: "Could not repost.", variant: "destructive" });
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
+
   const renderFeed = () => {
     if (isLoading) {
         return <div className="flex justify-center p-8"><Loader2 className="h-8 w-8 animate-spin"/></div>;
@@ -272,40 +426,125 @@ export default function CommunityPage() {
         );
     }
 
+    const userId = localStorage.getItem('userDocId');
+
     return posts.map(post => (
         <Card key={post.id} className="mb-4">
-            <CardHeader className="flex flex-row items-center gap-4">
+            <CardHeader className="flex flex-row items-start gap-4">
                 <Avatar>
+                    <AvatarImage src={post.authorPhotoUrl} />
                     <AvatarFallback>{post.authorName?.charAt(0).toUpperCase() || 'U'}</AvatarFallback>
                 </Avatar>
-                <div>
-                    <CardTitle className="text-base">{post.authorName}</CardTitle>
-                    <p className="text-xs text-muted-foreground">
-                        {post.createdAt ? `${formatDistanceToNow(post.createdAt)} ago` : 'just now'}
-                    </p>
+                <div className="flex-1">
+                    <div className="flex justify-between items-start">
+                        <div>
+                            <CardTitle className="text-base">{post.authorName}</CardTitle>
+                            <p className="text-xs text-muted-foreground">
+                                {post.createdAt ? `${formatDistanceToNow(post.createdAt)} ago` : 'just now'}
+                            </p>
+                        </div>
+                        <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" size="icon" className="h-8 w-8">
+                                    <MoreVertical className="h-4 w-4"/>
+                                </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent>
+                                <DropdownMenuItem onSelect={() => handleReportPost(post.id)} className="text-destructive focus:text-destructive">
+                                    <Flag className="mr-2"/> Report Post
+                                </DropdownMenuItem>
+                            </DropdownMenuContent>
+                        </DropdownMenu>
+                    </div>
                 </div>
             </CardHeader>
             <CardContent>
                 {post.text && <p className="whitespace-pre-wrap mb-4">{post.text}</p>}
-                {post.mediaUrls && post.mediaUrls.length > 0 && (
-                    <div className={cn("grid gap-2", post.mediaUrls.length > 1 ? "grid-cols-2" : "grid-cols-1")}>
-                        {post.mediaUrls.map((media, index) => (
-                            <div key={index} className="rounded-lg overflow-hidden border">
-                                {media.type === 'image' ? (
-                                    <Image src={media.url} alt={`Post media ${index + 1}`} width={500} height={500} className="w-full h-auto object-cover"/>
-                                ) : (
-                                    <video src={media.url} controls className="w-full h-auto"/>
-                                )}
+                
+                {post.repost ? (
+                    <div className="border rounded-md p-4 mt-2">
+                         <div className="flex items-center gap-2 mb-2">
+                             <Avatar className="h-6 w-6">
+                                <AvatarFallback>{post.repost.originalAuthorName?.charAt(0).toUpperCase() || 'U'}</AvatarFallback>
+                            </Avatar>
+                            <span className="text-sm font-semibold">{post.repost.originalAuthorName}</span>
+                         </div>
+                         {post.repost.originalText && <p className="whitespace-pre-wrap text-sm text-muted-foreground">{post.repost.originalText}</p>}
+                         {post.repost.originalMediaUrls && post.repost.originalMediaUrls.length > 0 && (
+                            <div className={cn("grid gap-2 mt-2", post.repost.originalMediaUrls.length > 1 ? "grid-cols-2" : "grid-cols-1")}>
+                                {post.repost.originalMediaUrls.map((media, index) => (
+                                    <div key={index} className="rounded-lg overflow-hidden border">
+                                        {media.type === 'image' ? (
+                                            <Image src={media.url} alt={`Post media ${index + 1}`} width={300} height={300} className="w-full h-auto object-cover"/>
+                                        ) : (
+                                            <video src={media.url} controls className="w-full h-auto"/>
+                                        )}
+                                    </div>
+                                ))}
                             </div>
-                        ))}
+                        )}
                     </div>
+                ) : (
+                    post.mediaUrls && post.mediaUrls.length > 0 && (
+                        <div className={cn("grid gap-2", post.mediaUrls.length > 1 ? "grid-cols-2" : "grid-cols-1")}>
+                            {post.mediaUrls.map((media, index) => (
+                                <div key={index} className="rounded-lg overflow-hidden border">
+                                    {media.type === 'image' ? (
+                                        <Image src={media.url} alt={`Post media ${index + 1}`} width={500} height={500} className="w-full h-auto object-cover"/>
+                                    ) : (
+                                        <video src={media.url} controls className="w-full h-auto"/>
+                                    )}
+                                </div>
+                            ))}
+                        </div>
+                    )
                 )}
             </CardContent>
+            <CardFooter className="flex flex-col items-start gap-4">
+                 <div className="flex gap-4">
+                    <Button variant="ghost" size="sm" onClick={() => handleLike(post.id)}>
+                        <ThumbsUp className={cn("mr-2 h-4 w-4", post.likes?.includes(userId!) && "fill-primary text-primary")}/> 
+                        {post.likes?.length || 0} Likes
+                    </Button>
+                     <Button variant="ghost" size="sm" onClick={() => setOpenComments(prev => ({...prev, [post.id]: !prev[post.id]}))}>
+                        <MessageSquare className="mr-2 h-4 w-4"/> 
+                        {post.comments?.length || 0} Comments
+                    </Button>
+                     <Button variant="ghost" size="sm" onClick={() => { setRepostingPost(post); setIsRepostDialogOpen(true); }}>
+                        <Repeat className="mr-2 h-4 w-4"/> Repost
+                    </Button>
+                </div>
+                 {openComments[post.id] && (
+                     <div className="w-full pl-4 border-l-2">
+                        <Form {...commentForm}>
+                            <form onSubmit={commentForm.handleSubmit((data) => handleCommentSubmit(post.id, data))} className="flex gap-2 mb-4">
+                                <FormField control={commentForm.control} name="text" render={({field}) => (
+                                    <FormItem className="flex-1">
+                                        <FormControl><Input placeholder="Write a comment..." {...field} /></FormControl>
+                                    </FormItem>
+                                )}/>
+                                <Button type="submit" size="icon"><Send className="h-4 w-4"/></Button>
+                            </form>
+                        </Form>
+                        <div className="space-y-4">
+                            {post.comments?.map(comment => (
+                                <div key={comment.id} className="text-sm">
+                                    <p><span className="font-semibold">{comment.authorName}</span>: {comment.text}</p>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                 )}
+            </CardFooter>
         </Card>
     ));
   };
+  
+  if (hasCommunityProfile === null) {
+      return <div className="flex justify-center p-8"><Loader2 className="h-8 w-8 animate-spin"/></div>;
+  }
 
-  if (!hasCommunityProfile) {
+  if (hasCommunityProfile === false) {
     return (
         <Dialog open={isUsernameDialogOpen} onOpenChange={setIsUsernameDialogOpen}>
             <DialogContent onInteractOutside={(e) => e.preventDefault()}>
@@ -346,14 +585,75 @@ export default function CommunityPage() {
 
   return (
     <div className="h-full w-full flex flex-col relative">
+      <Dialog open={isRepostDialogOpen} onOpenChange={setIsRepostDialogOpen}>
+        <DialogContent>
+            <DialogHeader>
+                <DialogTitle>Repost</DialogTitle>
+                <DialogDescription>Add a caption and share this post with the community.</DialogDescription>
+            </DialogHeader>
+            <Form {...repostForm}>
+                <form onSubmit={repostForm.handleSubmit(handleRepostSubmit)} className="space-y-4">
+                    <FormField control={repostForm.control} name="caption" render={({ field }) => (
+                        <FormItem>
+                            <FormControl>
+                                <Textarea placeholder="Add a caption..." {...field} />
+                            </FormControl>
+                            <FormMessage />
+                        </FormItem>
+                    )} />
+
+                    <div className="my-4 p-4 border rounded-md bg-muted/50 max-h-48 overflow-y-auto">
+                         <div className="flex items-center gap-2 mb-2">
+                             <Avatar className="h-6 w-6">
+                                <AvatarFallback>{repostingPost?.authorName?.charAt(0).toUpperCase() || 'U'}</AvatarFallback>
+                            </Avatar>
+                            <span className="text-sm font-semibold">{repostingPost?.authorName}</span>
+                         </div>
+                        <p className="text-sm text-muted-foreground whitespace-pre-wrap">{repostingPost?.text}</p>
+                    </div>
+                    
+                    <FormField
+                        control={repostForm.control}
+                        name="visibility"
+                        render={({ field }) => (
+                            <FormItem className="space-y-3">
+                            <FormLabel>Share To</FormLabel>
+                            <FormControl>
+                                <RadioGroup onValueChange={field.onChange} value={field.value} className="flex gap-4">
+                                    <FormItem className="flex items-center space-x-3 space-y-0"><FormControl><RadioGroupItem value="local" /></FormControl><FormLabel className="font-normal">Your Gym</FormLabel></FormItem>
+                                    <FormItem className="flex items-center space-x-3 space-y-0"><FormControl><RadioGroupItem value="global" /></FormControl><FormLabel className="font-normal">Global</FormLabel></FormItem>
+                                </RadioGroup>
+                            </FormControl>
+                            <FormMessage />
+                            </FormItem>
+                        )} />
+                     <DialogFooter className="mt-4">
+                        <Button type="button" variant="ghost" onClick={() => setIsRepostDialogOpen(false)}>Cancel</Button>
+                        <Button type="submit" disabled={isSubmitting}>
+                            {isSubmitting ? <Loader2 className="animate-spin mr-2"/> : <Repeat className="mr-2 h-4 w-4"/>} Repost
+                        </Button>
+                    </DialogFooter>
+                </form>
+            </Form>
+        </DialogContent>
+      </Dialog>
+      <Dialog open={isPostDialogOpen} onOpenChange={setIsPostDialogOpen}>
         <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col">
             <header className="p-4 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-10">
                 <div className="flex items-center justify-between">
                     <h1 className="text-2xl font-bold">Community</h1>
-                    <TabsList>
-                        <TabsTrigger value="your_gym">Your Gym</TabsTrigger>
-                        <TabsTrigger value="global">Global</TabsTrigger>
-                    </TabsList>
+                    <div className="flex items-center gap-4">
+                      <TabsList className="bg-muted text-muted-foreground">
+                          <TabsTrigger value="your_gym">Your Gym</TabsTrigger>
+                          <TabsTrigger value="global">Global</TabsTrigger>
+                      </TabsList>
+                      <DialogTrigger asChild>
+                        <Button>
+                            <Plus className="h-4 w-4 mr-2" />
+                            Create Post
+                        </Button>
+                      </DialogTrigger>
+                    </div>
                 </div>
             </header>
             
@@ -369,91 +669,84 @@ export default function CommunityPage() {
             </TabsContent>
         </Tabs>
         
-        <Dialog open={isPostDialogOpen} onOpenChange={setIsPostDialogOpen}>
-            <DialogTrigger asChild>
-                <Button className="absolute bottom-6 right-6 h-14 w-14 rounded-full shadow-lg">
-                    <Plus className="h-6 w-6" />
-                    <span className="sr-only">Create Post</span>
-                </Button>
-            </DialogTrigger>
-            <DialogContent>
-                 <DialogHeader>
-                    <DialogTitle>Create a New Post</DialogTitle>
-                    <DialogDescription>
-                        Share an update, photo, or video with the community.
-                    </DialogDescription>
-                </DialogHeader>
-                 <Form {...postForm}>
-                    <form onSubmit={postForm.handleSubmit(handlePostSubmit)} className="space-y-4">
-                        <FormField
-                            control={postForm.control}
-                            name="text"
-                            render={({ field }) => (
-                                <FormItem>
-                                <FormControl>
-                                    <Textarea
-                                        placeholder="What's on your mind?"
-                                        className="min-h-[120px]"
-                                        {...field}
-                                    />
-                                </FormControl>
-                                <FormMessage />
-                                </FormItem>
-                            )}
-                        />
+        <DialogContent>
+             <DialogHeader>
+                <DialogTitle>Create a New Post</DialogTitle>
+                <DialogDescription>
+                    Share an update, photo, or video with the community.
+                </DialogDescription>
+            </DialogHeader>
+             <Form {...postForm}>
+                <form onSubmit={postForm.handleSubmit(handlePostSubmit)} className="space-y-4">
+                    <FormField
+                        control={postForm.control}
+                        name="text"
+                        render={({ field }) => (
+                            <FormItem>
+                            <FormControl>
+                                <Textarea
+                                    placeholder="What's on your mind?"
+                                    className="min-h-[120px]"
+                                    {...field}
+                                />
+                            </FormControl>
+                            <FormMessage />
+                            </FormItem>
+                        )}
+                    />
+                    
+                    <div className="flex flex-wrap gap-2">
+                        {mediaPreviews.map((media, index) => (
+                            <div key={index} className="relative">
+                                {media.type === 'image' ? (
+                                    <Image src={media.url} alt="preview" width={80} height={80} className="rounded-md object-cover h-20 w-20"/>
+                                ) : (
+                                    <video src={media.url} className="w-full h-auto rounded-md" />
+                                )}
+                                <Button variant="ghost" size="icon" className="absolute top-1 right-1 h-6 w-6 bg-black/50 hover:bg-black/75 text-white" onClick={() => clearMedia(index)}>
+                                    <X className="h-4 w-4"/>
+                                </Button>
+                            </div>
+                        ))}
+                    </div>
+
+                    <div className="flex gap-2">
+                         <Button type="button" variant="outline" onClick={() => imageInputRef.current?.click()} disabled={mediaPreviews.some(m => m.type === 'video') || mediaPreviews.filter(m => m.type === 'image').length >= 3}>
+                            <ImageIcon className="mr-2 h-4 w-4"/> Add Photo(s)
+                        </Button>
+                        <input type="file" ref={imageInputRef} multiple accept="image/*" className="hidden" onChange={(e) => handleFileChange(e, 'image')} />
                         
-                        <div className="flex flex-wrap gap-2">
-                            {mediaPreviews.map((media, index) => (
-                                <div key={index} className="relative">
-                                    {media.type === 'image' ? (
-                                        <Image src={media.url} alt="preview" width={80} height={80} className="rounded-md object-cover h-20 w-20"/>
-                                    ) : (
-                                        <video src={media.url} className="w-full h-auto rounded-md" />
-                                    )}
-                                    <Button variant="ghost" size="icon" className="absolute top-1 right-1 h-6 w-6 bg-black/50 hover:bg-black/75 text-white" onClick={() => clearMedia(index)}>
-                                        <X className="h-4 w-4"/>
-                                    </Button>
-                                </div>
-                            ))}
-                        </div>
+                         <Button type="button" variant="outline" onClick={() => videoInputRef.current?.click()} disabled={mediaPreviews.length > 0}>
+                            <Video className="mr-2 h-4 w-4"/> Add Video
+                        </Button>
+                        <input type="file" ref={videoInputRef} accept="video/*" className="hidden" onChange={(e) => handleFileChange(e, 'video')} />
+                    </div>
 
-                        <div className="flex gap-2">
-                             <Button type="button" variant="outline" onClick={() => imageInputRef.current?.click()} disabled={mediaPreviews.some(m => m.type === 'video') || mediaPreviews.filter(m => m.type === 'image').length >= 3}>
-                                <ImageIcon className="mr-2 h-4 w-4"/> Add Photo(s)
-                            </Button>
-                            <input type="file" ref={imageInputRef} multiple accept="image/*" className="hidden" onChange={(e) => handleFileChange(e, 'image')} />
-                            
-                             <Button type="button" variant="outline" onClick={() => videoInputRef.current?.click()} disabled={mediaPreviews.length > 0}>
-                                <Video className="mr-2 h-4 w-4"/> Add Video
-                            </Button>
-                            <input type="file" ref={videoInputRef} accept="video/*" className="hidden" onChange={(e) => handleFileChange(e, 'video')} />
-                        </div>
-
-                         <FormField
-                            control={postForm.control}
-                            name="visibility"
-                            render={({ field }) => (
-                                <FormItem className="space-y-3">
-                                <FormLabel>Visibility</FormLabel>
-                                <FormControl>
-                                    <RadioGroup onValueChange={field.onChange} value={field.value} className="flex gap-4">
-                                        <FormItem className="flex items-center space-x-3 space-y-0"><FormControl><RadioGroupItem value="local" /></FormControl><FormLabel className="font-normal">Your Gym</FormLabel></FormItem>
-                                        <FormItem className="flex items-center space-x-3 space-y-0"><FormControl><RadioGroupItem value="global" /></FormControl><FormLabel className="font-normal">Global</FormLabel></FormItem>
-                                    </RadioGroup>
-                                </FormControl>
-                                    <FormMessage />
-                                </FormItem>
-                            )} />
-                        <DialogFooter>
-                            <Button type="button" variant="ghost" onClick={() => setIsPostDialogOpen(false)}>Cancel</Button>
-                            <Button type="submit" disabled={isSubmitting}>
-                                {isSubmitting ? <Loader2 className="animate-spin mr-2"/> : <Send className="mr-2 h-4 w-4"/>} Post
-                            </Button>
-                        </DialogFooter>
-                    </form>
-                </Form>
-            </DialogContent>
-        </Dialog>
+                     <FormField
+                        control={postForm.control}
+                        name="visibility"
+                        render={({ field }) => (
+                            <FormItem className="space-y-3">
+                            <FormLabel>Visibility</FormLabel>
+                            <FormControl>
+                                <RadioGroup onValueChange={field.onChange} value={field.value} className="flex gap-4">
+                                    <FormItem className="flex items-center space-x-3 space-y-0"><FormControl><RadioGroupItem value="local" /></FormControl><FormLabel className="font-normal">Your Gym</FormLabel></FormItem>
+                                    <FormItem className="flex items-center space-x-3 space-y-0"><FormControl><RadioGroupItem value="global" /></FormControl><FormLabel className="font-normal">Global</FormLabel></FormItem>
+                                </RadioGroup>
+                            </FormControl>
+                                <FormMessage />
+                            </FormItem>
+                        )} />
+                    <DialogFooter>
+                        <Button type="button" variant="ghost" onClick={() => setIsPostDialogOpen(false)}>Cancel</Button>
+                        <Button type="submit" disabled={isSubmitting}>
+                            {isSubmitting ? <Loader2 className="animate-spin mr-2"/> : <Send className="mr-2 h-4 w-4"/>} Post
+                        </Button>
+                    </DialogFooter>
+                </form>
+            </Form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
