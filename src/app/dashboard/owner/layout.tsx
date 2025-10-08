@@ -108,6 +108,7 @@ export default function OwnerDashboardLayout({
   const router = useRouter();
   const pathname = usePathname();
 
+  const isCommunityPage = pathname === '/dashboard/owner/community';
 
   useEffect(() => {
     const fetchGymData = async () => {
@@ -252,7 +253,9 @@ export default function OwnerDashboardLayout({
     router.push('/');
   };
 
-  const isCommunityPage = pathname === '/dashboard/owner/community';
+  if (isCommunityPage) {
+    return <>{children}</>;
+  }
 
   return (
     <SidebarProvider>
@@ -388,15 +391,12 @@ export default function OwnerDashboardLayout({
         </SidebarFooter>
       </Sidebar>
       <div className="flex-1 flex flex-col transition-all duration-300 ease-in-out">
-        {isCommunityPage && <div className="flex-shrink-0" />} 
-        {!isCommunityPage && (
-          <header className="sticky top-0 z-10 flex h-16 items-center justify-between border-b bg-background/80 backdrop-blur-sm px-4 md:px-8">
-              <SidebarTrigger className="md:hidden" />
-              <div className='flex-1'></div>
-              <ThemeToggle />
-          </header>
-        )}
-        <main className={cn("flex-1", !isCommunityPage && "p-4 md:p-8")}>
+        <header className="sticky top-0 z-10 flex h-16 items-center justify-between border-b bg-background/80 backdrop-blur-sm px-4 md:px-8">
+            <SidebarTrigger className="md:hidden" />
+            <div className='flex-1'></div>
+            <ThemeToggle />
+        </header>
+        <main className="flex-1 p-4 md:p-8">
           {children}
         </main>
       </div>
