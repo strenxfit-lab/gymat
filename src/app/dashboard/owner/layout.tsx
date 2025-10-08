@@ -57,9 +57,9 @@ export default function OwnerDashboardLayout({
                             <SidebarMenuSubButton className={subMenuButtonClass}>Basic Gym Information</SidebarMenuSubButton>
                             <SidebarMenuSubButton className={subMenuButtonClass}>Owner Information</SidebarMenuSubButton>
                             <SidebarMenuSubButton className={subMenuButtonClass}>Gym Capacity</SidebarMenuSubButton>
-                            <SidebarMenuSubButton className={subMenuButtonClass}>Membership & Plans</SidebarMenuSubButton>
-                            <SidebarMenuSubButton className={subMenuButtonClass}>Facilities & Machines</SidebarMenuSubButton>
-                            <SidebarMenuSubButton className={subMenuButtonClass}>Goals & Insights</SidebarMenuSubButton>
+                            <SidebarMenuSubButton className={subMenuButtonClass}>Membership &amp; Plans</SidebarMenuSubButton>
+                            <SidebarMenuSubButton className={subMenuButtonClass}>Facilities &amp; Machines</SidebarMenuSubButton>
+                            <SidebarMenuSubButton className={subMenuButtonClass}>Goals &amp; Insights</SidebarMenuSubButton>
                         </SidebarMenuSub>
                     )}
                 </SidebarMenuItem>
@@ -71,7 +71,7 @@ export default function OwnerDashboardLayout({
                     {openSubMenu === 'member' && (
                         <SidebarMenuSub className="space-y-3">
                             <SidebarMenuSubButton className={subMenuButtonClass}>Multi-branch support</SidebarMenuSubButton>
-                             <Link href="/dashboard/owner/members" passHref>
+                             <Link href="/dashboard/owner/members">
                                 <SidebarMenuSubButton className={subMenuButtonClass}>
                                   Member profile with history
                                 </SidebarMenuSubButton>
@@ -83,7 +83,7 @@ export default function OwnerDashboardLayout({
                 </SidebarMenuItem>
                 <SidebarMenuItem>
                     <SidebarMenuButton onClick={() => toggleSubMenu('billing')} className="justify-between">
-                        <div className="flex items-center gap-2"><CreditCard /> Payment & Billing</div>
+                        <div className="flex items-center gap-2"><CreditCard /> Payment &amp; Billing</div>
                         <ChevronDown className={`transition-transform duration-200 ${openSubMenu === 'billing' ? 'rotate-180' : ''}`} />
                     </SidebarMenuButton>
                     {openSubMenu === 'billing' && (
@@ -94,7 +94,7 @@ export default function OwnerDashboardLayout({
                 </SidebarMenuItem>
                 <SidebarMenuItem>
                     <SidebarMenuButton onClick={() => toggleSubMenu('class')} className="justify-between">
-                        <div className="flex items-center gap-2"><ClipboardList /> Class & Trainer Management</div>
+                        <div className="flex items-center gap-2"><ClipboardList /> Class &amp; Trainer Management</div>
                         <ChevronDown className={`transition-transform duration-200 ${openSubMenu === 'class' ? 'rotate-180' : ''}`} />
                     </SidebarMenuButton>
                      {openSubMenu === 'class' && (
@@ -109,7 +109,7 @@ export default function OwnerDashboardLayout({
                 </SidebarMenuItem>
                 <SidebarMenuItem>
                      <SidebarMenuButton onClick={() => toggleSubMenu('reports')} className="justify-between">
-                        <div className="flex items-center gap-2"><BarChart3 /> Reporting & Analytics</div>
+                        <div className="flex items-center gap-2"><BarChart3 /> Reporting &amp; Analytics</div>
                         <ChevronDown className={`transition-transform duration-200 ${openSubMenu === 'reports' ? 'rotate-180' : ''}`} />
                     </SidebarMenuButton>
                      {openSubMenu === 'reports' && (
@@ -122,7 +122,7 @@ export default function OwnerDashboardLayout({
                 </SidebarMenuItem>
                 <SidebarMenuItem>
                      <SidebarMenuButton onClick={() => toggleSubMenu('comms')} className="justify-between">
-                        <div className="flex items-center gap-2"><Megaphone /> Communication & Marketing</div>
+                        <div className="flex items-center gap-2"><Megaphone /> Communication &amp; Marketing</div>
                         <ChevronDown className={`transition-transform duration-200 ${openSubMenu === 'comms' ? 'rotate-180' : ''}`} />
                     </SidebarMenuButton>
                      {openSubMenu === 'comms' && (
@@ -136,7 +136,7 @@ export default function OwnerDashboardLayout({
                 </SidebarMenuItem>
                  <SidebarMenuItem>
                      <SidebarMenuButton onClick={() => toggleSubMenu('inventory')} className="justify-between">
-                        <div className="flex items-center gap-2"><Boxes /> Inventory & Facility</div>
+                        <div className="flex items-center gap-2"><Boxes /> Inventory &amp; Facility</div>
                         <ChevronDown className={`transition-transform duration-200 ${openSubMenu === 'inventory' ? 'rotate-180' : ''}`} />
                     </SidebarMenuButton>
                      {openSubMenu === 'inventory' && (
