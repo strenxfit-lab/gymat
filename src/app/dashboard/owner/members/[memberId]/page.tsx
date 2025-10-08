@@ -2,16 +2,18 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
-import { doc, getDoc, collection, getDocs, Timestamp } from 'firebase/firestore';
+import { doc, getDoc, collection, getDocs, Timestamp, deleteDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Loader2, ArrowLeft, User, Calendar, DollarSign, Weight, BarChart2, Edit, KeyRound, Dumbbell, HeartPulse, ShieldCheck, Mail, Phone, Briefcase, Fingerprint } from 'lucide-react';
+import { Loader2, ArrowLeft, User, Calendar, DollarSign, Weight, BarChart2, Edit, KeyRound, Dumbbell, HeartPulse, ShieldCheck, Mail, Phone, Briefcase, Fingerprint, Trash } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+
 
 type MemberStatus = 'Active' | 'Expired' | 'Pending' | 'Frozen' | 'Stopped';
 
@@ -198,6 +200,26 @@ export default function MemberProfilePage() {
     fetchMemberData();
   }, [memberId, router, toast]);
 
+  const handleDeleteProfile = async () => {
+    const userDocId = localStorage.getItem('userDocId');
+    const activeBranchId = localStorage.getItem('activeBranch');
+
+    if (!userDocId || !activeBranchId || !memberId) {
+      toast({ title: 'Error', description: 'Session data is missing.', variant: 'destructive' });
+      return;
+    }
+
+    try {
+        const memberRef = doc(db, 'gyms', userDocId, 'branches', activeBranchId, 'members', memberId);
+        await deleteDoc(memberRef);
+        toast({ title: 'Success', description: `${member?.fullName}'s profile has been deleted.` });
+        router.push('/dashboard/owner/members');
+    } catch (error) {
+        console.error('Error deleting member profile:', error);
+        toast({ title: 'Error', description: 'Could not delete the profile.', variant: 'destructive' });
+    }
+  };
+
   if (loading) {
     return <div className="flex min-h-screen items-center justify-center bg-background"><Loader2 className="h-8 w-8 animate-spin" /></div>;
   }
@@ -220,6 +242,23 @@ export default function MemberProfilePage() {
                 <Link href={`/dashboard/owner/members/${memberId}/edit`} passHref>
                     <Button><Edit className="mr-2 h-4 w-4"/>Edit Profile</Button>
                 </Link>
+                <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                         <Button variant="destructive"><Trash className="mr-2 h-4 w-4"/>Delete Profile</Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                        <AlertDialogHeader>
+                            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                                This action cannot be undone. This will permanently delete this member's profile and all associated data. They will not be able to log in again.
+                            </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                            <AlertDialogAction onClick={handleDeleteProfile}>Continue</AlertDialogAction>
+                        </AlertDialogFooter>
+                    </AlertDialogContent>
+                </AlertDialog>
             </div>
         </div>
         
