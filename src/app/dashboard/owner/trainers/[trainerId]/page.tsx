@@ -1,17 +1,16 @@
+
 "use client";
 
 import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
-import { doc, getDoc, Timestamp, deleteDoc } from 'firebase/firestore';
+import { doc, getDoc, Timestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Loader2, ArrowLeft, User, Briefcase, Wallet, Calendar, Mail, Phone, Clock, Edit, Star, KeyRound, Trash } from 'lucide-react';
+import { Loader2, ArrowLeft, User, Briefcase, Wallet, Calendar, Mail, Phone, Clock, Edit, Star } from 'lucide-react';
 import Link from 'next/link';
 import { Separator } from '@/components/ui/separator';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-
 
 interface TrainerDetails {
   fullName: string;
@@ -26,14 +25,13 @@ interface TrainerDetails {
   specialization?: string;
   experience?: string;
   joiningDate: string;
+  shiftTiming: string;
   certifications?: string;
   salaryType: string;
   salaryRate: string;
   bankDetails?: string;
   averageRating?: number;
   ratingCount?: number;
-  password?: string;
-  passwordChanged: boolean;
 }
 
 const DetailItem = ({ label, value }: { label: string, value: string | undefined }) => (
@@ -86,14 +84,13 @@ export default function TrainerProfilePage() {
             specialization: data.specialization,
             experience: data.experience ? `${data.experience} years` : undefined,
             joiningDate: (data.joiningDate as Timestamp)?.toDate().toLocaleDateString(),
+            shiftTiming: data.shiftTiming,
             certifications: data.certifications,
             salaryType: data.salaryType,
             salaryRate: data.salaryRate,
             bankDetails: data.bankDetails,
             averageRating: data.ratings?.averageRating,
             ratingCount: data.ratings?.ratingCount,
-            password: data.password,
-            passwordChanged: data.passwordChanged || false,
         });
         
       } catch (error) {
@@ -106,26 +103,6 @@ export default function TrainerProfilePage() {
 
     fetchTrainerData();
   }, [trainerId, router, toast]);
-  
-  const handleDeleteProfile = async () => {
-    const userDocId = localStorage.getItem('userDocId');
-    const activeBranchId = localStorage.getItem('activeBranch');
-
-    if (!userDocId || !activeBranchId || !trainerId) {
-      toast({ title: 'Error', description: 'Session data is missing.', variant: 'destructive' });
-      return;
-    }
-
-    try {
-        const trainerRef = doc(db, 'gyms', userDocId, 'branches', activeBranchId, 'trainers', trainerId);
-        await deleteDoc(trainerRef);
-        toast({ title: 'Success', description: `${trainer?.fullName}'s profile has been deleted.` });
-        router.push('/dashboard/owner/members');
-    } catch (error) {
-        console.error('Error deleting trainer profile:', error);
-        toast({ title: 'Error', description: 'Could not delete the profile.', variant: 'destructive' });
-    }
-  };
 
   if (loading) {
     return <div className="flex min-h-screen items-center justify-center bg-background"><Loader2 className="h-8 w-8 animate-spin" /></div>;
@@ -149,23 +126,6 @@ export default function TrainerProfilePage() {
                 <Link href={`/dashboard/owner/trainers/${trainerId}/edit`} passHref>
                     <Button><Edit className="mr-2 h-4 w-4"/>Edit Profile</Button>
                 </Link>
-                 <AlertDialog>
-                    <AlertDialogTrigger asChild>
-                         <Button variant="destructive"><Trash className="mr-2 h-4 w-4"/>Delete Profile</Button>
-                    </AlertDialogTrigger>
-                    <AlertDialogContent>
-                        <AlertDialogHeader>
-                            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-                            <AlertDialogDescription>
-                                This action cannot be undone. This will permanently delete this trainer's profile and all associated data. They will not be able to log in again.
-                            </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                            <AlertDialogCancel>Cancel</AlertDialogCancel>
-                            <AlertDialogAction onClick={handleDeleteProfile}>Continue</AlertDialogAction>
-                        </AlertDialogFooter>
-                    </AlertDialogContent>
-                </AlertDialog>
             </div>
         </div>
         
@@ -181,8 +141,6 @@ export default function TrainerProfilePage() {
                     <DetailItem label="Phone" value={trainer.phone} />
                     <DetailItem label="Email" value={trainer.email} />
                     <DetailItem label="Address" value={trainer.address} />
-                    <DetailItem label="Login ID (Phone No.)" value={trainer.phone} />
-                    <DetailItem label="Password" value={trainer.passwordChanged ? "Password Changed" : trainer.password} />
                     <Separator/>
                     <DetailItem label="Emergency Contact Name" value={trainer.emergencyContactName} />
                     <DetailItem label="Emergency Contact Number" value={trainer.emergencyContactNumber} />
