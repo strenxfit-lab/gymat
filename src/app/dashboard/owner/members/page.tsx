@@ -195,8 +195,8 @@ export default function MembersListPage() {
                                     <DropdownMenuContent align="end">
                                     <DropdownMenuLabel>Actions</DropdownMenuLabel>
                                     <DropdownMenuItem>View Profile</DropdownMenuItem>
+                                    <DropdownMenuItem>Edit Profile</DropdownMenuItem>
                                     <DropdownMenuItem>Collect Payment</DropdownMenuItem>
-                                    <DropdownMenuItem>Freeze Membership</DropdownMenuItem>
                                     </DropdownMenuContent>
                                 </DropdownMenu>
                                 </TableCell>
