@@ -77,14 +77,14 @@ export default function MemberDashboardLayout({
         <SidebarContent className="flex-1 overflow-y-auto">
           <SidebarMenu>
             <MenuItem href="/dashboard/member" icon={<LayoutDashboard />}>Dashboard</MenuItem>
-            <MenuItem href="/dashboard/member/book-class" icon={<CalendarCheck />}>Book a Class</MenuItem>
+            <MenuItem href="/dashboard/gym-profile" icon={<Building />}>Your Gym</MenuItem>
             <MenuItem href="/dashboard/member/trainers" icon={<Users />}>View Trainers</MenuItem>
-            <MenuItem href="/dashboard/member/diet-plan" icon={<Utensils />}>View Diet Plan</MenuItem>
-            <MenuItem href="/dashboard/member/payment-history" icon={<IndianRupee />}>Payment History</MenuItem>
-            <MenuItem href="/dashboard/member/attendance" icon={<CheckSquare />}>Attendance</MenuItem>
-            <MenuItem href="/dashboard/member/renew" icon={<CreditCard />}>Renew Membership</MenuItem>
-            <MenuItem href="/dashboard/gym-profile" icon={<Building />}>Your Gym Profile</MenuItem>
+            <MenuItem href="/dashboard/member/book-class" icon={<CalendarCheck />}>Book a Class</MenuItem>
             <MenuItem href="/dashboard/member/complaints" icon={<MessageSquare />}>Complaints</MenuItem>
+            <MenuItem href="/dashboard/member/attendance" icon={<CheckSquare />}>Attendance</MenuItem>
+            <MenuItem href="/dashboard/member/diet-plan" icon={<Utensils />}>View Diet Plan</MenuItem>
+            <MenuItem href="/dashboard/member/renew" icon={<CreditCard />}>Renew Membership</MenuItem>
+            <MenuItem href="/dashboard/member/payment-history" icon={<IndianRupee />}>Payment History</MenuItem>
           </SidebarMenu>
         </SidebarContent>
         <SidebarFooter className="p-4 space-y-4">
