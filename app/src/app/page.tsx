@@ -20,6 +20,9 @@ function AuthChecker({ children }: { children: React.ReactNode }) {
     const userRole = localStorage.getItem('userRole');
     if (userRole) {
       router.replace(`/dashboard/${userRole}`);
+      // The redirect will cause the component to unmount, but we set this
+      // for cases where the redirect might be slow or interrupted.
+      setTimeout(() => setIsChecking(false), 500); 
     } else {
       setIsChecking(false);
     }
