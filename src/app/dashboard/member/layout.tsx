@@ -84,17 +84,18 @@ export default function MemberDashboardLayout({
     router.push('/');
   };
   
-  const isCommunityPage = pathname.startsWith('/dashboard/member/community') || pathname.startsWith('/dashboard/member/profile') || pathname.startsWith('/dashboard/member/activity') || pathname.startsWith('/dashboard/search');
+  const isSpecialLayoutPage = pathname.startsWith('/dashboard/member/community') || 
+                              pathname.startsWith('/dashboard/member/profile') || 
+                              pathname.startsWith('/dashboard/member/activity') || 
+                              pathname.startsWith('/dashboard/search');
 
-  if (isCommunityPage) {
-    // The profile page is a special case that does not use the community layout with bottom navbar
+  if (isSpecialLayoutPage) {
     if (pathname.startsWith('/dashboard/member/profile')) {
        return <>{children}</>;
     }
-     if (pathname.startsWith('/dashboard/search')) {
+    if (pathname.startsWith('/dashboard/search')) {
        return <>{children}</>;
     }
-    // All other community-related pages get the special layout
     return <>{children}</>;
   }
 
@@ -125,7 +126,6 @@ export default function MemberDashboardLayout({
             <MenuItem href="/dashboard/member/complaints" icon={<MessageSquare />}>Complaints</MenuItem>
             <MenuItem href="/dashboard/member/attendance" icon={<CheckSquare />}>Attendance</MenuItem>
             <MenuItem href="/dashboard/member/diet-plan" icon={<Utensils />}>View Diet Plan</MenuItem>
-             <MenuItem href="/dashboard/member/measurements" icon={<Ruler />}>Log Measurements</MenuItem>
             <MenuItem href="/dashboard/member/renew" icon={<CreditCard />}>Renew Membership</MenuItem>
             <MenuItem href="/dashboard/member/payment-history" icon={<IndianRupee />}>Payment History</MenuItem>
           </SidebarMenu>

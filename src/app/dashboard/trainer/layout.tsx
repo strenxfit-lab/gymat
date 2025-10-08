@@ -83,9 +83,12 @@ export default function TrainerDashboardLayout({
     router.push('/');
   };
   
-  const isCommunityPage = pathname.startsWith('/dashboard/trainer/community') || pathname.startsWith('/dashboard/trainer/profile') || pathname.startsWith('/dashboard/trainer/activity') || pathname.startsWith('/dashboard/search');
+  const isSpecialLayoutPage = pathname.startsWith('/dashboard/trainer/community') || 
+                              pathname.startsWith('/dashboard/trainer/profile') || 
+                              pathname.startsWith('/dashboard/trainer/activity') || 
+                              pathname.startsWith('/dashboard/search');
 
-  if (isCommunityPage) {
+  if (isSpecialLayoutPage) {
     if (pathname.startsWith('/dashboard/trainer/profile')) {
        return <>{children}</>;
     }
