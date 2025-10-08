@@ -29,7 +29,7 @@ interface Complaint {
     id: string;
     complaint: string;
     status: 'Pending' | 'In Review' | 'Resolved';
-    submittedAt: string;
+    submittedAt: Date;
 }
 
 const getStatusVariant = (status: Complaint['status']) => {
@@ -65,13 +65,16 @@ export default function TrainerComplaintsPage() {
 
     try {
         const complaintsCollection = collection(db, 'gyms', userDocId, 'branches', activeBranchId, 'complaints');
-        const q = query(complaintsCollection, where('authorId', '==', trainerId), orderBy('submittedAt', 'desc'));
+        const q = query(complaintsCollection, where('authorId', '==', trainerId));
         const complaintsSnap = await getDocs(q);
         const complaintsList = complaintsSnap.docs.map(doc => ({
             id: doc.id,
             ...doc.data(),
-            submittedAt: (doc.data().submittedAt as Timestamp).toDate().toLocaleString()
+            submittedAt: (doc.data().submittedAt as Timestamp).toDate()
         } as Complaint));
+        
+        complaintsList.sort((a,b) => b.submittedAt.getTime() - a.submittedAt.getTime());
+
         setPastComplaints(complaintsList);
     } catch (error) {
         console.error("Error fetching complaints:", error);
@@ -191,7 +194,7 @@ export default function TrainerComplaintsPage() {
                                 {pastComplaints.map(c => (
                                     <div key={c.id} className="p-4 border rounded-md">
                                         <div className="flex justify-between items-center mb-2">
-                                            <p className="text-sm text-muted-foreground">{c.submittedAt}</p>
+                                            <p className="text-sm text-muted-foreground">{c.submittedAt.toLocaleString()}</p>
                                             <Badge variant={getStatusVariant(c.status)}>{c.status}</Badge>
                                         </div>
                                         <p className="text-sm">{c.complaint}</p>
