@@ -84,11 +84,11 @@ export default function MemberDashboardLayout({
   };
   
   const isSpecialLayoutPage = 
-      pathname.startsWith('/dashboard/member/community') || 
-      pathname.startsWith('/dashboard/member/profile') || 
-      pathname.startsWith('/dashboard/member/activity') || 
-      pathname.startsWith('/dashboard/search') ||
-      pathname.startsWith('/dashboard/messages');
+      pathname === '/dashboard/member/community' || 
+      pathname === '/dashboard/member/profile' || 
+      pathname === '/dashboard/member/activity' || 
+      pathname === '/dashboard/search' ||
+      pathname === '/dashboard/messages';
 
   if (isSpecialLayoutPage) {
     return <>{children}</>;
