@@ -9,16 +9,20 @@ import * as z from 'zod';
 import { doc, getDoc, updateDoc, collection, getDocs } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useToast } from '@/hooks/use-toast';
-import { Button } from '@/components/ui/button';
+import { Button, buttonVariants } from '@/components/ui/button';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
-import { Loader2, ArrowLeft, HeartPulse, Briefcase } from 'lucide-react';
+import { Loader2, ArrowLeft, HeartPulse, Briefcase, Upload, User } from 'lucide-react';
 import Link from 'next/link';
+import Image from 'next/image';
+import { cn } from '@/lib/utils';
+
 
 const formSchema = z.object({
+  photoUrl: z.string().optional(),
   assignedTrainer: z.string().optional(),
   height: z.string().optional(),
   weight: z.string().optional(),
@@ -38,12 +42,14 @@ export default function EditMemberProfilePage() {
   const [isFetching, setIsFetching] = useState(true);
   const [trainers, setTrainers] = useState<Trainer[]>([]);
   const [fullName, setFullName] = useState<string>('');
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
   const router = useRouter();
   const { toast } = useToast();
 
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
     defaultValues: {
+      photoUrl: '',
       assignedTrainer: '',
       height: '',
       weight: '',
@@ -65,13 +71,11 @@ export default function EditMemberProfilePage() {
 
     const fetchData = async () => {
       try {
-        // Fetch trainers
         const trainersCollection = collection(db, 'gyms', userDocId, 'branches', activeBranchId, 'trainers');
         const trainersSnapshot = await getDocs(trainersCollection);
         const trainersList = trainersSnapshot.docs.map(doc => ({ id: doc.id, name: doc.data().fullName }));
         setTrainers(trainersList);
 
-        // Fetch member data
         const memberRef = doc(db, 'gyms', userDocId, 'branches', activeBranchId, 'members', memberId);
         const memberSnap = await getDoc(memberRef);
 
@@ -79,12 +83,16 @@ export default function EditMemberProfilePage() {
           const data = memberSnap.data();
           setFullName(data.fullName);
           form.reset({
+            photoUrl: data.photoUrl || '',
             assignedTrainer: data.assignedTrainer || '',
             height: data.height || '',
             weight: data.weight || '',
             medicalConditions: data.medicalConditions || '',
             fitnessGoal: data.fitnessGoal || '',
           });
+          if (data.photoUrl) {
+              setImagePreview(data.photoUrl);
+          }
         } else {
           toast({ title: 'Error', description: 'Member not found.', variant: 'destructive' });
           router.push('/dashboard/member/profile');
@@ -99,6 +107,19 @@ export default function EditMemberProfilePage() {
 
     fetchData();
   }, [router, toast, form]);
+
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const result = reader.result as string;
+        setImagePreview(result);
+        form.setValue('photoUrl', result);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
 
   const onSubmit = async (data: FormData) => {
     const userDocId = localStorage.getItem('userDocId');
@@ -144,11 +165,40 @@ export default function EditMemberProfilePage() {
       <Card className="w-full max-w-2xl">
         <CardHeader>
           <CardTitle>Edit My Profile</CardTitle>
-          <CardDescription>Update your assigned trainer and health information, {fullName}.</CardDescription>
+          <CardDescription>Update your profile picture, assigned trainer, and health information, {fullName}.</CardDescription>
         </CardHeader>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)}>
             <CardContent className="space-y-8">
+               <div className="flex flex-col items-center gap-4 sm:flex-row">
+                <div className="relative h-24 w-24 rounded-full border border-dashed flex items-center justify-center bg-muted">
+                  {imagePreview ? (
+                    <Image src={imagePreview} alt="Profile" layout="fill" className="rounded-full object-cover" />
+                  ) : (
+                    <User className="h-8 w-8 text-muted-foreground" />
+                  )}
+                </div>
+                <FormField
+                  control={form.control}
+                  name="photoUrl"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel htmlFor="photo-upload" className={cn(
+                          buttonVariants({ variant: "outline" }),
+                          "cursor-pointer"
+                      )}>
+                        <Upload className="mr-2 h-4 w-4" />
+                        Upload Photo
+                      </FormLabel>
+                      <FormControl>
+                        <Input id="photo-upload" type="file" accept="image/*" className="sr-only" onChange={handleImageChange} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
               <div className="space-y-4">
                 <h3 className="font-semibold flex items-center gap-2"><Briefcase /> Assigned Trainer</h3>
                  <FormField
