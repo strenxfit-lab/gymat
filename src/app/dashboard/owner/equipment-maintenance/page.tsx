@@ -65,7 +65,9 @@ export default function EquipmentMaintenancePage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <Button className="w-full" variant="outline" disabled>Check Status</Button>
+             <Link href="/dashboard/owner/equipment" passHref>
+                <Button className="w-full">Check Status</Button>
+            </Link>
           </CardContent>
         </Card>
         
