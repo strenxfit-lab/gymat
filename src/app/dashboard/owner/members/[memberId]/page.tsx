@@ -69,8 +69,9 @@ const getStatusVariant = (status: MemberStatus) => {
     }
 }
 
-export default function MemberProfilePage({ params }: { params: { memberId: string } }) {
-  const { memberId } = params;
+export default function MemberProfilePage() {
+  const params = useParams();
+  const memberId = params.memberId as string;
   const [member, setMember] = useState<MemberDetails | null>(null);
   const [payments, setPayments] = useState<Payment[]>([]);
   const [loading, setLoading] = useState(true);
@@ -191,7 +192,7 @@ export default function MemberProfilePage({ params }: { params: { memberId: stri
                     <Button variant="outline"><ArrowLeft className="mr-2 h-4 w-4"/>Back to Members</Button>
                 </Link>
                 <Link href={`/dashboard/owner/members/${memberId}/edit`} passHref>
-                    <Button><Edit className="mr-2 h-4 w-4"/>Edit Health Info</Button>
+                    <Button><Edit className="mr-2 h-4 w-4"/>Edit Profile</Button>
                 </Link>
             </div>
         </div>
@@ -279,4 +280,3 @@ export default function MemberProfilePage({ params }: { params: { memberId: stri
     </div>
   );
 }
-
