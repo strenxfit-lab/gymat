@@ -52,6 +52,7 @@ export default function AddPaymentPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [members, setMembers] = useState<Member[]>([]);
   const [selectedMember, setSelectedMember] = useState<Member | null>(null);
+  const [activeBranch, setActiveBranch] = useState<string | null>(null);
   const { toast } = useToast();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -72,11 +73,16 @@ export default function AddPaymentPage() {
     },
   });
 
-  const fetchMembers = async () => {
+  useEffect(() => {
+    const branch = localStorage.getItem('activeBranch');
+    setActiveBranch(branch);
+  }, []);
+
+  const fetchMembers = async (branch: string) => {
     const userDocId = localStorage.getItem('userDocId');
-    if (!userDocId) return;
+    if (!userDocId) return [];
     
-    const membersCollection = collection(db, 'gyms', userDocId, 'members');
+    const membersCollection = collection(db, 'gyms', userDocId, 'branches', branch, 'members');
     const membersSnapshot = await getDocs(membersCollection);
     const membersList = membersSnapshot.docs.map(doc => ({
       id: doc.id,
@@ -95,16 +101,18 @@ export default function AddPaymentPage() {
     const memberName = searchParams.get('memberName');
     
     const initialize = async () => {
-        const fetchedMembers = await fetchMembers();
-        if (memberId && memberName && fetchedMembers) {
-            const member = fetchedMembers.find(m => m.id === memberId);
-            if(member) {
-                form.setValue('memberId', memberId);
+        if(activeBranch) {
+            const fetchedMembers = await fetchMembers(activeBranch);
+            if (memberId && memberName && fetchedMembers) {
+                const member = fetchedMembers.find(m => m.id === memberId);
+                if(member) {
+                    form.setValue('memberId', memberId);
+                }
             }
         }
     }
     initialize();
-  }, [searchParams, form]);
+  }, [searchParams, form, activeBranch]);
 
   useEffect(() => {
     const subscription = form.watch((values, { name }) => {
@@ -145,15 +153,15 @@ export default function AddPaymentPage() {
 
   const onSubmit = async (data: FormData) => {
     const userDocId = localStorage.getItem('userDocId');
-    if (!userDocId || !selectedMember) {
-      toast({ title: 'Error', description: 'Session or member not found.', variant: 'destructive' });
+    if (!userDocId || !selectedMember || !activeBranch) {
+      toast({ title: 'Error', description: 'Session, member, or branch not found.', variant: 'destructive' });
       return;
     }
     
     setIsLoading(true);
 
     try {
-      const paymentsCollection = collection(db, 'gyms', userDocId, 'members', data.memberId, 'payments');
+      const paymentsCollection = collection(db, 'gyms', userDocId, 'branches', activeBranch, 'members', data.memberId, 'payments');
       await addDoc(paymentsCollection, {
         ...data,
         discount: data.discount ? parseFloat(data.discount as string) : 0,
@@ -162,7 +170,7 @@ export default function AddPaymentPage() {
         createdAt: Timestamp.now(),
       });
       
-      const memberRef = doc(db, 'gyms', userDocId, 'members', data.memberId);
+      const memberRef = doc(db, 'gyms', userDocId, 'branches', activeBranch, 'members', data.memberId);
       await updateDoc(memberRef, {
           endDate: data.nextDueDate ? Timestamp.fromDate(data.nextDueDate) : null,
           membershipType: data.membershipPlan,
