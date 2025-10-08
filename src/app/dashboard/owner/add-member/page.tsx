@@ -39,9 +39,9 @@ const formSchema = z.object({
   dob: z.date().optional(),
   email: z.string().email().optional().or(z.literal('')),
   
-  membershipType: z.string().optional(),
-  startDate: z.date().optional(),
-  totalFee: z.string().optional(),
+  membershipType: z.string().nonempty({ message: "Please select a membership type." }),
+  startDate: z.date({ required_error: 'Start date is required.' }),
+  totalFee: z.string().min(1, { message: "Total fee is required." }),
   assignedTrainer: z.string().optional(),
   plan: z.string().optional(),
 
