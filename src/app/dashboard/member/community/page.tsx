@@ -2,7 +2,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { collection, addDoc, query, onSnapshot, serverTimestamp, Timestamp, where, getDocs, orderBy } from "firebase/firestore";
+import { collection, addDoc, query, onSnapshot, serverTimestamp, Timestamp, where, getDocs, doc, setDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -20,6 +20,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import Image from 'next/image';
 import { cn } from "@/lib/utils";
+import { Input } from "@/components/ui/input";
 
 
 interface Post {
@@ -47,12 +48,20 @@ const postSchema = z.object({
 
 type PostFormData = z.infer<typeof postSchema>;
 
+const usernameSchema = z.object({
+    username: z.string().min(3, "Username must be at least 3 characters.").regex(/^[a-zA-Z0-9_]+$/, "Username can only contain letters, numbers, and underscores."),
+});
+type UsernameFormData = z.infer<typeof usernameSchema>;
+
+
 export default function CommunityPage() {
   const [posts, setPosts] = useState<Post[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isPostDialogOpen, setIsPostDialogOpen] = useState(false);
   const [activeTab, setActiveTab] = useState('global');
+  const [hasCommunityProfile, setHasCommunityProfile] = useState(true);
+  const [isUsernameDialogOpen, setIsUsernameDialogOpen] = useState(false);
   const { toast } = useToast();
   
   const [mediaPreviews, setMediaPreviews] = useState<{url: string, type: 'image' | 'video'}[]>([]);
@@ -60,7 +69,7 @@ export default function CommunityPage() {
   const videoInputRef = useRef<HTMLInputElement>(null);
 
 
-  const form = useForm<PostFormData>({
+  const postForm = useForm<PostFormData>({
     resolver: zodResolver(postSchema),
     defaultValues: {
       text: "",
@@ -69,7 +78,25 @@ export default function CommunityPage() {
     },
   });
 
+  const usernameForm = useForm<UsernameFormData>({
+    resolver: zodResolver(usernameSchema),
+    defaultValues: { username: "" },
+  });
+  
   useEffect(() => {
+    const communityUsername = localStorage.getItem('communityUsername');
+    const role = localStorage.getItem('userRole');
+    if (!communityUsername && role) {
+        setHasCommunityProfile(false);
+        setIsUsernameDialogOpen(true);
+    } else {
+        setHasCommunityProfile(true);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!hasCommunityProfile) return;
+
     setIsLoading(true);
     const gymId = localStorage.getItem('userDocId');
     if (!gymId) {
@@ -110,7 +137,7 @@ export default function CommunityPage() {
     });
 
     return () => unsubscribe();
-  }, [activeTab, toast]);
+  }, [activeTab, toast, hasCommunityProfile]);
   
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>, type: 'image' | 'video') => {
     const files = e.target.files;
@@ -123,7 +150,7 @@ export default function CommunityPage() {
             const result = reader.result as string;
             const newMedia = [{ url: result, type: 'video' }];
             setMediaPreviews(newMedia);
-            form.setValue('mediaUrls', newMedia);
+            postForm.setValue('mediaUrls', newMedia);
         };
         reader.readAsDataURL(file);
     } else { // image
@@ -146,7 +173,7 @@ export default function CommunityPage() {
                 filesProcessed++;
                 if(filesProcessed === imageFiles.length) {
                     setMediaPreviews(newPreviews);
-                    form.setValue('mediaUrls', newPreviews);
+                    postForm.setValue('mediaUrls', newPreviews);
                 }
             };
             reader.readAsDataURL(file);
@@ -158,10 +185,10 @@ export default function CommunityPage() {
       if (typeof index === 'number') {
         const newPreviews = mediaPreviews.filter((_, i) => i !== index);
         setMediaPreviews(newPreviews);
-        form.setValue('mediaUrls', newPreviews);
+        postForm.setValue('mediaUrls', newPreviews);
       } else {
         setMediaPreviews([]);
-        form.setValue('mediaUrls', []);
+        postForm.setValue('mediaUrls', []);
       }
       if(imageInputRef.current) imageInputRef.current.value = "";
       if(videoInputRef.current) videoInputRef.current.value = "";
@@ -170,7 +197,7 @@ export default function CommunityPage() {
   const handlePostSubmit = async (values: PostFormData) => {
     setIsSubmitting(true);
     const gymId = localStorage.getItem('userDocId');
-    const authorName = localStorage.getItem('userName');
+    const authorName = localStorage.getItem('communityUsername') || localStorage.getItem('userName');
     const authorId = localStorage.getItem('memberId');
 
     if (!gymId || !authorId || !authorName) {
@@ -190,12 +217,42 @@ export default function CommunityPage() {
             createdAt: serverTimestamp(),
         });
         toast({ title: "Success!", description: "Your post has been published."});
-        form.reset();
+        postForm.reset();
         clearMedia();
         setIsPostDialogOpen(false);
     } catch (error) {
         console.error("Error creating post: ", error);
         toast({ title: "Error", description: "Could not create post.", variant: "destructive" });
+    } finally {
+        setIsSubmitting(false);
+    }
+  }
+
+  const onUsernameSubmit = async (data: UsernameFormData) => {
+    setIsSubmitting(true);
+    const username = data.username.toLowerCase();
+    const userId = localStorage.getItem('memberId');
+    if (!userId) {
+        toast({ title: "Error", description: "User session not found.", variant: "destructive" });
+        setIsSubmitting(false);
+        return;
+    }
+    try {
+        const usernameRef = doc(db, 'userCommunity', username);
+        const usernameSnap = await getDoc(usernameRef);
+        if (usernameSnap.exists()) {
+            usernameForm.setError('username', { type: 'manual', message: 'Username already taken.'});
+            return;
+        }
+
+        await setDoc(usernameRef, { userId: userId, createdAt: serverTimestamp() });
+        localStorage.setItem('communityUsername', username);
+        toast({ title: 'Welcome!', description: `Your username "${username}" has been set.`});
+        setIsUsernameDialogOpen(false);
+        setHasCommunityProfile(true);
+    } catch (error) {
+        console.error("Error setting username:", error);
+        toast({ title: 'Error', description: 'Could not set username. Please try again.', variant: 'destructive'});
     } finally {
         setIsSubmitting(false);
     }
@@ -219,7 +276,7 @@ export default function CommunityPage() {
         <Card key={post.id} className="mb-4">
             <CardHeader className="flex flex-row items-center gap-4">
                 <Avatar>
-                    <AvatarFallback>{post.authorName?.charAt(0) || 'U'}</AvatarFallback>
+                    <AvatarFallback>{post.authorName?.charAt(0).toUpperCase() || 'U'}</AvatarFallback>
                 </Avatar>
                 <div>
                     <CardTitle className="text-base">{post.authorName}</CardTitle>
@@ -247,6 +304,44 @@ export default function CommunityPage() {
         </Card>
     ));
   };
+
+  if (!hasCommunityProfile) {
+    return (
+        <Dialog open={isUsernameDialogOpen} onOpenChange={setIsUsernameDialogOpen}>
+            <DialogContent onInteractOutside={(e) => e.preventDefault()}>
+                <DialogHeader>
+                    <DialogTitle>Create Your Community Username</DialogTitle>
+                    <DialogDescription>
+                        Choose a unique username to participate in the community. This cannot be changed later.
+                    </DialogDescription>
+                </DialogHeader>
+                 <Form {...usernameForm}>
+                    <form onSubmit={usernameForm.handleSubmit(onUsernameSubmit)} className="space-y-4">
+                         <FormField
+                            control={usernameForm.control}
+                            name="username"
+                            render={({ field }) => (
+                                <FormItem>
+                                <FormLabel>Username</FormLabel>
+                                <FormControl>
+                                    <Input placeholder="e.g., gymlover99" {...field} />
+                                </FormControl>
+                                <FormMessage />
+                                </FormItem>
+                            )}
+                        />
+                         <DialogFooter>
+                            <Button type="submit" disabled={isSubmitting}>
+                                {isSubmitting ? <Loader2 className="animate-spin mr-2"/> : null}
+                                Continue
+                            </Button>
+                        </DialogFooter>
+                    </form>
+                </Form>
+            </DialogContent>
+        </Dialog>
+    )
+  }
 
 
   return (
@@ -288,10 +383,10 @@ export default function CommunityPage() {
                         Share an update, photo, or video with the community.
                     </DialogDescription>
                 </DialogHeader>
-                 <Form {...form}>
-                    <form onSubmit={form.handleSubmit(handlePostSubmit)} className="space-y-4">
+                 <Form {...postForm}>
+                    <form onSubmit={postForm.handleSubmit(handlePostSubmit)} className="space-y-4">
                         <FormField
-                            control={form.control}
+                            control={postForm.control}
                             name="text"
                             render={({ field }) => (
                                 <FormItem>
@@ -335,7 +430,7 @@ export default function CommunityPage() {
                         </div>
 
                          <FormField
-                            control={form.control}
+                            control={postForm.control}
                             name="visibility"
                             render={({ field }) => (
                                 <FormItem className="space-y-3">
