@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { doc, getDoc, updateDoc, collection, getDocs } from 'firebase/firestore';
+import { doc, getDoc, setDoc, deleteDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useToast } from '@/hooks/use-toast';
 import { Button, buttonVariants } from '@/components/ui/button';
@@ -15,33 +15,25 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
-import { Loader2, ArrowLeft, HeartPulse, Briefcase, Upload, User } from 'lucide-react';
+import { Loader2, ArrowLeft, User, Upload } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { cn } from '@/lib/utils';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 
 
 const formSchema = z.object({
+  username: z.string().min(3, "Username must be at least 3 characters long.").regex(/^[a-zA-Z0-9_]+$/, "Username can only contain letters, numbers, and underscores."),
   photoUrl: z.string().optional(),
-  assignedTrainer: z.string().optional(),
-  height: z.string().optional(),
-  weight: z.string().optional(),
-  medicalConditions: z.string().optional(),
-  fitnessGoal: z.string().optional(),
+  bio: z.string().max(160, "Bio cannot be longer than 160 characters.").optional(),
+  gender: z.enum(['male', 'female', 'other', 'prefer-not-to-say']).optional(),
 });
 
 type FormData = z.infer<typeof formSchema>;
 
-interface Trainer {
-  id: string;
-  name: string;
-}
-
-export default function EditMemberProfilePage() {
+export default function EditMemberCommunityProfilePage() {
   const [isLoading, setIsLoading] = useState(false);
   const [isFetching, setIsFetching] = useState(true);
-  const [trainers, setTrainers] = useState<Trainer[]>([]);
-  const [fullName, setFullName] = useState<string>('');
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const router = useRouter();
   const { toast } = useToast();
@@ -49,53 +41,39 @@ export default function EditMemberProfilePage() {
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
     defaultValues: {
+      username: '',
       photoUrl: '',
-      assignedTrainer: '',
-      height: '',
-      weight: '',
-      medicalConditions: '',
-      fitnessGoal: '',
+      bio: '',
+      gender: undefined,
     },
   });
 
   useEffect(() => {
-    const userDocId = localStorage.getItem('userDocId');
-    const activeBranchId = localStorage.getItem('activeBranch');
-    const memberId = localStorage.getItem('memberId');
+    const fetchProfileData = async () => {
+      const storedUsername = localStorage.getItem('communityUsername');
+      if (!storedUsername) {
+        toast({ title: 'Error', description: 'Community profile not found.', variant: 'destructive' });
+        router.push('/dashboard/member/profile');
+        return;
+      }
 
-    if (!userDocId || !activeBranchId || !memberId) {
-      toast({ title: 'Error', description: 'Session data not found.', variant: 'destructive' });
-      router.push('/dashboard/member');
-      return;
-    }
-
-    const fetchData = async () => {
       try {
-        const trainersCollection = collection(db, 'gyms', userDocId, 'branches', activeBranchId, 'trainers');
-        const trainersSnapshot = await getDocs(trainersCollection);
-        const trainersList = trainersSnapshot.docs.map(doc => ({ id: doc.id, name: doc.data().fullName }));
-        setTrainers(trainersList);
+        const profileRef = doc(db, 'userCommunity', storedUsername);
+        const profileSnap = await getDoc(profileRef);
 
-        const memberRef = doc(db, 'gyms', userDocId, 'branches', activeBranchId, 'members', memberId);
-        const memberSnap = await getDoc(memberRef);
-
-        if (memberSnap.exists()) {
-          const data = memberSnap.data();
-          setFullName(data.fullName);
+        if (profileSnap.exists()) {
+          const data = profileSnap.data();
           form.reset({
+            username: storedUsername,
             photoUrl: data.photoUrl || '',
-            assignedTrainer: data.assignedTrainer || '',
-            height: data.height || '',
-            weight: data.weight || '',
-            medicalConditions: data.medicalConditions || '',
-            fitnessGoal: data.fitnessGoal || '',
+            bio: data.bio || '',
+            gender: data.gender || undefined,
           });
           if (data.photoUrl) {
               setImagePreview(data.photoUrl);
           }
         } else {
-          toast({ title: 'Error', description: 'Member not found.', variant: 'destructive' });
-          router.push('/dashboard/member/profile');
+             form.setValue('username', storedUsername);
         }
       } catch (error) {
         console.error("Error fetching data:", error);
@@ -105,7 +83,7 @@ export default function EditMemberProfilePage() {
       }
     };
 
-    fetchData();
+    fetchProfileData();
   }, [router, toast, form]);
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -122,22 +100,37 @@ export default function EditMemberProfilePage() {
   };
 
   const onSubmit = async (data: FormData) => {
-    const userDocId = localStorage.getItem('userDocId');
-    const activeBranchId = localStorage.getItem('activeBranch');
-    const memberId = localStorage.getItem('memberId');
-    if (!userDocId || !activeBranchId || !memberId) return;
-    
     setIsLoading(true);
+    const oldUsername = localStorage.getItem('communityUsername');
+    const userId = localStorage.getItem('memberId');
+    if (!oldUsername || !userId) {
+        toast({ title: "Error", description: "Session expired. Please log in again.", variant: "destructive" });
+        setIsLoading(false);
+        return;
+    }
+    
+    const newUsername = data.username.toLowerCase();
 
     try {
-      const memberRef = doc(db, 'gyms', userDocId, 'branches', activeBranchId, 'members', memberId);
-      
-      const dataToUpdate = {
-        ...data,
-        assignedTrainer: data.assignedTrainer === 'none' ? '' : data.assignedTrainer,
-      };
-      
-      await updateDoc(memberRef, dataToUpdate);
+        // If username has changed, check for availability and migrate document
+        if (newUsername !== oldUsername) {
+            const newUsernameRef = doc(db, 'userCommunity', newUsername);
+            const newUsernameSnap = await getDoc(newUsernameRef);
+            if (newUsernameSnap.exists()) {
+                form.setError('username', { type: 'manual', message: 'Username is already taken.' });
+                setIsLoading(false);
+                return;
+            }
+            // Create new doc and delete old one
+            const oldUsernameRef = doc(db, 'userCommunity', oldUsername);
+            await setDoc(newUsernameRef, { ...data, userId });
+            await deleteDoc(oldUsernameRef);
+            localStorage.setItem('communityUsername', newUsername);
+        } else {
+            // Just update the existing document
+            const profileRef = doc(db, 'userCommunity', oldUsername);
+            await setDoc(profileRef, { ...data, userId }, { merge: true });
+        }
 
       toast({
         title: 'Success!',
@@ -164,86 +157,50 @@ export default function EditMemberProfilePage() {
     <div className="flex min-h-screen flex-col items-center justify-center bg-background p-4">
       <Card className="w-full max-w-2xl">
         <CardHeader>
-          <CardTitle>Edit My Profile</CardTitle>
-          <CardDescription>Update your profile picture, assigned trainer, and health information, {fullName}.</CardDescription>
+          <CardTitle>Edit Community Profile</CardTitle>
+          <CardDescription>Update your public profile information.</CardDescription>
         </CardHeader>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)}>
             <CardContent className="space-y-8">
                <div className="flex flex-col items-center gap-4 sm:flex-row">
-                <div className="relative h-24 w-24 rounded-full border border-dashed flex items-center justify-center bg-muted">
-                  {imagePreview ? (
-                    <Image src={imagePreview} alt="Profile" layout="fill" className="rounded-full object-cover" />
-                  ) : (
-                    <User className="h-8 w-8 text-muted-foreground" />
-                  )}
-                </div>
-                <FormField
-                  control={form.control}
-                  name="photoUrl"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel htmlFor="photo-upload" className={cn(
-                          buttonVariants({ variant: "outline" }),
-                          "cursor-pointer"
-                      )}>
-                        <Upload className="mr-2 h-4 w-4" />
-                        Upload Photo
-                      </FormLabel>
-                      <FormControl>
-                        <Input id="photo-upload" type="file" accept="image/*" className="sr-only" onChange={handleImageChange} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
-
-              <div className="space-y-4">
-                <h3 className="font-semibold flex items-center gap-2"><Briefcase /> Assigned Trainer</h3>
-                 <FormField
-                    control={form.control}
-                    name="assignedTrainer"
-                    render={({ field }) => (
-                        <FormItem>
-                        <FormLabel>Select a Trainer</FormLabel>
-                        <Select onValueChange={field.onChange} value={field.value}>
+                    <Avatar className="h-24 w-24">
+                        <AvatarImage src={imagePreview || undefined} />
+                        <AvatarFallback><User className="h-10 w-10"/></AvatarFallback>
+                    </Avatar>
+                    <FormField
+                        control={form.control}
+                        name="photoUrl"
+                        render={() => (
+                            <FormItem>
+                            <FormLabel htmlFor="photo-upload" className={cn(buttonVariants({ variant: "outline" }), "cursor-pointer")}>
+                                <Upload className="mr-2 h-4 w-4" /> Upload Photo
+                            </FormLabel>
                             <FormControl>
-                                <SelectTrigger>
-                                    <SelectValue placeholder="Choose a trainer or select none" />
-                                </SelectTrigger>
+                                <Input id="photo-upload" type="file" accept="image/*" className="sr-only" onChange={handleImageChange} />
                             </FormControl>
-                            <SelectContent>
-                                <SelectItem value="none">None</SelectItem>
-                                {trainers.map(trainer => (
-                                    <SelectItem key={trainer.id} value={trainer.id}>
-                                        {trainer.name}
-                                    </SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
-                        <FormMessage />
-                        </FormItem>
-                    )}
+                            <FormMessage />
+                            </FormItem>
+                        )}
                     />
-              </div>
-
-              <div className="space-y-4">
-                 <h3 className="font-semibold flex items-center gap-2"><HeartPulse /> Health &amp; Fitness</h3>
-                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <FormField control={form.control} name="height" render={({ field }) => ( <FormItem><FormLabel>Height (cm)</FormLabel><FormControl><Input placeholder="175" {...field} /></FormControl><FormMessage /></FormItem> )} />
-                    <FormField control={form.control} name="weight" render={({ field }) => ( <FormItem><FormLabel>Weight (kg)</FormLabel><FormControl><Input placeholder="70" {...field} /></FormControl><FormMessage /></FormItem> )} />
-                 </div>
-                 <FormField control={form.control} name="fitnessGoal" render={({ field }) => (
-                    <FormItem><FormLabel>Fitness Goal</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value}>
-                        <FormControl><SelectTrigger><SelectValue placeholder="Select your primary goal" /></SelectTrigger></FormControl>
-                        <SelectContent><SelectItem value="weight-loss">Weight Loss</SelectItem><SelectItem value="muscle-gain">Muscle Gain</SelectItem><SelectItem value="general-fitness">General Fitness</SelectItem><SelectItem value="strength">Strength</SelectItem></SelectContent>
-                    </Select><FormMessage />
-                    </FormItem>
-                )} />
-                <FormField control={form.control} name="medicalConditions" render={({ field }) => ( <FormItem><FormLabel>Medical Conditions</FormLabel><FormControl><Textarea placeholder="e.g., Asthma, previous injuries..." {...field} /></FormControl><FormMessage /></FormItem> )} />
-              </div>
+                </div>
+              
+              <FormField control={form.control} name="username" render={({ field }) => ( <FormItem><FormLabel>Username</FormLabel><FormControl><Input placeholder="your_username" {...field} /></FormControl><FormMessage /></FormItem> )} />
+              <FormField control={form.control} name="bio" render={({ field }) => ( <FormItem><FormLabel>Bio</FormLabel><FormControl><Textarea placeholder="Tell us a bit about yourself" {...field} /></FormControl><FormMessage /></FormItem> )} />
+              <FormField control={form.control} name="gender" render={({ field }) => (
+                <FormItem><FormLabel>Gender</FormLabel>
+                <Select onValueChange={field.onChange} value={field.value}>
+                    <FormControl><SelectTrigger><SelectValue placeholder="Select your gender" /></SelectTrigger></FormControl>
+                    <SelectContent>
+                        <SelectItem value="male">Male</SelectItem>
+                        <SelectItem value="female">Female</SelectItem>
+                        <SelectItem value="other">Other</SelectItem>
+                        <SelectItem value="prefer-not-to-say">Prefer not to say</SelectItem>
+                    </SelectContent>
+                </Select>
+                <FormMessage />
+                </FormItem>
+              )} />
             </CardContent>
             <CardFooter className="flex justify-between">
               <Link href="/dashboard/member/profile" passHref>
