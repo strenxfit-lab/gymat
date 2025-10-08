@@ -3,12 +3,13 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { collection, getDocs, Timestamp, doc, addDoc, setDoc, getDoc, serverTimestamp, deleteDoc, query, where } from 'firebase/firestore';
+import { collection, getDocs, Timestamp, doc, addDoc, setDoc, getDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Loader2, ArrowLeft, Calendar, Clock, Users, User, CheckCircle, XCircle, ListPlus, History } from 'lucide-react';
+import { Loader2, ArrowLeft, Calendar, Clock, Users, User, CheckCircle, XCircle } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
 import Link from 'next/link';
 
 interface ClassInfo {
@@ -20,14 +21,18 @@ interface ClassInfo {
   location: string;
   booked: number;
   isBookedByMe: boolean;
-  isOnWaitlist: boolean;
   isFull: boolean;
+}
+
+interface Trainer {
+  id: string;
+  name: string;
 }
 
 export default function BookClassPage() {
   const [classes, setClasses] = useState<ClassInfo[]>([]);
   const [loading, setLoading] = useState(true);
-  const [bookingStatus, setBookingStatus] = useState<Record<string, 'booking' | 'cancelling' | 'waitlisting' | null>>({});
+  const [bookingStatus, setBookingStatus] = useState<Record<string, 'booking' | 'cancelling' | null>>({});
   const router = useRouter();
   const { toast } = useToast();
 
@@ -49,11 +54,12 @@ export default function BookClassPage() {
       const trainersList = trainersSnapshot.docs.map(doc => ({ id: doc.id, name: doc.data().fullName }));
 
       const classesCollection = collection(db, 'gyms', userDocId, 'branches', activeBranchId, 'classes');
-      const now = new Date();
-      const q = query(classesCollection, where("dateTime", ">", Timestamp.fromDate(now)));
+      const q = collection(classesCollection);
       const classesSnapshot = await getDocs(q);
 
+      const now = new Date();
       const classesListPromises = classesSnapshot.docs
+        .filter(docSnap => (docSnap.data().dateTime as Timestamp).toDate() > now)
         .map(async (docSnap) => {
           const data = docSnap.data();
           const trainer = trainersList.find(t => t.id === data.trainerId);
@@ -64,10 +70,6 @@ export default function BookClassPage() {
           
           const memberBookingDoc = doc(bookingsCollection, memberId);
           const memberBookingSnap = await getDoc(memberBookingDoc);
-          
-          const waitlistCollection = collection(docSnap.ref, 'waitlist');
-          const memberWaitlistDoc = doc(waitlistCollection, memberId);
-          const memberWaitlistSnap = await getDoc(memberWaitlistDoc);
 
           return {
             id: docSnap.id,
@@ -78,7 +80,6 @@ export default function BookClassPage() {
             location: data.location,
             booked: bookedCount,
             isBookedByMe: memberBookingSnap.exists(),
-            isOnWaitlist: memberWaitlistSnap.exists(),
             isFull: bookedCount >= data.capacity,
           };
       });
@@ -114,41 +115,16 @@ export default function BookClassPage() {
         const bookingRef = doc(db, 'gyms', userDocId, 'branches', activeBranchId, 'classes', classId, 'bookings', memberId);
         
         if (isBooked) { // Cancel booking
-            await deleteDoc(bookingRef);
+            await doc(bookingRef).delete();
             toast({ title: 'Cancellation Successful', description: 'Your spot has been cancelled.'});
         } else { // Create booking
-            await setDoc(bookingRef, { bookedAt: serverTimestamp() });
+            await setDoc(bookingRef, { bookedAt: Timestamp.now() });
             toast({ title: 'Booking Confirmed!', description: 'Your spot is reserved.'});
         }
         await fetchClasses(); // Refresh list
     } catch (error) {
         console.error("Booking error:", error);
         toast({ title: 'Error', description: 'An error occurred. Please try again.', variant: 'destructive'});
-    } finally {
-        setBookingStatus(prev => ({...prev, [classId]: null}));
-    }
-  }
-
-  const handleWaitlist = async (classId: string) => {
-    setBookingStatus(prev => ({...prev, [classId]: 'waitlisting'}));
-    const userDocId = localStorage.getItem('userDocId');
-    const activeBranchId = localStorage.getItem('activeBranch');
-    const memberId = localStorage.getItem('memberId');
-
-    if (!userDocId || !activeBranchId || !memberId) {
-        toast({ title: 'Error', description: 'Session expired.', variant: 'destructive'});
-        setBookingStatus(prev => ({...prev, [classId]: null}));
-        return;
-    }
-    
-    try {
-        const waitlistRef = doc(db, 'gyms', userDocId, 'branches', activeBranchId, 'classes', classId, 'waitlist', memberId);
-        await setDoc(waitlistRef, { joinedAt: serverTimestamp() });
-        toast({ title: 'Joined Waitlist!', description: 'We will notify you if a spot opens up.'});
-        await fetchClasses(); // Refresh list
-    } catch (error) {
-        console.error("Waitlist error:", error);
-        toast({ title: 'Error', description: 'Could not join waitlist. Please try again.', variant: 'destructive'});
     } finally {
         setBookingStatus(prev => ({...prev, [classId]: null}));
     }
@@ -192,28 +168,13 @@ export default function BookClassPage() {
                      >
                         {bookingStatus[cls.id] === 'cancelling' ? <Loader2 className="animate-spin" /> : <><XCircle className="mr-2" /> Cancel Booking</>}
                     </Button>
-                ) : cls.isFull ? (
-                    cls.isOnWaitlist ? (
-                        <Button className="w-full" disabled>
-                           <History className="mr-2" /> On Waitlist
-                        </Button>
-                    ) : (
-                        <Button 
-                            variant="secondary"
-                            className="w-full" 
-                            onClick={() => handleWaitlist(cls.id)}
-                            disabled={bookingStatus[cls.id] === 'waitlisting'}
-                        >
-                            {bookingStatus[cls.id] === 'waitlisting' ? <Loader2 className="animate-spin" /> : <><ListPlus className="mr-2" />Join Waitlist</>}
-                        </Button>
-                    )
                 ) : (
                     <Button 
                         className="w-full" 
                         onClick={() => handleBooking(cls.id, false)}
                         disabled={cls.isFull || bookingStatus[cls.id] === 'booking'}
                     >
-                        {bookingStatus[cls.id] === 'booking' ? <Loader2 className="animate-spin" /> : <><CheckCircle className="mr-2" />Book Now</>}
+                        {bookingStatus[cls.id] === 'booking' ? <Loader2 className="animate-spin" /> : (cls.isFull ? 'Class Full' : <><CheckCircle className="mr-2" />Book Now</>)}
                     </Button>
                 )}
               </CardFooter>
