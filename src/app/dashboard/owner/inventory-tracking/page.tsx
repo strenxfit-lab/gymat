@@ -8,39 +8,46 @@ import { ArrowLeft, PlusSquare, Boxes, ClipboardList, CalendarClock, BarChart2, 
 
 const inventoryFeatures = [
     {
-        title: "Add & View Items",
+        title: "Add Items to Inventory",
         description: "Add new products, supplements, or other items to your inventory list.",
         icon: <PlusSquare className="h-8 w-8 text-primary" />,
-        link: "/dashboard/owner/inventory",
+        link: "#",
         disabled: false,
+    },
+    {
+        title: "Stock Management",
+        description: "Update stock levels, set reorder points, and manage suppliers.",
+        icon: <Boxes className="h-8 w-8 text-primary" />,
+        link: "#",
+        disabled: true,
     },
     {
         title: "Usage Logs",
         description: "Track the consumption of items for internal use, such as cleaning supplies.",
         icon: <ClipboardList className="h-8 w-8 text-primary" />,
-        link: "/dashboard/owner/usage-logs",
-        disabled: false,
+        link: "#",
+        disabled: true,
     },
     {
         title: "Expiry Management",
         description: "Monitor product expiry dates to reduce waste and ensure quality.",
         icon: <CalendarClock className="h-8 w-8 text-primary" />,
-        link: "/dashboard/owner/inventory",
-        disabled: false,
+        link: "#",
+        disabled: true,
     },
     {
         title: "Reports & Analytics",
         description: "Generate reports on stock value, consumption rates, and sales.",
         icon: <BarChart2 className="h-8 w-8 text-primary" />,
-        link: "/dashboard/owner/expenses",
-        disabled: false,
+        link: "#",
+        disabled: true,
     },
     {
         title: "Integration with Expenses",
         description: "Automatically log inventory purchases as business expenses.",
         icon: <IndianRupee className="h-8 w-8 text-primary" />,
-        link: "/dashboard/owner/inventory",
-        disabled: false,
+        link: "#",
+        disabled: true,
     },
 ];
 
@@ -82,5 +89,3 @@ export default function InventoryTrackingPage() {
     </div>
   );
 }
-
-    
