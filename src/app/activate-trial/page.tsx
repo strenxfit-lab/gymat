@@ -8,14 +8,12 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 import * as z from 'zod';
 import { KeyRound, Loader2, ArrowLeft } from 'lucide-react';
-import { collection, query, where, getDocs, writeBatch, serverTimestamp, Timestamp, doc } from 'firebase/firestore';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
-import { db } from '@/lib/firebase';
 
 const formSchema = z.object({
   trialKey: z.string().min(8, { message: 'Trial key must be at least 8 characters long.' }),
@@ -33,84 +31,31 @@ export default function ActivateTrialPage() {
     },
   });
 
-  async function onSubmit(values: z.infer<typeof formSchema>) {
+  function onSubmit(values: z.infer<typeof formSchema>) {
     setIsLoading(true);
-    
-    try {
-        const trialKeysRef = collection(db, 'trialKeys');
-        const q = query(trialKeysRef, where("key", "==", values.trialKey));
-        const querySnapshot = await getDocs(q);
+    console.log('Activating trial key:', values.trialKey);
 
-        if (querySnapshot.empty) {
-            toast({ title: "Invalid Key", description: "The trial key you entered does not exist.", variant: "destructive" });
-            setIsLoading(false);
-            return;
-        }
-
-        const trialDoc = querySnapshot.docs[0];
-        const trialData = trialDoc.data();
-
-        if (trialData.activatedAt) {
-            const now = new Date();
-            const expiresAt = (trialData.expiresAt as Timestamp)?.toDate();
-            if (expiresAt && expiresAt >= now) {
-                // Key already used, but not expired, so log them in.
-                 localStorage.setItem('userDocId', trialData.gymId);
-                 localStorage.setItem('userRole', 'owner');
-                 toast({ title: 'Welcome Back!', description: "You have been successfully logged in." });
-                 router.push('/dashboard/owner');
-            } else {
-                toast({ title: "Key Already Used", description: "This trial key has already been activated and has expired.", variant: "destructive" });
-            }
-            setIsLoading(false);
-            return;
-        }
-
-        // Create a new gym document for the trial user
-        const newGymRef = doc(collection(db, 'gyms'));
-
-        // Update the trial key and the new gym doc in a batch
-        const batch = writeBatch(db);
-        
-        const activationTime = new Date();
-        const expirationTime = new Date(activationTime.getTime() + 24 * 60 * 60 * 1000); // 24 hours from now
-
-        batch.update(trialDoc.ref, {
-            activatedAt: serverTimestamp(),
-            expiresAt: Timestamp.fromDate(expirationTime),
-            gymId: newGymRef.id,
-        });
-
-        batch.set(newGymRef, {
-            name: "My Trial Gym",
-            email: `trial-${newGymRef.id}@example.com`,
-            role: "owner",
-            isTrial: true,
-            createdAt: serverTimestamp(),
-            trialKey: values.trialKey
-        });
-
-        await batch.commit();
-
-        // Set local storage to log the user in
-        localStorage.setItem('userDocId', newGymRef.id);
-        localStorage.setItem('userRole', 'owner');
-        
+    // Simulate API call and update local storage
+    setTimeout(() => {
+      try {
+        localStorage.setItem('trialKey', values.trialKey);
+        localStorage.setItem('userPrivileges', 'trial');
         toast({
           title: 'Trial Activated!',
-          description: 'Welcome! Your trial has been successfully activated.',
+          description: 'Your trial key has been successfully activated. Please log in.',
         });
-        router.push('/dashboard/owner');
-
-    } catch (error) {
-        console.error("Error activating trial key:", error);
+        router.push('/');
+      } catch (error) {
         toast({
             title: 'Activation Failed',
-            description: 'An unexpected error occurred. Please try again.',
+            description: 'Could not save trial key. Please enable storage access.',
             variant: 'destructive',
         });
+      } finally {
         setIsLoading(false);
-    }
+        form.reset();
+      }
+    }, 1500);
   }
 
   return (
@@ -144,7 +89,7 @@ export default function ActivateTrialPage() {
                 </CardContent>
                 <CardFooter className="flex-col gap-4">
                     <Button type="submit" disabled={isLoading} className="w-full">
-                        {isLoading ? <Loader2 className="animate-spin" /> : 'Activate Key & Go to Dashboard'}
+                        {isLoading ? <Loader2 className="animate-spin" /> : 'Activate Key'}
                     </Button>
                     <Link href="/" passHref>
                         <Button variant="link" className="text-muted-foreground">
