@@ -22,12 +22,6 @@ const nextConfig: NextConfig = {
         port: '',
         pathname: '/**',
       },
-      {
-        protocol: 'https',
-        hostname: 'www.strenx.in',
-        port: '',
-        pathname: '/**',
-      },
     ],
   },
   transpilePackages: ['recharts'],
