@@ -87,7 +87,7 @@ export default function TrainerDashboardLayout({
       pathname === '/dashboard/trainer/profile' || 
       pathname === '/dashboard/trainer/activity' || 
       pathname === '/dashboard/search' ||
-      pathname === '/dashboard/messages';
+      pathname.startsWith('/dashboard/messages');
 
   if (isSpecialLayoutPage) {
     return <>{children}</>;
