@@ -2,7 +2,7 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { doc, getDoc, collection, query, orderBy, onSnapshot, addDoc, serverTimestamp, where, limit, Timestamp } from 'firebase/firestore';
+import { doc, getDoc, collection, query, orderBy, onSnapshot, addDoc, serverTimestamp, where, limit, Timestamp, getDocs } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Loader2, Sparkles } from 'lucide-react';
-import { differenceInDays, format } from 'date-fns';
+import { differenceInDays, format, startOfDay } from 'date-fns';
 import { workouts, type Muscle } from '@/lib/workouts';
 import { FrontBody } from '@/components/ui/front-body';
 import { BackBody } from '@/components/ui/back-body';
@@ -75,7 +75,7 @@ export default function ProgressPage() {
                     
                     const lastWorkoutDates: { [key in Muscle]?: Date } = {};
                     logs.forEach(log => {
-                        if (log.completedAt) { // Null check for serverTimestamp
+                        if (log.completedAt) { 
                             log.muscles.forEach(muscle => {
                                 if (!lastWorkoutDates[muscle]) {
                                     lastWorkoutDates[muscle] = log.completedAt.toDate();
@@ -123,6 +123,25 @@ export default function ProgressPage() {
         try {
             const profileRef = doc(db, 'userCommunity', username);
             const workoutLogRef = collection(profileRef, 'workoutLog');
+
+            const startOfToday = startOfDay(new Date());
+            const q = query(
+                workoutLogRef, 
+                where('workoutId', '==', workoutId),
+                where('completedAt', '>=', startOfToday)
+            );
+            
+            const todaysLog = await getDocs(q);
+
+            if (!todaysLog.empty) {
+                toast({
+                    title: 'Already Logged',
+                    description: 'This workout has already been logged today.',
+                    variant: 'destructive',
+                });
+                return;
+            }
+
             await addDoc(workoutLogRef, {
                 workoutId,
                 muscles: workout.muscles,
