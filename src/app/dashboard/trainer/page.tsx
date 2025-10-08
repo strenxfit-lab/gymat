@@ -342,9 +342,6 @@ export default function TrainerDashboardPage() {
                         <CardTitle>Quick Actions</CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-3">
-                         <Link href="/dashboard/attendance" passHref>
-                            <Button className="w-full justify-start"><Clock className="mr-2"/> Mark Attendance</Button>
-                         </Link>
                          <Link href="/dashboard/gym-profile" passHref>
                             <Button className="w-full justify-start" variant="outline"><Building className="mr-2"/> View Gym Profile</Button>
                          </Link>
