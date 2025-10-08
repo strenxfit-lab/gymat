@@ -187,22 +187,6 @@ export default function OwnerDashboardLayout({
                         </SidebarMenuSub>
                     )}
                 </SidebarMenuItem>
-                 <SidebarMenuItem>
-                    <SidebarMenuButton onClick={() => toggleSubMenu('attendance')} className="justify-between">
-                        <div className="flex items-center gap-2"><CalendarCheck /> Attendance</div>
-                        <ChevronDown className={`transition-transform duration-200 ${openSubMenu === 'attendance' ? 'rotate-180' : ''}`} />
-                    </SidebarMenuButton>
-                    {openSubMenu === 'attendance' && (
-                        <SidebarMenuSub className="space-y-3">
-                            <Link href="/dashboard/owner/attendance/verify" passHref>
-                                <SidebarMenuSubButton className={subMenuButtonClass}>Verify Attendance</SidebarMenuSubButton>
-                            </Link>
-                             <Link href="/dashboard/owner/attendance/log">
-                                <SidebarMenuSubButton className={subMenuButtonClass}>Attendance Log</SidebarMenuSubButton>
-                              </Link>
-                        </SidebarMenuSub>
-                    )}
-                </SidebarMenuItem>
                 <SidebarMenuItem>
                     <SidebarMenuButton onClick={() => toggleSubMenu('class')} className="justify-between">
                         <div className="flex items-center gap-2"><ClipboardList /> Class &amp; Trainer Management</div>
