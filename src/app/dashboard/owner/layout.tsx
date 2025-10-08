@@ -317,6 +317,7 @@ export default function OwnerDashboardLayout({
             <SubMenu title="Settlement" icon={<IndianRupee />} isOpen={openSubMenu === 'settlement'} onToggle={() => toggleSubMenu('settlement')}>
                 <SubMenuItem href="/dashboard/owner/settlement/account-details">Account Details</SubMenuItem>
                 <SubMenuItem href="/dashboard/owner/settlement/settlements">View Settlements</SubMenuItem>
+                <SubMenuItem href="/dashboard/owner/settlement/trainer-settlement">Trainer Settlement</SubMenuItem>
             </SubMenu>
 
              <SubMenu title="Operations" icon={<ClipboardList />} isOpen={openSubMenu === 'operations'} onToggle={() => toggleSubMenu('operations')}>
