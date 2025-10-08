@@ -339,11 +339,8 @@ export default function MemberDashboard() {
                     <CardTitle>Quick Actions</CardTitle>
                     </CardHeader>
                     <CardContent className="flex flex-col space-y-4">
-                        <Link href="/dashboard/attendance" passHref>
-                            <Button className="w-full justify-start"><Clock className="mr-2"/> Mark Attendance</Button>
-                        </Link>
                         <Link href="/dashboard/member/book-class" passHref>
-                            <Button className="w-full justify-start" variant="outline"><CalendarCheck className="mr-2"/> Book a Class</Button>
+                            <Button className="w-full justify-start"><CalendarCheck className="mr-2"/> Book a Class</Button>
                         </Link>
                          <Link href="/dashboard/member/trainers" passHref>
                             <Button className="w-full justify-start" variant="outline"><UsersIcon className="mr-2"/> View Trainers</Button>
