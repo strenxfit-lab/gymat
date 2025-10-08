@@ -167,18 +167,9 @@ export default function OwnerDashboardLayout({
                             <Link href="/dashboard/owner/member-status">
                                 <SidebarMenuSubButton className={subMenuButtonClass}>Membership pause/freeze</SidebarMenuSubButton>
                             </Link>
-                            <SidebarMenuSubButton className={subMenuButtonClass}>Automated messages</SidebarMenuSubButton>
-                        </SidebarMenuSub>
-                    )}
-                </SidebarMenuItem>
-                <SidebarMenuItem>
-                    <SidebarMenuButton onClick={() => toggleSubMenu('billing')} className="justify-between">
-                        <div className="flex items-center gap-2"><CreditCard /> Payment &amp; Billing</div>
-                        <ChevronDown className={`transition-transform duration-200 ${openSubMenu === 'billing' ? 'rotate-180' : ''}`} />
-                    </SidebarMenuButton>
-                    {openSubMenu === 'billing' && (
-                        <SidebarMenuSub className="space-y-3">
-                            <SidebarMenuSubButton className={subMenuButtonClass}>Recurring billing</SidebarMenuSubButton>
+                            <Link href="/dashboard/owner/automated-messages">
+                                <SidebarMenuSubButton className={subMenuButtonClass}>Automated</SidebarMenuSubButton>
+                            </Link>
                         </SidebarMenuSub>
                     )}
                 </SidebarMenuItem>
