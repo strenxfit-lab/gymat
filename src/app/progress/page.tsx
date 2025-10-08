@@ -5,12 +5,11 @@ import { useState, useEffect } from 'react';
 import { doc, getDoc, collection, query, orderBy, onSnapshot, addDoc, serverTimestamp, where, getDocs } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useToast } from '@/hooks/use-toast';
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Loader2, Sparkles, Download, Flame, BarChart3, Dumbbell } from 'lucide-react';
-import { differenceInDays, format, startOfDay, isSameDay, subDays } from 'date-fns';
+import { startOfDay } from 'date-fns';
 import { workouts, type Muscle } from '@/lib/workouts';
 import { analyzeWorkoutHistory, type WorkoutHistory } from '@/ai/flows/workout-analysis-flow';
 
@@ -77,44 +76,6 @@ export default function ProgressPage() {
                     
                     setWorkoutLogs(logs);
                     setTotalWorkouts(logs.length);
-                    
-                    const today = startOfDay(new Date());
-
-                    // --- Streak Calculation ---
-                    let currentStreak = 0;
-                    if (logs.length > 0) {
-                        const uniqueDays = [...new Set(logs.map(log => startOfDay(log.completedAt.toDate()).getTime()))];
-                        uniqueDays.sort((a,b) => b-a);
-                        
-                        const yesterday = startOfDay(subDays(new Date(), 1));
-
-                        if(uniqueDays[0] === today.getTime() || uniqueDays[0] === yesterday.getTime()){
-                            currentStreak = 1;
-                            for (let i = 1; i < uniqueDays.length; i++) {
-                                const dayDiff = differenceInDays(new Date(uniqueDays[i-1]), new Date(uniqueDays[i]));
-                                if (dayDiff === 1) {
-                                    currentStreak++;
-                                } else {
-                                    break;
-                                }
-                            }
-                        }
-                    }
-                    setStreak(currentStreak);
-
-                    // --- Top 3 Workouts ---
-                    const workoutCounts = logs.reduce((acc, log) => {
-                        const workoutName = workouts.find(w => w.id === log.workoutId)?.name || 'Unknown';
-                        acc[workoutName] = (acc[workoutName] || 0) + 1;
-                        return acc;
-                    }, {} as Record<string, number>);
-
-                    const sortedWorkouts = Object.entries(workoutCounts)
-                        .map(([name, count]) => ({ name, count }))
-                        .sort((a, b) => b.count - a.count)
-                        .slice(0, 3);
-                    setTopWorkouts(sortedWorkouts);
-
                     setLoading(false);
                 });
 
@@ -200,7 +161,7 @@ export default function ProgressPage() {
 
     const getLastCompletedDate = (workoutId: string) => {
         const log = workoutLogs.find(log => log.workoutId === workoutId);
-        return log && log.completedAt ? format(log.completedAt.toDate(), 'PPP') : 'Not completed yet';
+        return log && log.completedAt ? new Date(log.completedAt.toDate()).toLocaleDateString() : 'Not completed yet';
     };
 
     if (loading) {
