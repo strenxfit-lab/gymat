@@ -3,12 +3,12 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { collection, query, where, getDocs, Timestamp, doc, getDoc, addDoc } from 'firebase/firestore';
+import { collection, query, where, getDocs, Timestamp, doc, getDoc, addDoc, orderBy } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Loader2, User, LogOut, Building, Cake, MessageSquare, Wrench, Utensils } from 'lucide-react';
+import { Loader2, User, LogOut, Building, Cake, MessageSquare, Wrench, Utensils, Megaphone } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
@@ -42,6 +42,13 @@ interface TrainerInfo {
     branchName: string;
 }
 
+interface Announcement {
+    id: string;
+    message: string;
+    audience: 'all' | 'members' | 'trainers';
+    createdAt: Date;
+}
+
 const dietFormSchema = z.object({
     breakfast: z.string().min(1, 'Breakfast details are required.'),
     lunch: z.string().min(1, 'Lunch details are required.'),
@@ -54,6 +61,7 @@ export default function TrainerDashboardPage() {
   const [assignedClasses, setAssignedClasses] = useState<AssignedClass[]>([]);
   const [assignedMembers, setAssignedMembers] = useState<AssignedMember[]>([]);
   const [trainerInfo, setTrainerInfo] = useState<TrainerInfo | null>(null);
+  const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [loading, setLoading] = useState(true);
   const [birthdayMessage, setBirthdayMessage] = useState<string | null>(null);
   const [isDietDialogOpen, setIsDietDialogOpen] = useState(false);
@@ -112,11 +120,10 @@ export default function TrainerDashboardPage() {
         }
 
         const classesCollection = collection(db, 'gyms', userDocId, 'branches', activeBranchId, 'classes');
-        const qClasses = query(classesCollection, where("trainerId", "==", trainerId));
+        const qClasses = query(classesCollection, where("trainerId", "==", trainerId), where("dateTime", ">=", new Date()));
         const classesSnapshot = await getDocs(qClasses);
         
         const upcomingClassesPromises = classesSnapshot.docs
-            .filter(docSnap => (docSnap.data().dateTime as Timestamp).toDate() >= new Date())
             .map(async (docSnap) => {
               const data = docSnap.data();
               const bookingsCollection = collection(docSnap.ref, 'bookings');
@@ -149,6 +156,17 @@ export default function TrainerDashboardPage() {
             }
         });
         setAssignedMembers(membersList);
+
+        // Fetch Announcements
+        const now = new Date();
+        const oneDayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+        const announcementsRef = collection(db, 'gyms', userDocId, 'branches', activeBranchId, 'announcements');
+        const qAnnouncements = query(announcementsRef, where("createdAt", ">=", Timestamp.fromDate(oneDayAgo)), orderBy("createdAt", "desc"));
+        const announcementsSnap = await getDocs(qAnnouncements);
+        const announcementsList = announcementsSnap.docs
+            .map(doc => ({ id: doc.id, ...doc.data() } as Announcement))
+            .filter(a => a.audience === 'all' || a.audience === 'trainers');
+        setAnnouncements(announcementsList);
 
       } catch (error) {
         console.error("Error fetching trainer data:", error);
@@ -196,6 +214,15 @@ export default function TrainerDashboardPage() {
   return (
     <Dialog open={isDietDialogOpen} onOpenChange={setIsDietDialogOpen}>
     <div className="container mx-auto py-10">
+        {announcements.length > 0 && (
+             <Alert className="mb-6">
+                <Megaphone className="h-4 w-4" />
+                <AlertTitle>Announcement</AlertTitle>
+                <AlertDescription>
+                    {announcements[0].message}
+                </AlertDescription>
+             </Alert>
+        )}
         {birthdayMessage && (
             <Alert className="mb-6 border-amber-500 text-amber-700 bg-amber-50">
                 <Cake className="h-4 w-4 !text-amber-700" />
