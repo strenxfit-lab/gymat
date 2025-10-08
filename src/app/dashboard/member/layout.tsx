@@ -88,7 +88,6 @@ export default function MemberDashboardLayout({
       pathname === '/dashboard/member/profile' || 
       pathname === '/dashboard/member/activity' || 
       pathname === '/dashboard/search' ||
-      pathname === '/dashboard/messages' ||
       pathname.startsWith('/dashboard/messages/');
 
   if (isSpecialLayoutPage) {
