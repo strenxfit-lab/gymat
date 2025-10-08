@@ -216,7 +216,6 @@ export default function MemberDashboard() {
             <p className="text-muted-foreground">Here's your fitness overview.</p>
           </div>
           <div className="flex items-center gap-2">
-            <ThemeToggle />
              <Link href="/dashboard/member/payment-history" passHref>
                 <Button variant="outline" size="icon" className="relative">
                     <Bell className="h-5 w-5" />
@@ -247,7 +246,7 @@ export default function MemberDashboard() {
         </div>
         
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <div className="lg:col-span-2 space-y-6">
+            <div className="lg:col-span-3 space-y-6">
                 <Card>
                     <CardHeader>
                         <CardTitle>Scan to Check In</CardTitle>
@@ -352,33 +351,6 @@ export default function MemberDashboard() {
                                 <p className="text-muted-foreground text-center py-4">Equipment status is not available at the moment.</p>
                             )
                         )}
-                    </CardContent>
-                </Card>
-            </div>
-            <div className="lg:col-span-1">
-                 <Card>
-                    <CardHeader>
-                    <CardTitle>Quick Actions</CardTitle>
-                    </CardHeader>
-                    <CardContent className="flex flex-col space-y-4">
-                        <Link href="/dashboard/member/book-class" passHref>
-                            <Button className="w-full justify-start"><CalendarCheck className="mr-2"/> Book a Class</Button>
-                        </Link>
-                         <Link href="/dashboard/member/trainers" passHref>
-                            <Button className="w-full justify-start" variant="outline"><UsersIcon className="mr-2"/> View Trainers</Button>
-                        </Link>
-                         <Link href="/dashboard/member/diet-plan" passHref>
-                            <Button className="w-full justify-start" variant="outline"><Utensils className="mr-2"/> View Diet Plan</Button>
-                        </Link>
-                         <Link href="/dashboard/member/payment-history" passHref>
-                            <Button className="w-full justify-start" variant="outline"><IndianRupee className="mr-2"/>Payment History</Button>
-                         </Link>
-                         <Link href="/dashboard/gym-profile" passHref>
-                            <Button className="w-full justify-start" variant="outline"><Building className="mr-2"/> Your Gym Profile</Button>
-                         </Link>
-                         <Link href="/dashboard/member/complaints" passHref>
-                            <Button className="w-full justify-start" variant="outline"><MessageSquare className="mr-2"/> Complaints</Button>
-                         </Link>
                     </CardContent>
                 </Card>
             </div>
