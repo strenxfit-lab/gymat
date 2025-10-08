@@ -25,8 +25,8 @@ const inventoryFeatures = [
         title: "Usage Logs",
         description: "Track the consumption of items for internal use, such as cleaning supplies.",
         icon: <ClipboardList className="h-8 w-8 text-primary" />,
-        link: "#",
-        disabled: true,
+        link: "/dashboard/owner/usage-logs",
+        disabled: false,
     },
     {
         title: "Expiry Management",
