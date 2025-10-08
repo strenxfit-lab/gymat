@@ -3,175 +3,236 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { doc, getDoc, collection, query, where, getDocs, Timestamp } from 'firebase/firestore';
+import { doc, getDoc, updateDoc, Timestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useToast } from '@/hooks/use-toast';
-import { Button } from "@/components/ui/button";
-import { Loader2, User, Edit, Rss, Image as ImageIcon, Video, Settings, Lock } from 'lucide-react';
+import { useForm, Controller } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import * as z from 'zod';
 import Link from 'next/link';
-import Image from 'next/image';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { BottomNavbar } from '@/components/ui/bottom-navbar';
-import { LayoutDashboard, Search } from 'lucide-react';
 
-interface ProfileStats {
-  posts: number;
-  followers: number;
-  following: number;
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Loader2, ArrowLeft, User, Briefcase, Wallet, Calendar, Mail, Phone, Clock, Edit } from 'lucide-react';
+import { Separator } from '@/components/ui/separator';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+
+const formSchema = z.object({
+  shiftTiming: z.string().nonempty({ message: 'Please select a shift.' }),
+});
+
+type FormData = z.infer<typeof formSchema>;
+
+interface TrainerDetails {
+  fullName: string;
+  gender: string;
+  dob: string;
+  phone: string;
+  email: string;
+  address?: string;
+  emergencyContactName?: string;
+  emergencyContactNumber?: string;
+  designation: string;
+  specialization?: string;
+  experience?: string;
+  joiningDate: string;
+  certifications?: string;
+  salaryType: string;
+  salaryRate: string;
 }
 
-interface CommunityProfile {
-    bio?: string;
-    gender?: string;
-    photoUrl?: string;
-    privacy?: 'public' | 'private';
-}
+const DetailItem = ({ label, value }: { label: string; value: string | undefined }) => (
+    <div>
+        <p className="text-sm font-medium text-muted-foreground">{label}</p>
+        <p className="font-semibold">{value || 'N/A'}</p>
+    </div>
+);
 
-interface Post {
-    id: string;
-    text: string;
-    authorName: string;
-    authorId: string;
-    authorPhotoUrl?: string;
-    createdAt: Timestamp;
-    mediaUrls?: { url: string, type: 'image' | 'video' }[];
-    likes?: string[];
-    comments?: any[];
-    repost?: any;
-    visibility: 'local' | 'global';
-}
-
-export default function TrainerCommunityProfilePage() {
-  const [profile, setProfile] = useState<CommunityProfile | null>(null);
-  const [stats, setStats] = useState<ProfileStats>({ posts: 0, followers: 0, following: 0 });
-  const [posts, setPosts] = useState<Post[]>([]);
-  const [username, setUsername] = useState<string | null>(null);
+export default function TrainerProfilePage() {
+  const [trainer, setTrainer] = useState<TrainerDetails | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isEditing, setIsEditing] = useState(false);
   const router = useRouter();
   const { toast } = useToast();
-  const [isOwnProfile, setIsOwnProfile] = useState(false);
+
+  const form = useForm<FormData>({
+    resolver: zodResolver(formSchema),
+    defaultValues: { shiftTiming: '' },
+  });
 
   useEffect(() => {
-    const fetchProfileData = async () => {
-      const storedUsername = localStorage.getItem('communityUsername');
-      const userId = localStorage.getItem('trainerId');
+    const userDocId = localStorage.getItem('userDocId');
+    const activeBranchId = localStorage.getItem('activeBranch');
+    const trainerId = localStorage.getItem('trainerId');
 
-      if (!storedUsername || !userId) {
-        toast({ title: 'Error', description: 'Community profile not found.', variant: 'destructive' });
-        router.push('/dashboard/trainer/community');
-        return;
-      }
-      setUsername(storedUsername);
+    if (!userDocId || !activeBranchId || !trainerId) {
+      toast({ title: 'Error', description: 'Session data not found.', variant: 'destructive' });
+      router.push('/dashboard/trainer');
+      return;
+    }
 
+    const fetchTrainerData = async () => {
       try {
-        const profileRef = doc(db, 'userCommunity', storedUsername);
-        const profileSnap = await getDoc(profileRef);
+        const trainerRef = doc(db, 'gyms', userDocId, 'branches', activeBranchId, 'trainers', trainerId);
+        const trainerSnap = await getDoc(trainerRef);
 
-        if (profileSnap.exists()) {
-          const profileData = profileSnap.data() as CommunityProfile;
-          setProfile(profileData);
-          if (profileData.privacy === 'private' && profileSnap.data().userId === userId) {
-            setIsOwnProfile(true);
-          }
+        if (!trainerSnap.exists()) {
+          toast({ title: 'Error', description: 'Trainer not found.', variant: 'destructive' });
+          router.push('/dashboard/trainer');
+          return;
         }
-
-        const postsQuery = query(collection(db, 'gymRats'), where('authorId', '==', userId));
-        const postsSnap = await getDocs(postsQuery);
-        const userPosts = postsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Post))
-            .sort((a, b) => b.createdAt.toDate().getTime() - a.createdAt.toDate().getTime());
         
-        setStats(prev => ({ ...prev, posts: userPosts.length }));
-        setPosts(userPosts);
-        
+        const data = trainerSnap.data();
+        setTrainer({
+            fullName: data.fullName,
+            gender: data.gender,
+            dob: (data.dob as Timestamp)?.toDate().toLocaleDateString(),
+            phone: data.phone,
+            email: data.email,
+            address: data.address,
+            emergencyContactName: data.emergencyContactName,
+            emergencyContactNumber: data.emergencyContactNumber,
+            designation: data.designation,
+            specialization: data.specialization,
+            experience: data.experience ? `${data.experience} years` : undefined,
+            joiningDate: (data.joiningDate as Timestamp)?.toDate().toLocaleDateString(),
+            certifications: data.certifications,
+            salaryType: data.salaryType,
+            salaryRate: data.salaryRate,
+        });
+        form.setValue('shiftTiming', data.shiftTiming);
       } catch (error) {
-        console.error("Error fetching profile data:", error);
-        toast({ title: 'Error', description: 'Failed to fetch profile details.', variant: 'destructive' });
+        console.error("Error fetching trainer data:", error);
+        toast({ title: 'Error', description: 'Failed to fetch trainer details.', variant: 'destructive' });
       } finally {
         setLoading(false);
       }
     };
 
-    fetchProfileData();
-  }, [router, toast]);
-  
+    fetchTrainerData();
+  }, [router, toast, form]);
+
+  const onSubmit = async (data: FormData) => {
+    const userDocId = localStorage.getItem('userDocId');
+    const activeBranchId = localStorage.getItem('activeBranch');
+    const trainerId = localStorage.getItem('trainerId');
+    if (!userDocId || !activeBranchId || !trainerId) return;
+
+    try {
+        const trainerRef = doc(db, 'gyms', userDocId, 'branches', activeBranchId, 'trainers', trainerId);
+        await updateDoc(trainerRef, { shiftTiming: data.shiftTiming });
+        toast({ title: "Success!", description: "Your shift has been updated." });
+        setIsEditing(false);
+    } catch (error) {
+        console.error("Error updating shift:", error);
+        toast({ title: "Error", description: "Could not update your shift timing.", variant: "destructive" });
+    }
+  }
+
+
   if (loading) {
     return <div className="flex min-h-screen items-center justify-center bg-background"><Loader2 className="h-8 w-8 animate-spin" /></div>;
   }
 
-  const isPrivate = profile?.privacy === 'private';
-  const canViewContent = !isPrivate || isOwnProfile;
+  if (!trainer) {
+    return <div className="flex min-h-screen items-center justify-center bg-background">Trainer not found.</div>;
+  }
 
   return (
-      <div className="flex flex-col min-h-screen">
-        <main className="flex-1 container mx-auto py-10 space-y-6">
-          <div className="flex items-start gap-4 md:gap-8">
-              <Avatar className="h-20 w-20 md:h-24 md:w-24 border-4 border-primary">
-                  <AvatarImage src={profile?.photoUrl} alt={username || 'User'}/>
-                  <AvatarFallback className="text-3xl">{username?.charAt(0).toUpperCase()}</AvatarFallback>
-              </Avatar>
-              <div className="flex-1">
-                  <div className="flex items-center gap-4 mb-2 flex-wrap">
-                      <h1 className="text-2xl font-bold">{username}</h1>
-                      <div className="flex items-center gap-2">
-                        <Link href="/dashboard/trainer/profile/edit" passHref>
-                            <Button variant="outline" size="sm"><Edit className="mr-2 h-4 w-4"/>Edit Profile</Button>
-                        </Link>
-                        <Link href="/dashboard/trainer/profile/settings" passHref>
-                            <Button variant="outline" size="icon"><Settings className="h-4 w-4"/></Button>
-                        </Link>
-                      </div>
-                  </div>
-                  <div className="flex space-x-6">
-                      <div><span className="font-bold">{stats.posts}</span> posts</div>
-                      <div><span className="font-bold">{stats.followers}</span> followers</div>
-                      <div><span className="font-bold">{stats.following}</span> following</div>
-                  </div>
-                  <div className="mt-2">
-                      <p className="text-sm">{profile?.bio || 'No bio yet.'}</p>
-                      <p className="text-xs text-muted-foreground capitalize">{profile?.gender}</p>
-                  </div>
-              </div>
-          </div>
-          
-          <div className="border-t pt-6">
-              <h2 className="text-xl font-bold text-center mb-4">Posts</h2>
-               {!canViewContent ? (
-                   <div className="text-center text-muted-foreground mt-8 p-8 border-2 border-dashed rounded-lg">
-                      <Lock className="mx-auto h-8 w-8 mb-2"/>
-                      <p className="font-semibold">This account is private.</p>
-                      <p className="text-sm">Follow this account to see their posts.</p>
-                  </div>
-              ) : posts.length > 0 ? (
-                  <div className="grid grid-cols-3 gap-1">
-                      {posts.map(post => (
-                          <Link href={`/posts/${post.id}`} key={post.id}>
-                            <div className="relative aspect-square bg-muted cursor-pointer">
-                                {post.mediaUrls && post.mediaUrls.length > 0 ? (
-                                    <Image src={post.mediaUrls[0].url} alt="Post" layout="fill" className="object-cover"/>
-                                ) : (
-                                    <div className="flex items-center justify-center h-full"><ImageIcon className="h-8 w-8 text-muted-foreground"/></div>
-                                )}
-                                {post.mediaUrls && post.mediaUrls.length > 0 && post.mediaUrls[0].type === 'video' && <Video className="absolute bottom-2 right-2 h-5 w-5 text-white"/>}
-                            </div>
-                          </Link>
-                      ))}
-                  </div>
-              ) : (
-                  <div className="text-center text-muted-foreground mt-8">
-                      <p>Your posts will appear here.</p>
-                  </div>
-              )}
-          </div>
-
-        </main>
-        <BottomNavbar
-          navItems={[
-            { label: "Dashboard", href: "/dashboard/trainer", icon: <LayoutDashboard /> },
-            { label: "Search", href: "/dashboard/search", icon: <Search /> },
-            { label: "Feed", href: "/dashboard/trainer/community", icon: <Rss /> },
-            { label: "Profile", href: "/dashboard/trainer/profile", icon: <User /> },
-          ]}
-        />
+    <div className="container mx-auto py-10 space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold">{trainer.fullName}</h1>
+          <p className="text-muted-foreground">My Profile</p>
+        </div>
+        <Link href="/dashboard/trainer" passHref>
+          <Button variant="outline"><ArrowLeft className="mr-2 h-4 w-4"/>Back to Dashboard</Button>
+        </Link>
       </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="lg:col-span-1 space-y-6">
+            <Card>
+                <CardHeader>
+                    <CardTitle className="flex items-center gap-2"><User /> Personal Details</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                    <DetailItem label="Gender" value={trainer.gender} />
+                    <DetailItem label="Date of Birth" value={trainer.dob} />
+                    <DetailItem label="Phone" value={trainer.phone} />
+                    <DetailItem label="Email" value={trainer.email} />
+                    <DetailItem label="Address" value={trainer.address} />
+                    <Separator/>
+                    <DetailItem label="Emergency Contact Name" value={trainer.emergencyContactName} />
+                    <DetailItem label="Emergency Contact Number" value={trainer.emergencyContactNumber} />
+                </CardContent>
+            </Card>
+        </div>
+        <div className="lg:col-span-2 space-y-6">
+            <Card>
+                <CardHeader>
+                    <CardTitle className="flex items-center gap-2"><Briefcase /> Professional Details</CardTitle>
+                </CardHeader>
+                <CardContent className="grid grid-cols-2 gap-4">
+                    <DetailItem label="Designation" value={trainer.designation} />
+                    <DetailItem label="Specialization" value={trainer.specialization} />
+                    <DetailItem label="Experience" value={trainer.experience} />
+                    <DetailItem label="Joining Date" value={trainer.joiningDate} />
+                    <div className="col-span-2"><DetailItem label="Certifications" value={trainer.certifications} /></div>
+                </CardContent>
+            </Card>
+
+            <Card>
+                <CardHeader>
+                    <CardTitle className="flex items-center gap-2"><Wallet /> Financial Details</CardTitle>
+                </CardHeader>
+                <CardContent className="grid grid-cols-2 gap-4">
+                    <DetailItem label="Salary Type" value={trainer.salaryType} />
+                    <DetailItem label="Salary / Pay Rate" value={`₹${trainer.salaryRate}`} />
+                </CardContent>
+            </Card>
+            
+            <Card>
+                <CardHeader>
+                    <div className="flex justify-between items-center">
+                        <CardTitle className="flex items-center gap-2"><Clock /> Shift Timing</CardTitle>
+                        {!isEditing && <Button variant="outline" size="sm" onClick={() => setIsEditing(true)}><Edit className="mr-2 h-4 w-4"/>Change</Button>}
+                    </div>
+                </CardHeader>
+                <Form {...form}>
+                    <form onSubmit={form.handleSubmit(onSubmit)}>
+                        <CardContent>
+                            {isEditing ? (
+                                <FormField
+                                    control={form.control}
+                                    name="shiftTiming"
+                                    render={({ field }) => (
+                                        <FormItem><FormLabel>Update Your Shift</FormLabel>
+                                        <Select onValueChange={field.onChange} value={field.value}>
+                                            <FormControl><SelectTrigger><SelectValue placeholder="Select shift" /></SelectTrigger></FormControl>
+                                            <SelectContent><SelectItem value="morning">Morning</SelectItem><SelectItem value="evening">Evening</SelectItem><SelectItem value="custom">Custom</SelectItem></SelectContent>
+                                        </Select><FormMessage />
+                                        </FormItem>
+                                    )}
+                                />
+                            ) : (
+                                <DetailItem label="Current Shift" value={form.getValues('shiftTiming')} />
+                            )}
+                        </CardContent>
+                        {isEditing && (
+                            <CardFooter className="justify-end gap-2">
+                                <Button type="button" variant="ghost" onClick={() => setIsEditing(false)}>Cancel</Button>
+                                <Button type="submit" disabled={form.formState.isSubmitting}>
+                                    {form.formState.isSubmitting ? <Loader2 className="animate-spin" /> : 'Save Shift'}
+                                </Button>
+                            </CardFooter>
+                        )}
+                    </form>
+                </Form>
+            </Card>
+        </div>
+      </div>
+    </div>
   );
 }
