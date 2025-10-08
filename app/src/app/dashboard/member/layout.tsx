@@ -13,8 +13,7 @@ import {
   SidebarFooter,
   SidebarProvider,
 } from '@/components/ui/sidebar';
-import { Dumbbell, Users, CreditCard, ClipboardList, BarChart3, Megaphone, Boxes, Info, Mail, Phone, Building, UserCheck, LogOut, MessageSquare, CalendarCheck, CheckSquare, Clock, KeyRound, ChevronDown, IndianRupee, LifeBuoy, Utensils, LayoutDashboard, QrCode, Activity, Ruler } from 'lucide-react';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dumbbell, Users, CreditCard, BarChart3, Building, UserCheck, LogOut, MessageSquare, CalendarCheck, CheckSquare, IndianRupee, Utensils, LayoutDashboard, Activity } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { ThemeToggle } from '@/components/theme-toggle';
@@ -84,7 +83,13 @@ export default function MemberDashboardLayout({
     router.push('/');
   };
   
-  if (pathname.startsWith('/dashboard/member/community') || pathname.startsWith('/dashboard/member/profile') || pathname.startsWith('/dashboard/member/activity') || pathname.startsWith('/dashboard/search')) {
+  const isSpecialLayoutPage = pathname.startsWith('/dashboard/member/community') || 
+                              pathname.startsWith('/dashboard/member/profile') || 
+                              pathname.startsWith('/dashboard/member/activity') || 
+                              pathname.startsWith('/dashboard/search') ||
+                              pathname.startsWith('/dashboard/messages');
+
+  if (isSpecialLayoutPage) {
     return <>{children}</>;
   }
 
