@@ -35,7 +35,7 @@ const formSchema = z.object({
   fullName: z.string().min(2, { message: 'Full name must be at least 2 characters.' }),
   gender: z.string().nonempty({ message: 'Please select a gender.' }),
   dob: z.date({ required_error: 'Date of birth is required.' }),
-  phone: z.string().min(10, { message: 'Phone number must be at least 10 digits.' }),
+  phone: z.string().length(10, { message: 'Phone number must be 10 digits.' }),
   email: z.string().email().optional().or(z.literal('')),
   
   membershipType: z.string().nonempty({ message: 'Please select a membership type.' }),
