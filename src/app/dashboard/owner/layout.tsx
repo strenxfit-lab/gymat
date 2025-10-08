@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState } from 'react';
@@ -68,7 +69,9 @@ export default function OwnerDashboardLayout({
                             <Link href="/dashboard/owner/gym-info/facilities" passHref>
                                 <SidebarMenuSubButton className={subMenuButtonClass}>Facilities &amp; Machines</SidebarMenuSubButton>
                             </Link>
-                            <SidebarMenuSubButton className={subMenuButtonClass}>Goals &amp; Insights</SidebarMenuSubButton>
+                            <Link href="/dashboard/owner/gym-info/goals-and-insights" passHref>
+                                <SidebarMenuSubButton className={subMenuButtonClass}>Goals &amp; Insights</SidebarMenuSubButton>
+                            </Link>
                         </SidebarMenuSub>
                     )}
                 </SidebarMenuItem>
