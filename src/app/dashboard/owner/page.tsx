@@ -4,7 +4,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { doc, getDoc, collection, getDocs, Timestamp, query, where } from 'firebase/firestore';
+import { doc, getDoc, collection, getDocs, Timestamp, query, orderBy, limit, collectionGroup, where } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -83,7 +83,6 @@ export default function OwnerDashboardPage() {
         const activeBranchId = localStorage.getItem('activeBranch');
         
         if (!activeBranchId) {
-            // No branches exist yet for this gym.
             setGymData({
               name: gym.name || 'Your Gym',
               location: gym.location || 'Your City',
@@ -112,7 +111,6 @@ export default function OwnerDashboardPage() {
         const branchSnap = await getDoc(branchRef);
         const branchName = branchSnap.exists() ? branchSnap.data().name : gym.name;
 
-        // Fetch data scoped to the active branch
         const membersRef = collection(db, 'gyms', userDocId, 'branches', activeBranchId, 'members');
         const membersSnap = await getDocs(membersRef);
         
@@ -121,6 +119,7 @@ export default function OwnerDashboardPage() {
 
         const now = new Date();
         const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        const endOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
         const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
         const sevenDaysFromNow = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
 
@@ -129,13 +128,13 @@ export default function OwnerDashboardPage() {
         let upcomingExpiries: Member[] = [];
         let upcomingExpiriesTotal = 0;
         const activePackages = new Set<string>();
-        
+        let newTrialMembers = 0;
         let todaysCollection = 0;
         let thisMonthsRevenue = 0;
         let pendingDues = 0;
-        let newTrialMembers = 0;
-        
-        const members: {id: string, plan: string, assignedTrainer?: string, totalFee: number}[] = [];
+
+        const allMembersForTrainers: {id: string, assignedTrainer?: string}[] = [];
+        const memberPaymentPromises: Promise<any>[] = [];
 
         for (const memberDoc of membersSnap.docs) {
             const data = memberDoc.data();
@@ -144,89 +143,77 @@ export default function OwnerDashboardPage() {
             if (data.isTrial && createdAt && createdAt >= startOfToday) {
                 newTrialMembers++;
             }
-
-            if (!data.endDate || !(data.endDate instanceof Timestamp)) {
-              continue;
+            
+            if (data.endDate && data.endDate instanceof Timestamp) {
+                const expiry = data.endDate.toDate();
+                if (expiry >= now) {
+                    activeMembers++;
+                    if(expiry <= sevenDaysFromNow) {
+                        upcomingExpiries.push({ 
+                          id: memberDoc.id, 
+                          name: data.fullName, 
+                          endDate: expiry, 
+                          plan: data.plan || 'N/A',
+                          phone: data.phone,
+                          totalFee: data.totalFee || 0
+                        });
+                        upcomingExpiriesTotal += data.totalFee || 0;
+                    }
+                } else {
+                    expiredMembers++;
+                }
             }
-            const expiry = (data.endDate as Timestamp).toDate();
-            const memberTotalFee = data.totalFee || 0;
             
-            const memberInfo = {
-                id: memberDoc.id,
-                name: data.fullName,
-                endDate: expiry,
-                plan: data.plan,
-                totalFee: memberTotalFee,
-                phone: data.phone,
-                assignedTrainer: data.assignedTrainer
-            };
-            members.push(memberInfo);
+            if(data.plan) {
+                activePackages.add(data.plan);
+            }
+            
+            allMembersForTrainers.push({ id: memberDoc.id, assignedTrainer: data.assignedTrainer });
+            
+            const paymentsQuery = query(collection(memberDoc.ref, 'payments'), orderBy('paymentDate', 'desc'));
+            memberPaymentPromises.push(getDocs(paymentsQuery));
+        }
 
-            const paymentsRef = collection(db, 'gyms', userDocId, 'branches', activeBranchId, 'members', memberDoc.id, 'payments');
-            const paymentsSnap = await getDocs(paymentsRef);
-            
-            let totalPaidForCurrentTerm = 0;
-            let memberPendingDue = 0;
+        const memberPaymentSnapshots = await Promise.all(memberPaymentPromises);
+        let totalPendingDues = 0;
+
+        memberPaymentSnapshots.forEach(paymentsSnap => {
+            if (!paymentsSnap.empty) {
+                const latestPayment = paymentsSnap.docs[0].data();
+                if (latestPayment.balanceDue > 0) {
+                    totalPendingDues += latestPayment.balanceDue;
+                }
+            }
+
             paymentsSnap.forEach(paymentDoc => {
                 const payment = paymentDoc.data();
                 const paymentDate = (payment.paymentDate as Timestamp).toDate();
 
                 if (paymentDate >= startOfMonth) {
-                    thisMonthsRevenue += payment.amountPaid;
+                    thisMonthsRevenue += payment.amountPaid || 0;
                 }
 
-                if (paymentDate >= startOfToday) {
-                    todaysCollection += payment.amountPaid;
+                if (paymentDate >= startOfToday && paymentDate <= endOfToday) {
+                    todaysCollection += payment.amountPaid || 0;
                 }
-                
-                totalPaidForCurrentTerm += payment.amountPaid;
-                memberPendingDue += payment.balanceDue || 0;
             });
-            
-            pendingDues += memberPendingDue;
-
-            if (expiry >= now) {
-                activeMembers++;
-                if(expiry <= sevenDaysFromNow) {
-                    upcomingExpiries.push({ 
-                      id: memberDoc.id, 
-                      name: data.fullName, 
-                      endDate: expiry, 
-                      plan: data.plan,
-                      phone: data.phone,
-                      totalFee: memberTotalFee
-                    });
-                    upcomingExpiriesTotal += memberTotalFee;
-                }
-            } else {
-                expiredMembers++;
-                const outstandingForExpired = memberTotalFee - totalPaidForCurrentTerm;
-                if(outstandingForExpired > 0 && !paymentsSnap.empty) {
-                     if (memberPendingDue === 0) {
-                        pendingDues += outstandingForExpired;
-                     }
-                }
-            }
-
-            if(data.plan) {
-                activePackages.add(data.plan);
-            }
-        }
-
+        });
+        
+        pendingDues = totalPendingDues;
 
         const trainersData: Trainer[] = trainersSnap.docs.map(doc => {
             const data = doc.data();
             return {
                 id: doc.id,
                 name: data.fullName,
-                assignedMembers: members.filter(m => m.assignedTrainer === doc.id).length 
+                assignedMembers: allMembersForTrainers.filter(m => m.assignedTrainer === doc.id).length 
             };
         });
 
         const data: GymData = {
           name: gym.name || 'Your Gym',
           location: gym.location || 'Your City',
-          totalMembers: members.length,
+          totalMembers: membersSnap.size,
           totalTrainers: trainersSnap.size,
           activePackages: Array.from(activePackages),
           todaysCollection: todaysCollection,
@@ -254,16 +241,9 @@ export default function OwnerDashboardPage() {
       }
     };
 
-    const timeoutId = setTimeout(fetchData, 500); // give layout time to set branch
+    const timeoutId = setTimeout(fetchData, 500);
     return () => clearTimeout(timeoutId);
   }, [router, toast]);
-
-  useEffect(() => {
-    // Redirect if loading is complete but no data is available.
-    if (!loading && !gymData) {
-      router.push('/');
-    }
-  }, [loading, gymData, router]);
 
 
   if (loading) {
@@ -276,7 +256,6 @@ export default function OwnerDashboardPage() {
   }
 
   if (!gymData) {
-    // Render a blank screen or a minimal loading state while redirecting.
     return (
       <div className="flex min-h-screen items-center justify-center bg-background">
         <p>Redirecting...</p>
