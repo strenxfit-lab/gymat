@@ -46,7 +46,7 @@ interface Member {
   phone: string;
   membershipType: string;
   totalFee: number;
-  startDate: Date;
+  startDate?: Date;
 }
 
 function NoBranchDialog() {
@@ -109,14 +109,17 @@ export default function AddPaymentPage() {
     
     const membersCollection = collection(db, 'gyms', userDocId, 'branches', branchId, 'members');
     const membersSnapshot = await getDocs(membersCollection);
-    const membersList = membersSnapshot.docs.map(doc => ({
-      id: doc.id,
-      fullName: doc.data().fullName,
-      phone: doc.data().phone,
-      membershipType: doc.data().membershipType,
-      totalFee: doc.data().totalFee,
-      startDate: doc.data().startDate.toDate(),
-    }));
+    const membersList = membersSnapshot.docs.map(doc => {
+        const data = doc.data();
+        return {
+          id: doc.id,
+          fullName: data.fullName,
+          phone: data.phone,
+          membershipType: data.membershipType,
+          totalFee: data.totalFee,
+          startDate: data.startDate ? (data.startDate as Timestamp).toDate() : undefined,
+        };
+    });
     setMembers(membersList);
     return membersList;
   };
