@@ -2,24 +2,22 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { useSearchParams, useRouter } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import Script from 'next/script';
-import { collection, getDocs, doc, getDoc, updateDoc, addDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, getDocs, doc, getDoc, updateDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useToast } from '@/hooks/use-toast';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import * as z from 'zod';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Loader2, ArrowLeft, Shield, Check, IndianRupee } from 'lucide-react';
+import { Loader2, ArrowLeft, Shield, Check, IndianRupee, Phone, Mail } from 'lucide-react';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { ThemeToggle } from '@/components/theme-toggle';
-import { addMonths, addYears } from 'date-fns';
-
-declare global {
-    interface Window {
-        Razorpay: any;
-    }
-}
 
 interface SubscriptionPlan {
   id: string;
@@ -29,22 +27,28 @@ interface SubscriptionPlan {
   Benefits: string[];
 }
 
+const contactFormSchema = z.object({
+  name: z.string().min(1, "Name is required."),
+  phone: z.string().length(10, "Phone must be 10 digits."),
+  gymName: z.string().min(1, "Gym name is required."),
+});
+type ContactFormData = z.infer<typeof contactFormSchema>;
+
 const bestSellingPlanIds = ["6 Month Plan", "3 Month Plan Multi", "1 Year Plan Multi", "1 Year Plan"];
 
 export default function RenewPage() {
   const [plans, setPlans] = useState<SubscriptionPlan[]>([]);
   const [loading, setLoading] = useState(true);
-  const [processingPaymentFor, setProcessingPaymentFor] = useState<string | null>(null);
-  const [gymId, setGymId] = useState<string | null>(null);
+  const [isContactDialogOpen, setIsContactDialogOpen] = useState(false);
+  const [selectedPlan, setSelectedPlan] = useState<SubscriptionPlan | null>(null);
   const { toast } = useToast();
   const searchParams = useSearchParams();
-  const router = useRouter();
+  const gymId = searchParams.get('gymId');
 
-  useEffect(() => {
-    const idFromParams = searchParams.get('gymId');
-    const idFromStorage = localStorage.getItem('userDocId');
-    setGymId(idFromParams || idFromStorage);
-  }, [searchParams]);
+  const contactForm = useForm<ContactFormData>({
+      resolver: zodResolver(contactFormSchema),
+      defaultValues: { name: '', phone: '', gymName: ''}
+  });
 
   useEffect(() => {
     const fetchPlans = async () => {
@@ -56,6 +60,19 @@ export default function RenewPage() {
           ...doc.data()
         } as SubscriptionPlan));
         setPlans(plansList);
+
+        if (gymId) {
+            const gymRef = doc(db, 'gyms', gymId);
+            const gymSnap = await getDoc(gymRef);
+            if (gymSnap.exists()) {
+                const gymData = gymSnap.data();
+                contactForm.reset({
+                    name: gymData.ownerName || '',
+                    phone: gymData.contactNumber || '',
+                    gymName: gymData.name || '',
+                });
+            }
+        }
       } catch (error) {
         console.error("Error fetching subscription plans:", error);
         toast({ title: "Error", description: "Could not load subscription plans.", variant: "destructive" });
@@ -64,93 +81,22 @@ export default function RenewPage() {
       }
     };
     fetchPlans();
-  }, [toast]);
+  }, [toast, gymId, contactForm]);
+  
+  const handleChoosePlan = (plan: SubscriptionPlan) => {
+      setSelectedPlan(plan);
+      setIsContactDialogOpen(true);
+  }
 
-  const handlePayment = async (plan: SubscriptionPlan) => {
-    if (!gymId) {
-        toast({ title: "Error", description: "Gym ID not found. Please log in again.", variant: "destructive" });
-        return;
-    }
-    setProcessingPaymentFor(plan.id);
-    
-    const gymRef = doc(db, 'gyms', gymId);
-    const gymSnap = await getDoc(gymRef);
-    if (!gymSnap.exists()) {
-        toast({ title: "Error", description: "Gym details not found.", variant: "destructive"});
-        setProcessingPaymentFor(null);
-        return;
-    }
-    const gymData = gymSnap.data();
-
-    const options = {
-        key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
-        amount: plan.price * 100,
-        currency: "INR",
-        name: "Strenx Enterprises",
-        description: `Subscription: ${plan.name}`,
-        handler: async (response: any) => {
-            try {
-                let currentExpiry = (gymData.expiry_at?.toDate() > new Date()) ? gymData.expiry_at.toDate() : new Date();
-                let newExpiryDate;
-
-                if (plan.name.toLowerCase().includes('month')) {
-                    const months = parseInt(plan.name.split(" ")[0]);
-                    newExpiryDate = addMonths(currentExpiry, months);
-                } else if (plan.name.toLowerCase().includes('year')) {
-                     const years = parseInt(plan.name.split(" ")[0]);
-                    newExpiryDate = addYears(currentExpiry, years);
-                } else {
-                    newExpiryDate = addMonths(currentExpiry, 1); // Default
-                }
-                
-                await updateDoc(gymRef, {
-                    expiry_at: newExpiryDate,
-                    membershipType: plan.name,
-                    price: plan.price,
-                    isTrial: false, // Ensure trial is deactivated
-                });
-
-                const paymentsRef = collection(db, 'platform_payments');
-                await addDoc(paymentsRef, {
-                    gymId: gymId,
-                    gymName: gymData.name,
-                    planName: plan.name,
-                    amount: plan.price,
-                    transactionId: response.razorpay_payment_id,
-                    paymentDate: serverTimestamp(),
-                });
-
-                toast({ title: "Payment Successful!", description: "Your subscription has been renewed."});
-                router.push('/dashboard/owner');
-            } catch (error) {
-                 console.error("Error updating subscription:", error);
-                 toast({ title: "Update Failed", description: "Payment was successful, but updating your profile failed. Please contact support.", variant: 'destructive'});
-            } finally {
-                setProcessingPaymentFor(null);
-            }
-        },
-        prefill: {
-            name: gymData.ownerName || gymData.name,
-            email: gymData.email,
-            contact: gymData.contactNumber,
-        },
-        theme: {
-            color: "#6366f1",
-        },
-    };
-    
-    if (window.Razorpay) {
-        const rzp = new window.Razorpay(options);
-        rzp.on('payment.failed', function (response: any){
-            console.error(response);
-            toast({title: "Payment Failed", description: response.error.description, variant: "destructive"});
-            setProcessingPaymentFor(null);
-        });
-        rzp.open();
-    } else {
-        toast({ title: "Error", description: "Payment gateway is not available.", variant: "destructive" });
-        setProcessingPaymentFor(null);
-    }
+  const onContactSubmit = async (data: ContactFormData) => {
+      // In a real scenario, this would trigger a payment flow.
+      // Here, we just show a confirmation and link to support.
+      toast({
+          title: "Request Received!",
+          description: "Thank you for your interest. Please contact our support to finalize the payment and activation.",
+          duration: 5000,
+      });
+      setIsContactDialogOpen(false);
   }
 
   if (loading) {
@@ -158,15 +104,14 @@ export default function RenewPage() {
   }
 
   return (
-    <>
-    <Script src="https://checkout.razorpay.com/v1/checkout.js" strategy="lazyOnload" />
     <div className="bg-background min-h-screen">
+    <Dialog open={isContactDialogOpen} onOpenChange={setIsContactDialogOpen}>
     <header className="sticky top-0 z-10 flex h-16 items-center justify-between border-b bg-background/80 backdrop-blur-sm px-4 md:px-8">
         <h1 className="text-xl font-bold">Renew Subscription</h1>
         <div className="flex items-center gap-2">
             <ThemeToggle />
-            <Link href="/dashboard/owner" passHref>
-                <Button variant="outline"><ArrowLeft className="mr-2 h-4 w-4" /> Back to Dashboard</Button>
+            <Link href="/" passHref>
+                <Button variant="outline"><ArrowLeft className="mr-2 h-4 w-4" /> Back to Login</Button>
             </Link>
         </div>
     </header>
@@ -207,9 +152,7 @@ export default function RenewPage() {
                 </ul>
               </CardContent>
               <CardFooter>
-                <Button className="w-full" onClick={() => handlePayment(plan)} disabled={!!processingPaymentFor}>
-                  {processingPaymentFor === plan.id ? <Loader2 className="animate-spin" /> : 'Choose Plan & Pay'}
-                </Button>
+                <Button className="w-full" onClick={() => handleChoosePlan(plan)}>Choose Plan</Button>
               </CardFooter>
             </Card>
           ))
@@ -220,7 +163,28 @@ export default function RenewPage() {
         )}
       </div>
     </div>
+    <DialogContent>
+        <DialogHeader>
+            <DialogTitle>Continue with {selectedPlan?.name}</DialogTitle>
+            <DialogDescription>
+                Please confirm your details. Our team will contact you to complete the payment process.
+            </DialogDescription>
+        </DialogHeader>
+         <Form {...contactForm}>
+            <form onSubmit={contactForm.handleSubmit(onContactSubmit)} className="space-y-4 py-4">
+                <FormField control={contactForm.control} name="name" render={({ field }) => ( <FormItem><FormLabel>Your Name</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem> )} />
+                <FormField control={contactForm.control} name="phone" render={({ field }) => ( <FormItem><FormLabel>Phone Number</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem> )} />
+                <FormField control={contactForm.control} name="gymName" render={({ field }) => ( <FormItem><FormLabel>Gym Name</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem> )} />
+                <DialogFooter className="pt-4">
+                    <Button type="button" variant="outline" onClick={() => setIsContactDialogOpen(false)}>Cancel</Button>
+                    <Button type="submit" disabled={contactForm.formState.isSubmitting}>
+                        {contactForm.formState.isSubmitting ? <Loader2 className="animate-spin" /> : 'Continue'}
+                    </Button>
+                </DialogFooter>
+            </form>
+        </Form>
+    </DialogContent>
+    </Dialog>
     </div>
-    </>
   );
 }
