@@ -206,7 +206,6 @@ export default function OwnerDashboardLayout({
                             <Link href="/dashboard/owner/session-tracking">
                                 <SidebarMenuSubButton className={subMenuButtonClass}>Session tracking</SidebarMenuSubButton>
                             </Link>
-                            <SidebarMenuSubButton className={subMenuButtonClass}>Trainer performance</SidebarMenuSubButton>
                         </SidebarMenuSub>
                     )}
                 </SidebarMenuItem>
@@ -224,7 +223,6 @@ export default function OwnerDashboardLayout({
                                 <SidebarMenuSubButton className={subMenuButtonClass}>Expenses</SidebarMenuSubButton>
                             </Link>
                             <SidebarMenuSubButton className={subMenuButtonClass}>Attendance trends</SidebarMenuSubButton>
-                            <SidebarMenuSubButton className={subMenuButtonClass}>Trainer performance</SidebarMenuSubButton>
                         </SidebarMenuSub>
                     )}
                 </SidebarMenuItem>
