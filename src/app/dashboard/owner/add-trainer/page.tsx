@@ -8,8 +8,8 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { format } from 'date-fns';
-import { Loader2, User, Briefcase, Wallet, Calendar as CalendarIcon, ChevronLeft, ChevronRight, Building, KeyRound, ClipboardCopy, LayoutDashboard } from 'lucide-react';
-import { collection, addDoc, Timestamp, doc, getDoc } from 'firebase/firestore';
+import { Loader2, User, Briefcase, Wallet, Calendar as CalendarIcon, ChevronLeft, ChevronRight, Building, KeyRound, ClipboardCopy, LayoutDashboard, Phone, Mail } from 'lucide-react';
+import { collection, addDoc, Timestamp, doc, getDoc, getDocs } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useToast } from '@/hooks/use-toast';
 
@@ -63,6 +63,11 @@ interface NewTrainerInfo {
   password?: string;
 }
 
+interface LimitDialogInfo {
+  members: number;
+  trainers: number;
+}
+
 function NoBranchDialog() {
     const router = useRouter();
     return (
@@ -87,6 +92,33 @@ function NoBranchDialog() {
     )
 }
 
+function LimitReachedDialog({ isOpen, onOpenChange, limits }: { isOpen: boolean; onOpenChange: (open: boolean) => void, limits: LimitDialogInfo }) {
+  return (
+    <AlertDialog open={isOpen} onOpenChange={onOpenChange}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>You've reached the limit of your trial account</AlertDialogTitle>
+          <AlertDialogDescription className="space-y-2 pt-2">
+            <p>Members ({limits.members}/3)</p>
+            <p>Trainers ({limits.trainers}/2)</p>
+            <p className="font-semibold pt-2">Upgrade to a full Account to continue managing without restrictions.</p>
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <div className="flex flex-col space-y-2">
+            <p className="font-bold text-center">Contact Strenxfit Support</p>
+            <a href="https://wa.me/917988487892" target="_blank" rel="noopener noreferrer" className="flex items-center justify-center gap-3 p-3 rounded-md hover:bg-accent transition-colors">
+                <Phone className="h-5 w-5 text-muted-foreground" />
+                <span>+91 79884 87892</span>
+            </a>
+        </div>
+        <AlertDialogFooter>
+          <AlertDialogAction onClick={() => onOpenChange(false)}>OK</AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  );
+}
+
 export default function AddTrainerPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [currentStep, setCurrentStep] = useState(1);
@@ -96,6 +128,9 @@ export default function AddTrainerPage() {
   const [newTrainer, setNewTrainer] = useState<NewTrainerInfo | null>(null);
   const { toast } = useToast();
   const router = useRouter();
+  const [isTrial, setIsTrial] = useState(false);
+  const [limitDialogOpen, setLimitDialogOpen] = useState(false);
+  const [limitInfo, setLimitInfo] = useState<LimitDialogInfo>({ members: 0, trainers: 0 });
   
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
@@ -125,6 +160,14 @@ export default function AddTrainerPage() {
     if (branchId) {
         const userDocId = localStorage.getItem('userDocId');
         if (!userDocId) return;
+
+        const gymRef = doc(db, 'gyms', userDocId);
+        getDoc(gymRef).then(gymSnap => {
+            if (gymSnap.exists() && gymSnap.data().isTrial) {
+                setIsTrial(true);
+            }
+        });
+
         const branchRef = doc(db, 'gyms', userDocId, 'branches', branchId);
         getDoc(branchRef).then(docSnap => {
             if (docSnap.exists()) {
@@ -148,6 +191,20 @@ export default function AddTrainerPage() {
     if (!userDocId || !activeBranchId) {
       toast({ title: 'Error', description: 'Gym owner session or branch not found.', variant: 'destructive' });
       return;
+    }
+
+    if (isTrial) {
+        const membersCollection = collection(db, 'gyms', userDocId, 'branches', activeBranchId, 'members');
+        const membersSnapshot = await getDocs(membersCollection);
+        const trainersCollection = collection(db, 'gyms', userDocId, 'branches', activeBranchId, 'trainers');
+        const trainersSnapshot = await getDocs(trainersCollection);
+
+        setLimitInfo({ members: membersSnapshot.size, trainers: trainersSnapshot.size });
+
+        if (trainersSnapshot.size >= 2) {
+            setLimitDialogOpen(true);
+            return;
+        }
     }
     
     setIsLoading(true);
@@ -197,6 +254,7 @@ export default function AddTrainerPage() {
 
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-background p-4">
+        <LimitReachedDialog isOpen={limitDialogOpen} onOpenChange={setLimitDialogOpen} limits={limitInfo} />
         <AlertDialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
             <AlertDialogContent>
             <AlertDialogHeader>
@@ -333,6 +391,3 @@ export default function AddTrainerPage() {
     </div>
   );
 }
-
-    
-    
