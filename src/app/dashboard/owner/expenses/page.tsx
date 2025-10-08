@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { collection, addDoc, getDocs, Timestamp, deleteDoc, doc, updateDoc, getDoc } from 'firebase/firestore';
+import { collection, addDoc, getDocs, Timestamp, deleteDoc, doc, updateDoc, serverTimestamp, getDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -235,7 +235,7 @@ export default function ExpensesPage() {
       await addDoc(expensesCollection, {
         ...values,
         date: Timestamp.fromDate(new Date(values.date)),
-        createdAt: Timestamp.now(),
+        createdAt: serverTimestamp(),
       });
 
       toast({ title: 'Success!', description: 'New expense has been added.' });
@@ -447,5 +447,3 @@ export default function ExpensesPage() {
     </div>
   );
 }
-
-    
