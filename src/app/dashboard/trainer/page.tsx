@@ -8,9 +8,10 @@ import { db } from '@/lib/firebase';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Loader2, User, LogOut } from 'lucide-react';
+import { Loader2, User, LogOut, Building } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Button } from '@/components/ui/button';
+import Link from 'next/link';
 
 interface AssignedClass {
   id: string;
@@ -134,42 +135,58 @@ export default function TrainerDashboardPage() {
         </DropdownMenu>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>My Schedule</CardTitle>
-          <CardDescription>A list of your upcoming assigned classes.</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Class Name</TableHead>
-                <TableHead>Date & Time</TableHead>
-                <TableHead>Location</TableHead>
-                <TableHead>Bookings</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {assignedClasses.length > 0 ? (
-                assignedClasses.map((cls) => (
-                  <TableRow key={cls.id}>
-                    <TableCell className="font-medium">{cls.className}</TableCell>
-                    <TableCell>{cls.dateTime.toLocaleString()}</TableCell>
-                    <TableCell>{cls.location}</TableCell>
-                    <TableCell>{cls.booked} / {cls.capacity}</TableCell>
-                  </TableRow>
-                ))
-              ) : (
-                <TableRow>
-                  <TableCell colSpan={4} className="h-24 text-center">
-                    You have no upcoming classes assigned.
-                  </TableCell>
-                </TableRow>
-              )}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="md:col-span-2">
+                <Card>
+                    <CardHeader>
+                    <CardTitle>My Schedule</CardTitle>
+                    <CardDescription>A list of your upcoming assigned classes.</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                    <Table>
+                        <TableHeader>
+                        <TableRow>
+                            <TableHead>Class Name</TableHead>
+                            <TableHead>Date & Time</TableHead>
+                            <TableHead>Location</TableHead>
+                            <TableHead>Bookings</TableHead>
+                        </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                        {assignedClasses.length > 0 ? (
+                            assignedClasses.map((cls) => (
+                            <TableRow key={cls.id}>
+                                <TableCell className="font-medium">{cls.className}</TableCell>
+                                <TableCell>{cls.dateTime.toLocaleString()}</TableCell>
+                                <TableCell>{cls.location}</TableCell>
+                                <TableCell>{cls.booked} / {cls.capacity}</TableCell>
+                            </TableRow>
+                            ))
+                        ) : (
+                            <TableRow>
+                            <TableCell colSpan={4} className="h-24 text-center">
+                                You have no upcoming classes assigned.
+                            </TableCell>
+                            </TableRow>
+                        )}
+                        </TableBody>
+                    </Table>
+                    </CardContent>
+                </Card>
+            </div>
+            <div className="md:col-span-1">
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Gym Info</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                         <Link href="/dashboard/gym-profile" passHref>
+                            <Button className="w-full justify-start" variant="outline"><Building className="mr-2"/> View Gym Profile</Button>
+                         </Link>
+                    </CardContent>
+                </Card>
+            </div>
+        </div>
     </div>
   );
 }
