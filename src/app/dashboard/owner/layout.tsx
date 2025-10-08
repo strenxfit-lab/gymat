@@ -20,7 +20,7 @@ import {
   SidebarGroup,
   SidebarGroupLabel,
 } from '@/components/ui/sidebar';
-import { Dumbbell, Users, CreditCard, ClipboardList, BarChart3, Megaphone, Boxes, ChevronDown, Info, Mail, Phone, Building, UserCheck, LogOut } from 'lucide-react';
+import { Dumbbell, Users, CreditCard, ClipboardList, BarChart3, Megaphone, Boxes, ChevronDown, Info, Mail, Phone, Building, UserCheck, LogOut, MessageSquare } from 'lucide-react';
 import { doc, getDoc, collection, getDocs } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
@@ -180,6 +180,9 @@ export default function OwnerDashboardLayout({
                             </Link>
                             <Link href="/dashboard/owner/automated-messages">
                                 <SidebarMenuSubButton className={subMenuButtonClass}>Reminders</SidebarMenuSubButton>
+                            </Link>
+                            <Link href="/dashboard/owner/complaints">
+                                <SidebarMenuSubButton className={subMenuButtonClass}>Complaints</SidebarMenuSubButton>
                             </Link>
                         </SidebarMenuSub>
                     )}
