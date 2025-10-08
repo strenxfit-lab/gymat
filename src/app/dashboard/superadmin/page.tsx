@@ -3,14 +3,13 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { collection, getDocs, Timestamp, query, orderBy } from 'firebase/firestore';
+import { collection, getDocs, Timestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Loader2, IndianRupee, Users } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
-import { startOfMonth } from 'date-fns';
 
 interface GymCustomer {
   id: string;
@@ -19,14 +18,6 @@ interface GymCustomer {
   plan: string;
   status: 'Active' | 'Expired' | 'Trial';
   expiryDate?: string;
-}
-
-interface PlatformPayment {
-    id: string;
-    gymName: string;
-    planName: string;
-    amount: number;
-    paymentDate: string;
 }
 
 const getStatusVariant = (status: GymCustomer['status']) => {
@@ -40,9 +31,6 @@ const getStatusVariant = (status: GymCustomer['status']) => {
 
 export default function SuperAdminDashboard() {
   const [customers, setCustomers] = useState<GymCustomer[]>([]);
-  const [platformPayments, setPlatformPayments] = useState<PlatformPayment[]>([]);
-  const [totalRevenue, setTotalRevenue] = useState(0);
-  const [thisMonthsRevenue, setThisMonthsRevenue] = useState(0);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
   const { toast } = useToast();
@@ -55,9 +43,8 @@ export default function SuperAdminDashboard() {
         return;
     }
 
-    const fetchAllData = async () => {
+    const fetchCustomers = async () => {
         try {
-            // Fetch Gym Customers
             const gymsCollection = collection(db, 'gyms');
             const gymsSnapshot = await getDocs(gymsCollection);
             const now = new Date();
@@ -86,51 +73,22 @@ export default function SuperAdminDashboard() {
             customersList.sort((a,b) => a.name.localeCompare(b.name));
             setCustomers(customersList);
 
-            // Fetch Platform Payments
-            const paymentsCollection = collection(db, 'platform_payments');
-            const paymentsQuery = query(paymentsCollection, orderBy('paymentDate', 'desc'));
-            const paymentsSnap = await getDocs(paymentsQuery);
-            const startOfThisMonth = startOfMonth(now);
-            let monthlyRevenue = 0;
-            let allTimeRevenue = 0;
-
-            const paymentsList = paymentsSnap.docs.map(doc => {
-                const data = doc.data();
-                const paymentDate = (data.paymentDate as Timestamp).toDate();
-
-                allTimeRevenue += data.amount;
-                if (paymentDate >= startOfThisMonth) {
-                    monthlyRevenue += data.amount;
-                }
-
-                return {
-                    id: doc.id,
-                    gymName: data.gymName,
-                    planName: data.planName,
-                    amount: data.amount,
-                    paymentDate: paymentDate.toLocaleDateString(),
-                }
-            });
-            setPlatformPayments(paymentsList);
-            setTotalRevenue(allTimeRevenue);
-            setThisMonthsRevenue(monthlyRevenue);
-
         } catch (error) {
-            console.error("Error fetching data:", error);
-            toast({ title: "Error", description: "Could not fetch dashboard data.", variant: "destructive" });
+            console.error("Error fetching customers:", error);
+            toast({ title: "Error", description: "Could not fetch customer data.", variant: "destructive" });
         } finally {
             setLoading(false);
         }
     }
     
-    fetchAllData();
+    fetchCustomers();
   }, [router, toast]);
 
   if (loading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background">
         <Loader2 className="h-8 w-8 animate-spin" />
-        <p className="ml-4">Loading Dashboard Data...</p>
+        <p className="ml-4">Loading Customer Data...</p>
       </div>
     );
   }
@@ -139,114 +97,51 @@ export default function SuperAdminDashboard() {
     <div className="container mx-auto py-10">
         <div className="mb-6">
             <h1 className="text-3xl font-bold">Superadmin Dashboard</h1>
-            <p className="text-muted-foreground">An overview of all your gym owner customers and platform revenue.</p>
+            <p className="text-muted-foreground">An overview of all your gym owner customers.</p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-            <Card>
-                <CardHeader>
-                    <CardTitle className="flex items-center gap-2"><Users /> Total Customers</CardTitle>
-                </CardHeader>
-                <CardContent>
-                    <p className="text-4xl font-bold">{customers.length}</p>
-                </CardContent>
-            </Card>
-            <Card>
-                <CardHeader>
-                    <CardTitle className="flex items-center gap-2"><IndianRupee/> This Month's Revenue</CardTitle>
-                </CardHeader>
-                <CardContent>
-                    <p className="text-4xl font-bold">₹{thisMonthsRevenue.toLocaleString()}</p>
-                </CardContent>
-            </Card>
-            <Card>
-                <CardHeader>
-                    <CardTitle className="flex items-center gap-2"><IndianRupee/> All-Time Revenue</CardTitle>
-                </CardHeader>
-                <CardContent>
-                    <p className="text-4xl font-bold">₹{totalRevenue.toLocaleString()}</p>
-                </CardContent>
-            </Card>
-        </div>
-        
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <Card>
-                <CardHeader>
-                    <CardTitle>All Gym Customers</CardTitle>
-                    <CardDescription>A list of all registered gyms on the platform.</CardDescription>
-                </CardHeader>
-                <CardContent>
-                    <Table>
-                        <TableHeader>
-                            <TableRow>
-                                <TableHead>Gym Name</TableHead>
-                                <TableHead>Plan</TableHead>
-                                <TableHead>Expiry</TableHead>
-                                <TableHead>Status</TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {customers.length > 0 ? (
-                                customers.map((customer) => (
-                                    <TableRow key={customer.id}>
-                                        <TableCell className="font-medium">{customer.name}</TableCell>
-                                        <TableCell>{customer.plan}</TableCell>
-                                        <TableCell>{customer.expiryDate || 'N/A'}</TableCell>
-                                        <TableCell>
-                                            <Badge variant={getStatusVariant(customer.status)}>
-                                                {customer.status}
-                                            </Badge>
-                                        </TableCell>
-                                    </TableRow>
-                                ))
-                            ) : (
-                                <TableRow>
-                                    <TableCell colSpan={4} className="h-24 text-center">
-                                        No customers found.
+        <Card>
+            <CardHeader>
+                <CardTitle>All Gym Customers</CardTitle>
+                <CardDescription>A list of all registered gyms on the platform.</CardDescription>
+            </CardHeader>
+            <CardContent>
+                <Table>
+                    <TableHeader>
+                        <TableRow>
+                            <TableHead>Gym Name</TableHead>
+                            <TableHead>Email</TableHead>
+                            <TableHead>Plan</TableHead>
+                            <TableHead>Expiry Date</TableHead>
+                            <TableHead>Status</TableHead>
+                        </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                        {customers.length > 0 ? (
+                            customers.map((customer) => (
+                                <TableRow key={customer.id}>
+                                    <TableCell className="font-medium">{customer.name}</TableCell>
+                                    <TableCell>{customer.email}</TableCell>
+                                    <TableCell>{customer.plan}</TableCell>
+                                    <TableCell>{customer.expiryDate || 'N/A'}</TableCell>
+                                    <TableCell>
+                                        <Badge variant={getStatusVariant(customer.status)}>
+                                            {customer.status}
+                                        </Badge>
                                     </TableCell>
                                 </TableRow>
-                            )}
-                        </TableBody>
-                    </Table>
-                </CardContent>
-            </Card>
-             <Card>
-                <CardHeader>
-                    <CardTitle>Recent Subscription Payments</CardTitle>
-                    <CardDescription>Latest subscription payments from gym owners.</CardDescription>
-                </CardHeader>
-                <CardContent>
-                    <Table>
-                        <TableHeader>
+                            ))
+                        ) : (
                             <TableRow>
-                                <TableHead>Gym Name</TableHead>
-                                <TableHead>Plan</TableHead>
-                                <TableHead>Amount</TableHead>
-                                <TableHead>Date</TableHead>
+                                <TableCell colSpan={5} className="h-24 text-center">
+                                    No customers found.
+                                </TableCell>
                             </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {platformPayments.length > 0 ? (
-                                platformPayments.slice(0, 10).map((payment) => (
-                                    <TableRow key={payment.id}>
-                                        <TableCell className="font-medium">{payment.gymName}</TableCell>
-                                        <TableCell>{payment.planName}</TableCell>
-                                        <TableCell>₹{payment.amount.toLocaleString()}</TableCell>
-                                        <TableCell>{payment.paymentDate}</TableCell>
-                                    </TableRow>
-                                ))
-                            ) : (
-                                <TableRow>
-                                    <TableCell colSpan={4} className="h-24 text-center">
-                                        No platform payments recorded yet.
-                                    </TableCell>
-                                </TableRow>
-                            )}
-                        </TableBody>
-                    </Table>
-                </CardContent>
-            </Card>
-        </div>
+                        )}
+                    </TableBody>
+                </Table>
+            </CardContent>
+        </Card>
     </div>
   );
 }
