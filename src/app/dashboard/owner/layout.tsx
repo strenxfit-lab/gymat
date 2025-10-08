@@ -279,6 +279,7 @@ export default function OwnerDashboardLayout({
 
              <SubMenu title="Financial" icon={<CreditCard />} isOpen={openSubMenu === 'financial'} onToggle={() => toggleSubMenu('financial')}>
                 <SubMenuItem href="/dashboard/owner/add-payment">Collect Fee</SubMenuItem>
+                <SubMenuItem href="/dashboard/owner/transactions">All Transactions</SubMenuItem>
                 <SubMenuItem href="/dashboard/owner/revenue-reports">Revenue Reports</SubMenuItem>
                 <SubMenuItem href="/dashboard/owner/expenses">Expenses</SubMenuItem>
             </SubMenu>
