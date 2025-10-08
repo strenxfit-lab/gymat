@@ -72,8 +72,6 @@ export default function AddMemberPage() {
       phone: '',
       email: '',
       membershipType: '',
-      startDate: new Date(),
-      endDate: addDays(new Date(), 30),
       assignedTrainer: '',
       plan: '',
       height: '',
@@ -82,6 +80,11 @@ export default function AddMemberPage() {
       fitnessGoal: '',
     },
   });
+
+  useEffect(() => {
+    form.setValue('startDate', new Date());
+    form.setValue('endDate', addDays(new Date(), 30));
+  }, [form]);
 
   useEffect(() => {
     const fetchTrainers = async () => {
