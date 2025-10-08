@@ -12,8 +12,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Loader2, Sparkles, Download, Flame, BarChart3, Dumbbell } from 'lucide-react';
 import { differenceInDays, format, startOfDay, isSameDay, subDays } from 'date-fns';
 import { workouts, type Muscle } from '@/lib/workouts';
-import { FrontBody } from '@/components/ui/front-body';
-import { BackBody } from '@/components/ui/back-body';
 import { analyzeWorkoutHistory, type WorkoutHistory } from '@/ai/flows/workout-analysis-flow';
 
 
@@ -29,12 +27,6 @@ interface WorkoutLog {
     completedAt: any;
 }
 
-type MuscleColor = '#FF4B4B' | '#FFA500' | '#808080';
-
-type MuscleColors = {
-    [key in Muscle]?: MuscleColor;
-};
-
 interface TopWorkout {
     name: string;
     count: number;
@@ -45,7 +37,6 @@ export default function ProgressPage() {
     const [workoutLogs, setWorkoutLogs] = useState<WorkoutLog[]>([]);
     const [totalWorkouts, setTotalWorkouts] = useState(0);
     const [username, setUsername] = useState<string | null>(null);
-    const [muscleColors, setMuscleColors] = useState<MuscleColors>({});
     const [loading, setLoading] = useState(true);
     const [isAnalyzing, setIsAnalyzing] = useState(false);
     const [analysisResult, setAnalysisResult] = useState<string | null>(null);
@@ -124,32 +115,6 @@ export default function ProgressPage() {
                         .slice(0, 3);
                     setTopWorkouts(sortedWorkouts);
 
-                    // --- Heatmap Logic ---
-                    const lastWorkoutDates: { [key in Muscle]?: Date } = {};
-                    logs.forEach(log => {
-                        log.muscles.forEach(muscle => {
-                            if (!lastWorkoutDates[muscle]) {
-                                lastWorkoutDates[muscle] = log.completedAt.toDate();
-                            }
-                        });
-                    });
-
-                    const colors: MuscleColors = {};
-                    Object.keys(lastWorkoutDates).forEach(m => {
-                        const muscle = m as Muscle;
-                        const lastDate = lastWorkoutDates[muscle];
-                        if (lastDate) {
-                            const daysAgo = differenceInDays(today, lastDate);
-                            if (daysAgo <= 1) {
-                                colors[muscle] = '#FF4B4B'; // Red
-                            } else if (daysAgo <= 3) {
-                                colors[muscle] = '#FFA500'; // Orange
-                            } else {
-                                colors[muscle] = '#808080'; // Grey
-                            }
-                        }
-                    });
-                    setMuscleColors(colors);
                     setLoading(false);
                 });
 
@@ -238,6 +203,14 @@ export default function ProgressPage() {
         return log && log.completedAt ? format(log.completedAt.toDate(), 'PPP') : 'Not completed yet';
     };
 
+    if (loading) {
+        return (
+            <div className="flex min-h-screen items-center justify-center bg-[#0F0F0F]">
+                <Loader2 className="h-8 w-8 animate-spin text-accent-red" />
+            </div>
+        );
+    }
+
     return (
         <div className="bg-[#0F0F0F] text-white min-h-screen font-body">
             <div className="container mx-auto p-4">
@@ -303,55 +276,32 @@ export default function ProgressPage() {
                 </Card>
 
 
-                <Tabs defaultValue="heatmap" className="w-full">
-                    <TabsList className="grid w-full grid-cols-2 bg-[#1A1A1A] border border-[#2A2A2A] rounded-xl">
-                        <TabsTrigger value="heatmap" className="data-[state=active]:bg-accent-red data-[state=active]:text-white rounded-lg">Personal Heatmap</TabsTrigger>
-                        <TabsTrigger value="workouts" className="data-[state=active]:bg-accent-red data-[state=active]:text-white rounded-lg">Workouts</TabsTrigger>
-                    </TabsList>
-                    <TabsContent value="heatmap" className="mt-6">
-                        <Card className="bg-transparent border-none">
-                            <CardContent className="p-0">
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                                    <div className="text-center">
-                                        <h3 className="font-semibold mb-4">Front</h3>
-                                        <FrontBody muscleColors={muscleColors} />
+                <Card className="bg-[#1A1A1A] border-[#2A2A2A] text-white mb-6">
+                    <CardHeader>
+                        <CardTitle className="flex items-center gap-2"><Dumbbell /> Workout Log</CardTitle>
+                        <CardDescription>Log your completed workouts here.</CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                        {workouts.map(workout => (
+                            <Card key={workout.id} className="bg-[#2A2A2A] border-[#3A3A3A] text-white">
+                                <CardContent className="p-4 flex justify-between items-center">
+                                    <div>
+                                        <h3 className="font-bold">{workout.name}</h3>
+                                        <p className="text-xs text-gray-400">Last completed: {getLastCompletedDate(workout.id)}</p>
                                     </div>
-                                    <div className="text-center">
-                                        <h3 className="font-semibold mb-4">Back</h3>
-                                        <BackBody muscleColors={muscleColors} />
-                                    </div>
-                                </div>
-                                 <div className="flex justify-center gap-4 mt-6 text-xs">
-                                    <div className="flex items-center gap-2"><div className="w-3 h-3 rounded-full bg-[#FF4B4B]"></div>Trained 1 day ago</div>
-                                    <div className="flex items-center gap-2"><div className="w-3 h-3 rounded-full bg-[#FFA500]"></div>Trained 2-3 days ago</div>
-                                    <div className="flex items-center gap-2"><div className="w-3 h-3 rounded-full bg-[#808080]"></div>Trained 4+ days ago</div>
-                                </div>
-                            </CardContent>
-                        </Card>
-                    </TabsContent>
-                    <TabsContent value="workouts" className="mt-6">
-                        <div className="space-y-4">
-                            {workouts.map(workout => (
-                                <Card key={workout.id} className="bg-[#1A1A1A] border-[#2A2A2A] text-white">
-                                    <CardContent className="p-4 flex justify-between items-center">
-                                        <div>
-                                            <h3 className="font-bold">{workout.name}</h3>
-                                            <p className="text-xs text-gray-400">Last completed: {getLastCompletedDate(workout.id)}</p>
-                                        </div>
-                                        <Button 
-                                            size="sm" 
-                                            variant="outline"
-                                            className="bg-transparent border-accent-red text-accent-red hover:bg-accent-red hover:text-white"
-                                            onClick={() => handleMarkAsCompleted(workout.id)}
-                                        >
-                                            Mark as Completed
-                                        </Button>
-                                    </CardContent>
-                                </Card>
-                            ))}
-                        </div>
-                    </TabsContent>
-                </Tabs>
+                                    <Button 
+                                        size="sm" 
+                                        variant="outline"
+                                        className="bg-transparent border-accent-red text-accent-red hover:bg-accent-red hover:text-white"
+                                        onClick={() => handleMarkAsCompleted(workout.id)}
+                                    >
+                                        Mark as Completed
+                                    </Button>
+                                </CardContent>
+                            </Card>
+                        ))}
+                    </CardContent>
+                </Card>
 
                 <footer className="text-center mt-12 text-gray-500 font-semibold">
                     Stay Strong with StrenxFit💪
