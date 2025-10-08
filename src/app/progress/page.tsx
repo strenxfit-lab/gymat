@@ -87,13 +87,14 @@ export default function ProgressPage() {
                     setWorkoutLogs(logs);
                     setTotalWorkouts(logs.length);
                     
+                    const today = startOfDay(new Date());
+
                     // --- Streak Calculation ---
                     let currentStreak = 0;
                     if (logs.length > 0) {
                         const uniqueDays = [...new Set(logs.map(log => startOfDay(log.completedAt.toDate()).getTime()))];
                         uniqueDays.sort((a,b) => b-a);
                         
-                        const today = startOfDay(new Date());
                         const yesterday = startOfDay(subDays(new Date(), 1));
 
                         if(uniqueDays[0] === today.getTime() || uniqueDays[0] === yesterday.getTime()){
@@ -126,13 +127,11 @@ export default function ProgressPage() {
                     // --- Heatmap Logic ---
                     const lastWorkoutDates: { [key in Muscle]?: Date } = {};
                     logs.forEach(log => {
-                        if (log.completedAt) { 
-                            log.muscles.forEach(muscle => {
-                                if (!lastWorkoutDates[muscle]) {
-                                    lastWorkoutDates[muscle] = log.completedAt.toDate();
-                                }
-                            });
-                        }
+                        log.muscles.forEach(muscle => {
+                            if (!lastWorkoutDates[muscle]) {
+                                lastWorkoutDates[muscle] = log.completedAt.toDate();
+                            }
+                        });
                     });
 
                     const colors: MuscleColors = {};
