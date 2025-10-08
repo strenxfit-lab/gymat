@@ -1,4 +1,3 @@
-
 "use client";
 
 import { UserSearch } from "@/components/user-search";
@@ -17,7 +16,10 @@ export default function SearchPage() {
             setBackLink('/dashboard/member/community');
         } else if (role === 'trainer') {
             setBackLink('/dashboard/trainer/community');
-        } else {
+        } else if (role === 'superadmin') {
+            setBackLink('/dashboard/superadmin/community');
+        }
+         else {
             setBackLink('/dashboard/owner/community');
         }
     }, []);

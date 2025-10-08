@@ -21,6 +21,7 @@ import { ThemeToggle } from '@/components/theme-toggle';
 import * as React from 'react';
 import { doc, onSnapshot, collection, query } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
+import { DashboardBottomNavbar } from '@/components/ui/dashboard-bottom-navbar';
 
 
 const MenuItem = ({ href, children, icon, isExternal = false, notificationCount }: { href: string, children: React.ReactNode, icon?: React.ReactNode, isExternal?: boolean, notificationCount?: number }) => {
@@ -83,11 +84,14 @@ export default function MemberDashboardLayout({
     router.push('/');
   };
   
-  const isCommunityPage = pathname.startsWith('/dashboard/member/community') || pathname.startsWith('/dashboard/member/profile') || pathname.startsWith('/dashboard/member/activity');
+  const isCommunityPage = pathname.startsWith('/dashboard/member/community') || pathname.startsWith('/dashboard/member/profile') || pathname.startsWith('/dashboard/member/activity') || pathname.startsWith('/dashboard/search');
 
   if (isCommunityPage) {
     // The profile page is a special case that does not use the community layout with bottom navbar
     if (pathname.startsWith('/dashboard/member/profile')) {
+       return <>{children}</>;
+    }
+     if (pathname.startsWith('/dashboard/search')) {
        return <>{children}</>;
     }
     // All other community-related pages get the special layout
@@ -116,7 +120,6 @@ export default function MemberDashboardLayout({
             <MenuItem href="/dashboard/gym-profile" icon={<Building />}>Your Gym</MenuItem>
             <MenuItem href="/dashboard/member/community" icon={<Users />}>Community</MenuItem>
             <MenuItem href="/dashboard/member/activity" icon={<Activity />} notificationCount={notificationCount}>Activity</MenuItem>
-            <MenuItem href="/progress" icon={<BarChart3 />}>My Progress</MenuItem>
             <MenuItem href="/dashboard/member/trainers" icon={<Users />}>View Trainers</MenuItem>
             <MenuItem href="/dashboard/member/book-class" icon={<CalendarCheck />}>Book a Class</MenuItem>
             <MenuItem href="/dashboard/member/complaints" icon={<MessageSquare />}>Complaints</MenuItem>
@@ -139,11 +142,12 @@ export default function MemberDashboardLayout({
             <div className='flex-1'></div>
             {isMounted && <ThemeToggle />}
         </header>
-        <main className="flex-1 p-4 md:p-8">
+        <main className="flex-1 p-4 md:p-8 pb-20 md:pb-8">
           {children}
         </main>
       </div>
       </div>
+      <DashboardBottomNavbar role="member" />
     </SidebarProvider>
   );
 }

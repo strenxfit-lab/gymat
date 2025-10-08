@@ -22,6 +22,7 @@ import { addMonths, addYears } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { ThemeToggle } from '@/components/theme-toggle';
 import * as React from 'react';
+import { DashboardBottomNavbar } from '@/components/ui/dashboard-bottom-navbar';
 
 const SubMenu = ({ children, title, icon, isOpen, onToggle }: { children: React.ReactNode, title: string, icon: React.ReactNode, isOpen: boolean, onToggle: () => void }) => {
   const pathname = usePathname();
@@ -115,7 +116,7 @@ export default function OwnerDashboardLayout({
   const router = useRouter();
   const pathname = usePathname();
 
-  const isCommunityPage = pathname.startsWith('/dashboard/owner/community') || pathname.startsWith('/dashboard/owner/profile') || pathname.startsWith('/dashboard/owner/activity');
+  const isCommunityPage = pathname.startsWith('/dashboard/owner/community') || pathname.startsWith('/dashboard/owner/profile') || pathname.startsWith('/dashboard/owner/activity') || pathname.startsWith('/dashboard/search');
 
   useEffect(() => {
     setIsMounted(true);
@@ -278,6 +279,9 @@ export default function OwnerDashboardLayout({
     if (pathname.startsWith('/dashboard/owner/profile')) {
        return <>{children}</>;
     }
+     if (pathname.startsWith('/dashboard/search')) {
+       return <>{children}</>;
+    }
     return <>{children}</>;
   }
 
@@ -339,10 +343,9 @@ export default function OwnerDashboardLayout({
         </SidebarHeader>
         <SidebarContent className="flex-1 overflow-y-auto">
           <SidebarMenu>
-            <MenuItem href="/dashboard/owner" icon={<BarChart3 />}>Dashboard</MenuItem>
+            <MenuItem href="/dashboard/owner" icon={<LayoutDashboard />}>Dashboard</MenuItem>
             <MenuItem href="/dashboard/owner/community" icon={<Users />}>Community</MenuItem>
             <MenuItem href="/dashboard/owner/activity" icon={<Activity />} notificationCount={notificationCount}>Activity</MenuItem>
-            <MenuItem href="/progress" icon={<BarChart3 />}>My Progress</MenuItem>
             
             <SubMenu title="Gym Info" icon={<Info />} isOpen={openSubMenu === 'gym-info'} onToggle={() => toggleSubMenu('gym-info')}>
                 <SubMenuItem href="/dashboard/owner/gym-info/basic">Basic Information</SubMenuItem>
@@ -422,11 +425,12 @@ export default function OwnerDashboardLayout({
             <div className='flex-1'></div>
             {isMounted && <ThemeToggle />}
         </header>
-        <main className="flex-1 p-4 md:p-8">
+        <main className="flex-1 p-4 md:p-8 pb-20 md:pb-8">
           {children}
         </main>
       </div>
       </div>
+       <DashboardBottomNavbar role="owner" />
     </SidebarProvider>
   );
 }
