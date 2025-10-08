@@ -3,6 +3,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import Script from 'next/script';
 import { useRouter } from 'next/navigation';
 import { collection, doc, getDoc, addDoc, updateDoc, serverTimestamp, Timestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
@@ -136,13 +137,18 @@ export default function MemberRenewPage() {
         },
     };
 
-    const rzp = new window.Razorpay(options);
-    rzp.on('payment.failed', function (response: any){
-        console.error(response);
-        toast({title: "Payment Failed", description: response.error.description, variant: "destructive"});
+    if (window.Razorpay) {
+        const rzp = new window.Razorpay(options);
+        rzp.on('payment.failed', function (response: any){
+            console.error(response);
+            toast({title: "Payment Failed", description: response.error.description, variant: "destructive"});
+            setProcessingPaymentFor(null);
+        });
+        rzp.open();
+    } else {
+        toast({ title: "Error", description: "Payment gateway is not available.", variant: "destructive" });
         setProcessingPaymentFor(null);
-    });
-    rzp.open();
+    }
   }
 
 
@@ -151,6 +157,8 @@ export default function MemberRenewPage() {
   }
 
   return (
+    <>
+    <Script src="https://checkout.razorpay.com/v1/checkout.js" strategy="lazyOnload" />
     <div className="container mx-auto py-10">
       <div className="flex items-center justify-between mb-6">
         <div>
@@ -194,5 +202,6 @@ export default function MemberRenewPage() {
         )}
       </div>
     </div>
+    </>
   );
 }
