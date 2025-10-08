@@ -84,25 +84,28 @@ export default function TrainerDashboardPage() {
 
         // Fetch assigned classes
         const classesCollection = collection(db, 'gyms', userDocId, 'branches', activeBranchId, 'classes');
-        const q = query(classesCollection, where("trainerId", "==", trainerId), where("dateTime", ">=", new Date()));
+        const q = query(classesCollection, where("trainerId", "==", trainerId));
         const classesSnapshot = await getDocs(q);
-
-        const classesListPromises = classesSnapshot.docs.map(async (docSnap) => {
-          const data = docSnap.data();
-          const bookingsCollection = collection(docSnap.ref, 'bookings');
-          const bookingsSnapshot = await getDocs(bookingsCollection);
-
-          return {
-            id: docSnap.id,
-            className: data.className,
-            dateTime: (data.dateTime as Timestamp).toDate(),
-            capacity: data.capacity,
-            location: data.location,
-            booked: bookingsSnapshot.size,
-          };
-        });
         
-        const classesList = await Promise.all(classesListPromises);
+        const now = new Date();
+        const upcomingClassesPromises = classesSnapshot.docs
+          .filter(doc => (doc.data().dateTime as Timestamp).toDate() >= now)
+          .map(async (docSnap) => {
+              const data = docSnap.data();
+              const bookingsCollection = collection(docSnap.ref, 'bookings');
+              const bookingsSnapshot = await getDocs(bookingsCollection);
+
+              return {
+                id: docSnap.id,
+                className: data.className,
+                dateTime: (data.dateTime as Timestamp).toDate(),
+                capacity: data.capacity,
+                location: data.location,
+                booked: bookingsSnapshot.size,
+              };
+        });
+
+        const classesList = await Promise.all(upcomingClassesPromises);
         classesList.sort((a,b) => a.dateTime.getTime() - b.dateTime.getTime()); // Sort by date
         setAssignedClasses(classesList);
       } catch (error) {
