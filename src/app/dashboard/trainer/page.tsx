@@ -8,7 +8,9 @@ import { db } from '@/lib/firebase';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Loader2 } from 'lucide-react';
+import { Loader2, User, LogOut } from 'lucide-react';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { Button } from '@/components/ui/button';
 
 interface AssignedClass {
   id: string;
@@ -63,7 +65,7 @@ export default function TrainerDashboardPage() {
 
         // Fetch assigned classes
         const classesCollection = collection(db, 'gyms', userDocId, 'branches', activeBranchId, 'classes');
-        const q = query(classesCollection, where("trainerId", "==", trainerId));
+        const q = query(classesCollection, where("trainerId", "==", trainerId), where("dateTime", ">=", new Date()));
         const classesSnapshot = await getDocs(q);
 
         const classesListPromises = classesSnapshot.docs.map(async (docSnap) => {
@@ -93,6 +95,12 @@ export default function TrainerDashboardPage() {
     };
     fetchTrainerData();
   }, [router, toast]);
+  
+  const handleLogout = () => {
+    localStorage.clear();
+    router.push('/');
+  };
+
 
   if (loading) {
     return <div className="flex min-h-screen items-center justify-center bg-background"><Loader2 className="h-8 w-8 animate-spin" /></div>;
@@ -100,15 +108,36 @@ export default function TrainerDashboardPage() {
 
   return (
     <div className="container mx-auto py-10">
-      <div className="mb-6">
-        <h1 className="text-3xl font-bold">Trainer Dashboard</h1>
-        <p className="text-muted-foreground">Welcome back, {trainerInfo?.name}! Here are your upcoming classes at {trainerInfo?.branchName}.</p>
+      <div className="flex justify-between items-center mb-6">
+        <div>
+            <h1 className="text-3xl font-bold">Trainer Dashboard</h1>
+            <p className="text-muted-foreground">Welcome back, {trainerInfo?.name}! Here are your upcoming classes at {trainerInfo?.branchName}.</p>
+        </div>
+        <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+            <Button variant="outline" size="icon">
+                <User className="h-5 w-5" />
+                <span className="sr-only">User Menu</span>
+            </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+                <DropdownMenuItem onSelect={() => router.push('/dashboard/trainer/profile')}>
+                <User className="mr-2 h-4 w-4" />
+                <span>View Profile</span>
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onSelect={handleLogout} className="text-destructive focus:text-destructive">
+                <LogOut className="mr-2 h-4 w-4" />
+                <span>Logout</span>
+            </DropdownMenuItem>
+            </DropdownMenuContent>
+        </DropdownMenu>
       </div>
 
       <Card>
         <CardHeader>
           <CardTitle>My Schedule</CardTitle>
-          <CardDescription>A list of your assigned classes.</CardDescription>
+          <CardDescription>A list of your upcoming assigned classes.</CardDescription>
         </CardHeader>
         <CardContent>
           <Table>
@@ -133,7 +162,7 @@ export default function TrainerDashboardPage() {
               ) : (
                 <TableRow>
                   <TableCell colSpan={4} className="h-24 text-center">
-                    You have no classes assigned yet.
+                    You have no upcoming classes assigned.
                   </TableCell>
                 </TableRow>
               )}
@@ -144,5 +173,3 @@ export default function TrainerDashboardPage() {
     </div>
   );
 }
-
-    
