@@ -18,7 +18,7 @@ import {
   SidebarGroup,
   SidebarGroupLabel,
 } from '@/components/ui/sidebar';
-import { Dumbbell, Users, CreditCard, ClipboardUser, BarChart3, Megaphone, Boxes, ChevronDown } from 'lucide-react';
+import { Dumbbell, Users, CreditCard, ClipboardList, BarChart3, Megaphone, Boxes, ChevronDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 export default function OwnerDashboardLayout({
@@ -73,7 +73,7 @@ export default function OwnerDashboardLayout({
                 </SidebarMenuItem>
                 <SidebarMenuItem>
                     <SidebarMenuButton onClick={() => toggleSubMenu('class')} className="justify-between">
-                        <div className="flex items-center gap-2"><ClipboardUser /> Class & Trainer Management</div>
+                        <div className="flex items-center gap-2"><ClipboardList /> Class & Trainer Management</div>
                         <ChevronDown className={`transition-transform duration-200 ${openSubMenus['class'] ? 'rotate-180' : ''}`} />
                     </SidebarMenuButton>
                      {openSubMenus['class'] && (
