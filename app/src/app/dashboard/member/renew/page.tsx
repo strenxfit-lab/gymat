@@ -137,13 +137,18 @@ export default function MemberRenewPage() {
         },
     };
 
-    const rzp = new window.Razorpay(options);
-    rzp.on('payment.failed', function (response: any){
-        console.error(response);
-        toast({title: "Payment Failed", description: response.error.description, variant: "destructive"});
+    if (window.Razorpay) {
+        const rzp = new window.Razorpay(options);
+        rzp.on('payment.failed', function (response: any){
+            console.error(response);
+            toast({title: "Payment Failed", description: response.error.description, variant: "destructive"});
+            setProcessingPaymentFor(null);
+        });
+        rzp.open();
+    } else {
+        toast({ title: "Error", description: "Payment gateway is not available.", variant: "destructive" });
         setProcessingPaymentFor(null);
-    });
-    rzp.open();
+    }
   }
 
 
