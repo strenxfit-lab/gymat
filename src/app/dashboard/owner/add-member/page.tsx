@@ -59,6 +59,11 @@ interface Trainer {
   name: string;
 }
 
+interface MembershipPlan {
+  name: string;
+  price: string;
+}
+
 interface LimitDialogInfo {
   members: number;
   trainers: number;
@@ -70,6 +75,8 @@ const steps: { id: number; title: string; icon: JSX.Element; fields: FieldName[]
     { id: 2, title: 'Membership Details', icon: <Dumbbell />, fields: ['membershipType', 'startDate', 'totalFee', 'assignedTrainer', 'plan'] },
     { id: 3, title: 'Health & Fitness', icon: <HeartPulse />, fields: ['height', 'weight', 'medicalConditions', 'fitnessGoal'] },
 ];
+
+const defaultPlans = ["monthly", "quarterly", "half-yearly", "yearly"];
 
 function NoBranchDialog() {
     const router = useRouter();
@@ -128,6 +135,7 @@ export default function AddMemberPage() {
   const [isMounted, setIsMounted] = useState(false);
   const [currentStep, setCurrentStep] = useState(1);
   const [trainers, setTrainers] = useState<Trainer[]>([]);
+  const [membershipPlans, setMembershipPlans] = useState<MembershipPlan[]>([]);
   const { toast } = useToast();
   const router = useRouter();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -176,6 +184,13 @@ export default function AddMemberPage() {
         getDoc(branchRef).then(docSnap => {
             if (docSnap.exists()) {
                 setActiveBranchName(docSnap.data().name);
+            }
+        });
+        
+        const detailsRef = doc(db, 'gyms', userDocId, 'details', 'onboarding');
+        getDoc(detailsRef).then(detailsSnap => {
+            if(detailsSnap.exists() && detailsSnap.data().plans) {
+                setMembershipPlans(detailsSnap.data().plans);
             }
         });
     }
@@ -301,6 +316,11 @@ export default function AddMemberPage() {
 
   const progress = (currentStep / steps.length) * 100;
   
+  const combinedPlans = [...new Set([...membershipPlans.map(p => p.name.toLowerCase()), ...defaultPlans])];
+  if (isTrial && !combinedPlans.includes('trial')) {
+      combinedPlans.unshift('trial');
+  }
+
   if (!isMounted) {
     return null; // Or a loading spinner
   }
@@ -393,11 +413,9 @@ export default function AddMemberPage() {
                             <Select onValueChange={field.onChange} defaultValue={field.value}>
                                 <FormControl><SelectTrigger><SelectValue placeholder="Select type" /></SelectTrigger></FormControl>
                                 <SelectContent>
-                                    {isTrial && <SelectItem value="trial">Trial</SelectItem>}
-                                    <SelectItem value="monthly">Monthly</SelectItem>
-                                    <SelectItem value="quarterly">Quarterly</SelectItem>
-                                    <SelectItem value="half-yearly">Half-Yearly</SelectItem>
-                                    <SelectItem value="yearly">Yearly</SelectItem>
+                                    {combinedPlans.map(plan => (
+                                        <SelectItem key={plan} value={plan} className="capitalize">{plan}</SelectItem>
+                                    ))}
                                 </SelectContent>
                             </Select><FormMessage />
                             </FormItem>
