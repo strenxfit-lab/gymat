@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect } from 'react';
@@ -26,42 +25,25 @@ const formSchema = z.object({
 
 export default function ChangePasswordPage() {
   const [isLoading, setIsLoading] = useState(false);
-  const [userRefPath, setUserRefPath] = useState<{ gymId: string, branchId: string, userId: string, role: string } | null>(null);
+  const [userDocId, setUserDocId] = useState<string | null>(null);
   const { toast } = useToast();
   const router = useRouter();
 
   useEffect(() => {
-    const gymId = localStorage.getItem('userDocId');
-    const branchId = localStorage.getItem('activeBranch');
-    const role = localStorage.getItem('userRole');
-    const memberId = localStorage.getItem('memberId');
-    const trainerId = localStorage.getItem('trainerId');
-
-    const userId = role === 'member' ? memberId : trainerId;
-    const userRoleCollection = role === 'member' ? 'members' : 'trainers';
-
-    if (!gymId || !userId || !role || (role !== 'member' && role !== 'trainer')) {
-      toast({ title: "Error", description: "No valid user session found.", variant: "destructive" });
+    const docId = localStorage.getItem('userDocId');
+    if (!docId) {
+      toast({ title: "Error", description: "No user session found.", variant: "destructive" });
       router.push('/');
       return;
     }
-    
-    // For members, branch is required. For trainers it is too.
-    if (!branchId) {
-       toast({ title: "Error", description: "No active branch found in session.", variant: "destructive" });
-       router.push('/');
-       return;
-    }
-
-    setUserRefPath({ gymId, branchId, userId, role: userRoleCollection });
+    setUserDocId(docId);
 
     const checkPasswordStatus = async () => {
-        const userRef = doc(db, 'gyms', gymId, 'branches', branchId, userRoleCollection, userId);
+        const userRef = doc(db, 'gyms', docId);
         const userSnap = await getDoc(userRef);
         if (userSnap.exists() && userSnap.data().passwordChanged) {
             toast({ title: "Redirecting", description: "Password already changed." });
-            const redirectPath = role === 'member' ? '/dashboard/member' : '/dashboard/trainer';
-            router.push(redirectPath);
+            router.push('/dashboard/member');
         }
     };
     checkPasswordStatus();
@@ -76,12 +58,11 @@ export default function ChangePasswordPage() {
   });
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
-    if (!userRefPath) return;
+    if (!userDocId) return;
     setIsLoading(true);
     
     try {
-      const { gymId, branchId, userId, role } = userRefPath;
-      const userRef = doc(db, 'gyms', gymId, 'branches', branchId, role, userId);
+      const userRef = doc(db, 'gyms', userDocId);
       await updateDoc(userRef, {
         password: values.password,
         passwordChanged: true,
@@ -92,9 +73,7 @@ export default function ChangePasswordPage() {
         description: 'Your password has been changed.',
       });
 
-      const redirectPath = role === 'members' ? '/dashboard/member' : '/dashboard/trainer';
-      router.push(redirectPath);
-
+      router.push('/dashboard/member');
     } catch (error) {
       console.error("Error updating password:", error);
       toast({
