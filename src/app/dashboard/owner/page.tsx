@@ -422,8 +422,8 @@ export default function OwnerDashboardPage() {
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
             <Card className="rounded-2xl shadow-md">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium text-gray-700">Add Member</CardTitle>
-                    <UserPlus className="h-4 w-4 text-gray-500" />
+                    <CardTitle className="text-sm font-medium text-foreground">Add Member</CardTitle>
+                    <UserPlus className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
                     <Link href="/dashboard/owner/add-member" passHref>
@@ -436,8 +436,8 @@ export default function OwnerDashboardPage() {
             </Card>
              <Card className="rounded-2xl shadow-md">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium text-gray-700">Add Trainer</CardTitle>
-                    <UserPlus className="h-4 w-4 text-gray-500" />
+                    <CardTitle className="text-sm font-medium text-foreground">Add Trainer</CardTitle>
+                    <UserPlus className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
                     <Link href="/dashboard/owner/add-trainer" passHref>
@@ -450,8 +450,8 @@ export default function OwnerDashboardPage() {
             </Card>
             <Card className="rounded-2xl shadow-md">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium text-gray-700">Collect Fees</CardTitle>
-                    <DollarSign className="h-4 w-4 text-gray-500" />
+                    <CardTitle className="text-sm font-medium text-foreground">Collect Fees</CardTitle>
+                    <DollarSign className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
                      <Link href="/dashboard/owner/add-payment" passHref>
@@ -465,8 +465,8 @@ export default function OwnerDashboardPage() {
             <Dialog open={isAnnouncementDialogOpen} onOpenChange={setIsAnnouncementDialogOpen}>
                 <Card className="rounded-2xl shadow-md">
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium text-gray-700">Make Announcement</CardTitle>
-                        <Send className="h-4 w-4 text-gray-500" />
+                        <CardTitle className="text-sm font-medium text-foreground">Make Announcement</CardTitle>
+                        <Send className="h-4 w-4 text-muted-foreground" />
                     </CardHeader>
                     <CardContent>
                         <DialogTrigger asChild>
@@ -534,7 +534,7 @@ export default function OwnerDashboardPage() {
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
           <Card className="col-span-full lg:col-span-4 rounded-2xl shadow-md">
              <CardHeader>
-                <CardTitle className="flex items-center text-gray-700">
+                <CardTitle className="flex items-center text-foreground">
                     <Building className="mr-2"/>
                     {gymData.name} ({gymData.activeBranchName || 'Trial'})
                 </CardTitle>
@@ -542,34 +542,34 @@ export default function OwnerDashboardPage() {
             </CardHeader>
             <CardContent className="grid grid-cols-2 gap-4">
                  <div>
-                    <p className="text-sm font-medium text-gray-500">Total Members</p>
-                    <p className="text-2xl font-bold text-gray-900">{gymData.totalMembers}</p>
+                    <p className="text-sm font-medium text-muted-foreground">Total Members</p>
+                    <p className="text-2xl font-bold text-foreground">{gymData.totalMembers}</p>
                 </div>
                 <div>
-                    <p className="text-sm font-medium text-gray-500">Total Trainers</p>
-                    <p className="text-2xl font-bold text-gray-900">{gymData.totalTrainers}</p>
+                    <p className="text-sm font-medium text-muted-foreground">Total Trainers</p>
+                    <p className="text-2xl font-bold text-foreground">{gymData.totalTrainers}</p>
                 </div>
             </CardContent>
           </Card>
           <Card className="col-span-3 rounded-2xl shadow-md">
             <CardHeader>
-              <CardTitle className="flex items-center text-gray-700">
+              <CardTitle className="flex items-center text-foreground">
                 <TrendingUp className="mr-2"/>
                 Revenue Snapshot
               </CardTitle>
             </CardHeader>
             <CardContent className="grid grid-cols-2 gap-4">
               <div>
-                <p className="text-sm font-medium text-gray-500">Today's Collection</p>
-                <p className="text-2xl font-bold text-gray-900">₹{gymData.todaysCollection.toLocaleString()}</p>
+                <p className="text-sm font-medium text-muted-foreground">Today's Collection</p>
+                <p className="text-2xl font-bold text-foreground">₹{gymData.todaysCollection.toLocaleString()}</p>
               </div>
               <div>
-                <p className="text-sm font-medium text-gray-500">This Month's Revenue</p>
-                <p className="text-2xl font-bold text-gray-900">₹{gymData.thisMonthsRevenue.toLocaleString()}</p>
+                <p className="text-sm font-medium text-muted-foreground">This Month's Revenue</p>
+                <p className="text-2xl font-bold text-foreground">₹{gymData.thisMonthsRevenue.toLocaleString()}</p>
               </div>
               <div>
-                <p className="text-sm font-medium text-gray-500">Pending Payments</p>
-                <p className="text-2xl font-bold text-red-500">₹{gymData.pendingDues.toLocaleString()}</p>
+                <p className="text-sm font-medium text-muted-foreground">Pending Payments</p>
+                <p className="text-2xl font-bold text-destructive">₹{gymData.pendingDues.toLocaleString()}</p>
               </div>
             </CardContent>
           </Card>
@@ -578,7 +578,7 @@ export default function OwnerDashboardPage() {
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
             <Card className="col-span-full lg:col-span-4 rounded-2xl shadow-md">
                 <CardHeader>
-                    <CardTitle className="flex items-center text-gray-700">
+                    <CardTitle className="flex items-center text-foreground">
                         <BarChart3 className="mr-2"/>
                         Active Members Overview
                     </CardTitle>
@@ -586,19 +586,19 @@ export default function OwnerDashboardPage() {
                 <CardContent className="pl-2">
                     <ResponsiveContainer width="100%" height={250}>
                         <BarChart data={memberData}>
-                            <XAxis dataKey="name" stroke="#9ca3af" fontSize={12} tickLine={false} axisLine={false}/>
-                            <YAxis stroke="#9ca3af" fontSize={12} tickLine={false} axisLine={false} />
+                            <XAxis dataKey="name" stroke="hsl(var(--muted-foreground))" fontSize={12} tickLine={false} axisLine={false}/>
+                            <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} tickLine={false} axisLine={false} />
                             <Tooltip wrapperClassName="!bg-background !border-border" contentStyle={{backgroundColor: 'hsl(var(--background))', border: '1px solid hsl(var(--border))' }}/>
                             <Legend />
-                            <Bar dataKey="active" fill="var(--color-purple)" name="Active" radius={[4, 4, 0, 0]} className="hover:fill-purple-400" />
-                            <Bar dataKey="expired" fill="var(--color-red)" name="Expired" radius={[4, 4, 0, 0]} />
+                            <Bar dataKey="active" fill="hsl(var(--color-purple))" name="Active" radius={[4, 4, 0, 0]} className="hover:fill-purple-400" />
+                            <Bar dataKey="expired" fill="hsl(var(--color-red))" name="Expired" radius={[4, 4, 0, 0]} />
                         </BarChart>
                     </ResponsiveContainer>
                 </CardContent>
             </Card>
             <Card className="col-span-3 rounded-2xl shadow-md">
                 <CardHeader>
-                    <CardTitle className="flex items-center text-gray-700">
+                    <CardTitle className="flex items-center text-foreground">
                         <AlertCircle className="mr-2"/>
                         Upcoming Expiries (Next 7 days)
                     </CardTitle>
@@ -609,25 +609,25 @@ export default function OwnerDashboardPage() {
                             {gymData.upcomingExpiries.map(member => (
                                 <li key={member.id} className="flex justify-between items-center text-sm">
                                     <div className="flex-1">
-                                        <p className="font-semibold text-gray-900">{member.name} <span className="font-normal text-gray-500">({member.plan})</span></p>
-                                        <p className="text-xs text-gray-500">{member.phone}</p>
-                                        <p className="text-xs text-gray-500">Expires: {member.endDate.toLocaleDateString()}</p>
+                                        <p className="font-semibold text-foreground">{member.name} <span className="font-normal text-muted-foreground">({member.plan})</span></p>
+                                        <p className="text-xs text-muted-foreground">{member.phone}</p>
+                                        <p className="text-xs text-muted-foreground">Expires: {member.endDate.toLocaleDateString()}</p>
                                     </div>
                                     <div className="text-right ml-4">
-                                      <p className="font-semibold text-gray-900">₹{member.totalFee.toLocaleString()}</p>
+                                      <p className="font-semibold text-foreground">₹{member.totalFee.toLocaleString()}</p>
                                       <Link href={`/dashboard/owner/add-payment?memberId=${member.id}&memberName=${encodeURIComponent(member.name)}`} passHref>
-                                        <Button variant="link" size="sm" className="h-auto p-0 text-indigo-500">Collect</Button>
+                                        <Button variant="link" size="sm" className="h-auto p-0 text-primary">Collect</Button>
                                       </Link>
                                     </div>
                                 </li>
                             ))}
-                             {gymData.upcomingExpiries.length === 0 && <p className="text-gray-500 text-sm">No upcoming expiries.</p>}
+                             {gymData.upcomingExpiries.length === 0 && <p className="text-muted-foreground text-sm">No upcoming expiries.</p>}
                         </ul>
                     </ScrollArea>
                     {gymData.upcomingExpiries.length > 0 && (
                         <>
                             <Separator className="my-4" />
-                            <div className="flex justify-between items-center font-bold text-gray-900">
+                            <div className="flex justify-between items-center font-bold text-foreground">
                                 <span>Total Upcoming Revenue</span>
                                 <span>₹{gymData.upcomingExpiriesTotal.toLocaleString()}</span>
                             </div>
@@ -640,7 +640,7 @@ export default function OwnerDashboardPage() {
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
             <Card className="rounded-2xl shadow-md">
                 <CardHeader>
-                    <CardTitle className="flex items-center text-gray-700">
+                    <CardTitle className="flex items-center text-foreground">
                         <Shield className="mr-2"/>
                         Plan Details
                     </CardTitle>
@@ -649,27 +649,27 @@ export default function OwnerDashboardPage() {
                     <div className="space-y-3">
                         <div>
                             <div className="flex justify-between items-center">
-                                <p className="text-sm font-medium text-gray-500">Membership Type</p>
+                                <p className="text-sm font-medium text-muted-foreground">Membership Type</p>
                                 <Link href="/dashboard/owner/renew" passHref>
                                     <Button variant="outline" size="sm">Upgrade</Button>
                                 </Link>
                             </div>
-                            <p className="text-lg font-bold capitalize text-gray-900">{gymData.membershipType || 'N/A'}</p>
+                            <p className="text-lg font-bold capitalize text-foreground">{gymData.membershipType || 'N/A'}</p>
                         </div>
                          <div>
-                            <p className="text-sm font-medium text-gray-500">Price</p>
-                            <p className="text-lg font-bold text-gray-900">₹{gymData.price?.toLocaleString() || 'N/A'}</p>
+                            <p className="text-sm font-medium text-muted-foreground">Price</p>
+                            <p className="text-lg font-bold text-foreground">₹{gymData.price?.toLocaleString() || 'N/A'}</p>
                         </div>
                         <div>
-                            <p className="text-sm font-medium text-gray-500">Expires On</p>
-                            <p className="text-lg font-bold text-gray-900">{gymData.expiry_at ? gymData.expiry_at.toLocaleDateString() : 'N/A'}</p>
+                            <p className="text-sm font-medium text-muted-foreground">Expires On</p>
+                            <p className="text-lg font-bold text-foreground">{gymData.expiry_at ? gymData.expiry_at.toLocaleDateString() : 'N/A'}</p>
                         </div>
                     </div>
                 </CardContent>
             </Card>
             <Card className="rounded-2xl shadow-md">
                 <CardHeader>
-                    <CardTitle className="flex items-center text-gray-700">
+                    <CardTitle className="flex items-center text-foreground">
                         <Users className="mr-2"/>
                         Trainers Status
                     </CardTitle>
@@ -677,38 +677,38 @@ export default function OwnerDashboardPage() {
                 <CardContent>
                     {gymData.trainers.map(trainer => (
                         <div key={trainer.id} className="flex justify-between items-center text-sm mb-2">
-                            <span className="text-gray-900">{trainer.name}</span>
-                            <div className="flex items-center gap-2 text-gray-500">
+                            <span className="text-foreground">{trainer.name}</span>
+                            <div className="flex items-center gap-2 text-muted-foreground">
                                 {trainer.averageRating ? (
                                     <div className="flex items-center gap-1">
                                         <Star className="h-4 w-4 text-yellow-400 fill-yellow-400"/>
-                                        <span className="text-gray-900">{trainer.averageRating.toFixed(1)}</span>
+                                        <span className="text-foreground">{trainer.averageRating.toFixed(1)}</span>
                                     </div>
                                 ) : null}
-                                <span className="text-gray-900">Assigned: {trainer.assignedMembers}</span>
+                                <span className="text-foreground">Assigned: {trainer.assignedMembers}</span>
                             </div>
                         </div>
                     ))}
-                    {gymData.trainers.length === 0 && <p className="text-gray-500 text-sm">No trainers added.</p>}
+                    {gymData.trainers.length === 0 && <p className="text-muted-foreground text-sm">No trainers added.</p>}
                 </CardContent>
             </Card>
              <Card className="rounded-2xl shadow-md">
                 <CardHeader>
-                    <CardTitle className="flex items-center text-gray-700">
+                    <CardTitle className="flex items-center text-foreground">
                         <Sparkles className="mr-2"/>
                         Trials & Offers
                     </CardTitle>
                 </CardHeader>
                 <CardContent>
                     <div className="mb-4">
-                        <p className="text-sm font-medium text-gray-500">New Trial Members Today</p>
-                        <p className="text-2xl font-bold text-gray-900">{gymData.newTrialMembers}</p>
+                        <p className="text-sm font-medium text-muted-foreground">New Trial Members Today</p>
+                        <p className="text-2xl font-bold text-foreground">{gymData.newTrialMembers}</p>
                     </div>
                      <div className="mb-4">
-                        <p className="text-sm font-medium text-gray-500">Running Offers</p>
-                        <ul className="list-disc list-inside mt-1 text-sm text-gray-500">
-                            {gymData.runningOffers.map(offer => <li key={offer} className="text-gray-900">{offer}</li>)}
-                            {gymData.runningOffers.length === 0 && <p className="text-gray-500 text-sm">No running offers.</p>}
+                        <p className="text-sm font-medium text-muted-foreground">Running Offers</p>
+                        <ul className="list-disc list-inside mt-1 text-sm text-muted-foreground">
+                            {gymData.runningOffers.map(offer => <li key={offer} className="text-foreground">{offer}</li>)}
+                            {gymData.runningOffers.length === 0 && <p className="text-muted-foreground text-sm">No running offers.</p>}
                         </ul>
                     </div>
                     <Link href="/dashboard/owner/make-offers" passHref>
@@ -725,13 +725,13 @@ export default function OwnerDashboardPage() {
             <Dialog open={isSupportDialogOpen} onOpenChange={setIsSupportDialogOpen}>
                 <Card className="rounded-2xl shadow-md">
                     <CardHeader>
-                        <CardTitle className="flex items-center text-gray-700">
+                        <CardTitle className="flex items-center text-foreground">
                             <LifeBuoy className="mr-2"/>
                             Support
                         </CardTitle>
                     </CardHeader>
                     <CardContent>
-                        <p className="text-gray-500 text-sm mb-4">Need help? Contact our support team.</p>
+                        <p className="text-muted-foreground text-sm mb-4">Need help? Contact our support team.</p>
                         <DialogTrigger asChild>
                             <Button>Contact Strenxfit Support</Button>
                         </DialogTrigger>
@@ -745,12 +745,12 @@ export default function OwnerDashboardPage() {
                     </DialogDescription>
                     </DialogHeader>
                     <div className="flex flex-col space-y-4 py-4">
-                        <a href="mailto:strenxfit@gmail.com" className="flex items-center gap-3 p-3 rounded-md hover:bg-gray-100 transition-colors">
-                            <Mail className="h-5 w-5 text-gray-500" />
+                        <a href="mailto:strenxfit@gmail.com" className="flex items-center gap-3 p-3 rounded-md hover:bg-accent transition-colors">
+                            <Mail className="h-5 w-5 text-muted-foreground" />
                             <span>strenxfit@gmail.com</span>
                         </a>
-                        <a href="https://wa.me/917988487892" target="_blank" rel="noopener noreferrer" className="flex items-center justify-center gap-3 p-3 rounded-md hover:bg-gray-100 transition-colors">
-                            <Phone className="h-5 w-5 text-gray-500" />
+                        <a href="https://wa.me/917988487892" target="_blank" rel="noopener noreferrer" className="flex items-center justify-center gap-3 p-3 rounded-md hover:bg-accent transition-colors">
+                            <Phone className="h-5 w-5 text-muted-foreground" />
                             <span>+91 79884 87892</span>
                         </a>
                     </div>
