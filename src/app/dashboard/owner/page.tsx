@@ -14,11 +14,12 @@ import { ResponsiveContainer, BarChart, XAxis, YAxis, Tooltip, Bar, Legend } fro
 import { ScrollArea } from '@/components/ui/scroll-area';
 import AddMemberDialog from '@/components/add-member-dialog';
 import AddTrainerDialog from '@/components/add-trainer-dialog';
+import AddPaymentDialog from '@/components/add-payment-dialog';
 
 interface Member {
   id: string;
   name: string;
-  expiryDate: Date;
+  endDate: Date;
   plan: string;
 }
 
@@ -99,7 +100,7 @@ export default function OwnerDashboardPage() {
             if (expiry >= now) {
                 activeMembers++;
                 if(expiry <= sevenDaysFromNow) {
-                    upcomingExpiries.push({ id: doc.id, name: data.name, expiryDate: expiry, plan: data.plan });
+                    upcomingExpiries.push({ id: doc.id, name: data.name, endDate: expiry, plan: data.plan });
                 }
             } else {
                 expiredMembers++;
@@ -111,8 +112,8 @@ export default function OwnerDashboardPage() {
             
             return {
                 id: doc.id,
-                name: data.name,
-                expiryDate: expiry,
+                name: data.fullName,
+                endDate: expiry,
                 plan: data.plan
             };
         }).filter((member): member is Member => member !== null);
@@ -212,10 +213,7 @@ export default function OwnerDashboardPage() {
                     <DollarSign className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
-                     <Button className="w-full mt-2">
-                        <DollarSign className="mr-2 h-4 w-4" />
-                        Add Payment
-                    </Button>
+                    <AddPaymentDialog />
                 </CardContent>
             </Card>
             <Card className="hover:bg-card/90 transition-colors">
@@ -317,7 +315,7 @@ export default function OwnerDashboardPage() {
                             <li key={member.id} className="flex justify-between items-center text-sm">
                                 <span>{member.name} ({member.plan})</span>
                                 <div className="flex items-center gap-2">
-                                  <span className="text-muted-foreground">{member.expiryDate.toLocaleDateString()}</span>
+                                  <span className="text-muted-foreground">{member.endDate.toLocaleDateString()}</span>
                                   <Button size="sm" variant="outline">Renew</Button>
                                 </div>
                             </li>
@@ -391,10 +389,3 @@ export default function OwnerDashboardPage() {
     </ScrollArea>
   );
 }
-
-
-    
-
-    
-
-    
