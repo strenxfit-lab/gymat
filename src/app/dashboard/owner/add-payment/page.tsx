@@ -1,5 +1,4 @@
 
-
 "use client";
 
 import { useState, useEffect } from 'react';
@@ -9,7 +8,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { format, addDays } from 'date-fns';
-import { Loader2, Calendar as CalendarIcon, Search, Check } from 'lucide-react';
+import { Loader2, Calendar as CalendarIcon, Search, Check, Building } from 'lucide-react';
 import { collection, addDoc, getDocs, Timestamp, doc, updateDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useToast } from '@/hooks/use-toast';
@@ -23,6 +22,8 @@ import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { cn } from '@/lib/utils';
 import { Calendar } from '@/components/ui/calendar';
+import { AlertDialog, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
+
 
 const formSchema = z.object({
   memberId: z.string().nonempty({ message: "Please select a member." }),
@@ -48,11 +49,35 @@ interface Member {
   startDate: Date;
 }
 
+function NoBranchDialog() {
+    const router = useRouter();
+    return (
+        <div className="flex min-h-screen flex-col items-center justify-center bg-background p-4">
+            <AlertDialog open={true}>
+                <AlertDialogContent>
+                <AlertDialogHeader>
+                    <AlertDialogTitle>No Branch Found</AlertDialogTitle>
+                    <AlertDialogDescription>
+                    You need to create a branch before you can collect fees. Please go to the branch management page to add your first branch.
+                    </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                    <Link href="/dashboard/owner" passHref>
+                        <Button variant="outline">Go to Dashboard</Button>
+                    </Link>
+                    <Button onClick={() => router.push('/dashboard/owner/multi-branch')}>Create Branch</Button>
+                </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+        </div>
+    )
+}
+
 export default function AddPaymentPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [members, setMembers] = useState<Member[]>([]);
   const [selectedMember, setSelectedMember] = useState<Member | null>(null);
-  const [activeBranch, setActiveBranch] = useState<string | null>(null);
+  const [activeBranchId, setActiveBranchId] = useState<string | null>(null);
   const { toast } = useToast();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -74,15 +99,15 @@ export default function AddPaymentPage() {
   });
 
   useEffect(() => {
-    const branch = localStorage.getItem('activeBranch');
-    setActiveBranch(branch);
+    const branchId = localStorage.getItem('activeBranch');
+    setActiveBranchId(branchId);
   }, []);
 
-  const fetchMembers = async (branch: string) => {
+  const fetchMembers = async (branchId: string) => {
     const userDocId = localStorage.getItem('userDocId');
     if (!userDocId) return [];
     
-    const membersCollection = collection(db, 'gyms', userDocId, 'branches', branch, 'members');
+    const membersCollection = collection(db, 'gyms', userDocId, 'branches', branchId, 'members');
     const membersSnapshot = await getDocs(membersCollection);
     const membersList = membersSnapshot.docs.map(doc => ({
       id: doc.id,
@@ -101,8 +126,8 @@ export default function AddPaymentPage() {
     const memberName = searchParams.get('memberName');
     
     const initialize = async () => {
-        if(activeBranch) {
-            const fetchedMembers = await fetchMembers(activeBranch);
+        if(activeBranchId) {
+            const fetchedMembers = await fetchMembers(activeBranchId);
             if (memberId && memberName && fetchedMembers) {
                 const member = fetchedMembers.find(m => m.id === memberId);
                 if(member) {
@@ -112,7 +137,7 @@ export default function AddPaymentPage() {
         }
     }
     initialize();
-  }, [searchParams, form, activeBranch]);
+  }, [searchParams, form, activeBranchId]);
 
   useEffect(() => {
     const subscription = form.watch((values, { name }) => {
@@ -153,7 +178,7 @@ export default function AddPaymentPage() {
 
   const onSubmit = async (data: FormData) => {
     const userDocId = localStorage.getItem('userDocId');
-    if (!userDocId || !selectedMember || !activeBranch) {
+    if (!userDocId || !selectedMember || !activeBranchId) {
       toast({ title: 'Error', description: 'Session, member, or branch not found.', variant: 'destructive' });
       return;
     }
@@ -161,7 +186,7 @@ export default function AddPaymentPage() {
     setIsLoading(true);
 
     try {
-      const paymentsCollection = collection(db, 'gyms', userDocId, 'branches', activeBranch, 'members', data.memberId, 'payments');
+      const paymentsCollection = collection(db, 'gyms', userDocId, 'branches', activeBranchId, 'members', data.memberId, 'payments');
       await addDoc(paymentsCollection, {
         ...data,
         discount: data.discount ? parseFloat(data.discount as string) : 0,
@@ -170,7 +195,7 @@ export default function AddPaymentPage() {
         createdAt: Timestamp.now(),
       });
       
-      const memberRef = doc(db, 'gyms', userDocId, 'branches', activeBranch, 'members', data.memberId);
+      const memberRef = doc(db, 'gyms', userDocId, 'branches', activeBranchId, 'members', data.memberId);
       await updateDoc(memberRef, {
           endDate: data.nextDueDate ? Timestamp.fromDate(data.nextDueDate) : null,
           membershipType: data.membershipPlan,
@@ -194,6 +219,10 @@ export default function AddPaymentPage() {
       setIsLoading(false);
     }
   };
+
+  if (!activeBranchId) {
+      return <NoBranchDialog />;
+  }
 
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-background p-4">
