@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect } from 'react';
@@ -284,6 +283,7 @@ export default function OwnerDashboardLayout({
                 <SubMenuItem href="/dashboard/owner/transactions">All Transactions</SubMenuItem>
                 <SubMenuItem href="/dashboard/owner/revenue-reports">Revenue Reports</SubMenuItem>
                 <SubMenuItem href="/dashboard/owner/expenses">Expenses</SubMenuItem>
+                <SubMenuItem href="/dashboard/owner/custom-report">Custom Report</SubMenuItem>
             </SubMenu>
 
             <SubMenu title="Settlement" icon={<IndianRupee />} isOpen={openSubMenu === 'settlement'} onToggle={() => toggleSubMenu('settlement')}>
