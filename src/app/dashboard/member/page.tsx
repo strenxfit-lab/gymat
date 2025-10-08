@@ -75,7 +75,7 @@ export default function MemberDashboard() {
     const [announcements, setAnnouncements] = useState<Announcement[]>([]);
     const [membershipStatus, setMembershipStatus] = useState<MembershipStatus | null>(null);
     const [loading, setLoading] = useState(true);
-    const [hasNotification, setHasNotification] = useState(false);
+    const [hasNewDietPlan, setHasNewDietPlan] = useState(false);
     const [birthdayMessage, setBirthdayMessage] = useState<string | null>(null);
     const [memberName, setMemberName] = useState<string | null>(null);
     const [isCheckedIn, setIsCheckedIn] = useState(false);
@@ -161,6 +161,7 @@ export default function MemberDashboard() {
                 const memberSnap = await getDoc(memberRef);
                 if (memberSnap.exists()) {
                     const memberData = memberSnap.data();
+                    setHasNewDietPlan(memberData.hasNewDietPlan || false);
                     const endDate = (memberData.endDate as Timestamp)?.toDate();
                     if (endDate) {
                         const daysLeft = differenceInDays(endDate, now);
@@ -225,7 +226,7 @@ export default function MemberDashboard() {
              <Link href="/dashboard/member/payment-history" passHref>
                 <Button variant="outline" size="icon" className="relative">
                     <Bell className="h-5 w-5" />
-                    {hasNotification && <span className="absolute top-0 right-0 h-2.5 w-2.5 rounded-full bg-destructive" />}
+                    {hasNewDietPlan && <span className="absolute top-0 right-0 h-2.5 w-2.5 rounded-full bg-destructive" />}
                     <span className="sr-only">Notifications</span>
                 </Button>
             </Link>
@@ -250,7 +251,19 @@ export default function MemberDashboard() {
             </DropdownMenu>
           </div>
         </div>
-
+        
+        {hasNewDietPlan && (
+            <Alert>
+                <Utensils className="h-4 w-4" />
+                <AlertTitle>New Diet Plan!</AlertTitle>
+                <AlertDescription className="flex justify-between items-center">
+                    <span>Your trainer sent you a new diet plan.</span>
+                    <Link href="/dashboard/member/diet-plan" passHref>
+                        <Button variant="outline" size="sm">Click to see it</Button>
+                    </Link>
+                </AlertDescription>
+            </Alert>
+        )}
         {membershipStatus?.status === 'Expiring Soon' && (
              <Alert variant="destructive">
                 <AlertCircle className="h-4 w-4" />
@@ -422,3 +435,5 @@ export default function MemberDashboard() {
     </div>
   );
 }
+
+  
