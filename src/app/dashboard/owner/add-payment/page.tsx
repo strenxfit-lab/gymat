@@ -7,7 +7,7 @@ import Link from 'next/link';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { format, addDays, parseISO } from 'date-fns';
+import { format, addDays, parseISO, isSameDay } from 'date-fns';
 import { Loader2, Calendar as CalendarIcon, Search, Check, Building, AlertTriangle, Tags, Phone, Mail } from 'lucide-react';
 import { collection, addDoc, getDocs, Timestamp, doc, updateDoc, getDoc, query, where, collectionGroup } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
@@ -58,6 +58,11 @@ interface Offer {
   discountType: 'percentage' | 'flat';
   discountValue: number;
   applicablePlans: string[];
+}
+
+interface MembershipPlan {
+  name: string;
+  price: string;
 }
 
 interface LimitDialogInfo {
@@ -124,6 +129,7 @@ export default function AddPaymentPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [members, setMembers] = useState<Member[]>([]);
   const [offers, setOffers] = useState<Offer[]>([]);
+  const [membershipPlans, setMembershipPlans] = useState<MembershipPlan[]>([]);
   const [selectedMember, setSelectedMember] = useState<Member | null>(null);
   const [activeBranchId, setActiveBranchId] = useState<string | null>(null);
   const [isStatusDialogOpen, setIsStatusDialogOpen] = useState(false);
@@ -198,6 +204,13 @@ export default function AddPaymentPage() {
     const offersList = offersSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Offer));
     setOffers(offersList);
 
+     // Fetch Membership Plans
+    const detailsRef = doc(db, 'gyms', userDocId, 'details', 'onboarding');
+    const detailsSnap = await getDoc(detailsRef);
+    if(detailsSnap.exists() && detailsSnap.data().plans) {
+        setMembershipPlans(detailsSnap.data().plans);
+    }
+
     return { membersList, offersList };
   };
 
@@ -220,10 +233,7 @@ export default function AddPaymentPage() {
 
     useEffect(() => {
         const subscription = form.watch((values, { name }) => {
-            const { totalFee, discount, amountPaid, membershipPlan, paymentDate, appliedOfferId } = values;
-
-            let originalFee = totalFee || 0;
-            let finalDiscount = typeof discount === 'string' ? parseFloat(discount) || 0 : (discount || 0);
+            let { totalFee, discount, amountPaid, membershipPlan, paymentDate, appliedOfferId, nextDueDate } = values;
 
             if (name === 'memberId' && values.memberId) {
                 const member = members.find(m => m.id === values.memberId);
@@ -236,7 +246,19 @@ export default function AddPaymentPage() {
                     setSelectedMember(member);
                     form.setValue('membershipPlan', member.membershipType);
                     form.setValue('totalFee', member.totalFee);
-                    originalFee = member.totalFee;
+                    totalFee = member.totalFee;
+                }
+            }
+            
+            if (name === 'membershipPlan' && membershipPlan) {
+                const planDetails = membershipPlans.find(p => p.name === membershipPlan);
+                if (planDetails && planDetails.price) {
+                    const newFee = parseFloat(planDetails.price);
+                    form.setValue('totalFee', newFee);
+                    totalFee = newFee;
+                } else if (selectedMember) {
+                    form.setValue('totalFee', selectedMember.totalFee);
+                    totalFee = selectedMember.totalFee;
                 }
             }
             
@@ -249,8 +271,13 @@ export default function AddPaymentPage() {
                     case 'half-yearly': newEndDate = addDays(newEndDate, 180); break;
                     case 'yearly': newEndDate = addDays(newEndDate, 365); break;
                 }
-                form.setValue('nextDueDate', newEndDate);
+                if (!nextDueDate || !isSameDay(newEndDate, nextDueDate)) {
+                    form.setValue('nextDueDate', newEndDate);
+                }
             }
+            
+            let originalFee = totalFee || 0;
+            let finalDiscount = typeof discount === 'string' ? parseFloat(discount) || 0 : (discount || 0);
 
             if (name === 'appliedOfferId') {
                 const offer = offers.find(o => o.id === appliedOfferId);
@@ -271,22 +298,19 @@ export default function AddPaymentPage() {
             
             const finalPayable = originalFee - finalDiscount;
 
-            // Auto-fill amountPaid when totalFee or discount changes, but allow override
-            if (name === 'totalFee' || name === 'discount' || name === 'appliedOfferId') {
+            if (name === 'totalFee' || name === 'discount' || name === 'appliedOfferId' || name === 'membershipPlan') {
                 const newAmountPaid = finalPayable > 0 ? finalPayable : 0;
-                if (newAmountPaid !== values.amountPaid) {
-                    form.setValue('amountPaid', newAmountPaid, { shouldValidate: true });
-                }
+                form.setValue('amountPaid', newAmountPaid, { shouldValidate: true });
+                amountPaid = newAmountPaid;
             }
 
-            // Always calculate balanceDue based on the current amountPaid
             const newBalanceDue = (finalPayable > 0 ? finalPayable : 0) - (amountPaid || 0);
              if ((newBalanceDue > 0 ? newBalanceDue : 0) !== values.balanceDue) {
                 form.setValue('balanceDue', newBalanceDue > 0 ? newBalanceDue : 0);
             }
         });
         return () => subscription.unsubscribe();
-  }, [form, members, selectedMember, offers]);
+  }, [form, members, selectedMember, offers, membershipPlans]);
 
 
   const onSubmit = async (data: FormData) => {
@@ -429,6 +453,9 @@ export default function AddPaymentPage() {
                                 <Select onValueChange={field.onChange} value={field.value}>
                                     <FormControl><SelectTrigger><SelectValue placeholder="Select type" /></SelectTrigger></FormControl>
                                     <SelectContent>
+                                        {membershipPlans.map(plan => (
+                                          <SelectItem key={plan.name} value={plan.name}>{plan.name}</SelectItem>
+                                        ))}
                                         <SelectItem value="trial">Trial</SelectItem>
                                         <SelectItem value="monthly">Monthly</SelectItem>
                                         <SelectItem value="quarterly">Quarterly</SelectItem>
@@ -512,3 +539,4 @@ export default function AddPaymentPage() {
     </div>
   );
 }
+
