@@ -152,7 +152,7 @@ export default function MemberDashboard() {
                 const qAnnouncements = query(announcementsRef, where("createdAt", ">=", Timestamp.fromDate(oneDayAgo)), orderBy("createdAt", "desc"));
                 const announcementsSnap = await getDocs(qAnnouncements);
                 const announcementsList = announcementsSnap.docs
-                    .map(doc => ({ id: doc.id, ...doc.data() } as Announcement))
+                    .map(doc => ({ id: doc.id, ...doc.data(), createdAt: (doc.data().createdAt as Timestamp).toDate() } as Announcement))
                     .filter(a => a.audience === 'all' || a.audience === 'members');
                 setAnnouncements(announcementsList);
 
@@ -437,3 +437,5 @@ export default function MemberDashboard() {
 }
 
   
+
+    
