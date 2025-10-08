@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect } from 'react';
@@ -64,9 +63,7 @@ export default function TrainerSettlementDetailPage() {
     defaultValues: { salary: 0, commission: 0, status: 'Unpaid' },
   });
 
-  const salary = form.watch('salary');
-  const commission = form.watch('commission');
-  const totalAmount = Number(salary || 0) + Number(commission || 0);
+  const totalAmount = (form.watch('salary') || 0) + (form.watch('commission') || 0);
 
   useEffect(() => {
     const userDocId = localStorage.getItem('userDocId');
