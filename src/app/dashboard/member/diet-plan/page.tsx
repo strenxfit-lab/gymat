@@ -3,7 +3,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { collection, getDocs, Timestamp, query, orderBy } from 'firebase/firestore';
+import { collection, getDocs, Timestamp, query, orderBy, doc, updateDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -34,18 +34,27 @@ export default function DietPlanPage() {
   const { toast } = useToast();
 
   useEffect(() => {
+    const userDocId = localStorage.getItem('userDocId');
+    const activeBranchId = localStorage.getItem('activeBranch');
+    const memberId = localStorage.getItem('memberId');
+
+    if (!userDocId || !activeBranchId || !memberId) {
+      toast({ title: "Error", description: "Session invalid. Please log in again.", variant: "destructive" });
+      setLoading(false);
+      return;
+    }
+      
+    const clearNewDietPlanFlag = async () => {
+        try {
+            const memberRef = doc(db, 'gyms', userDocId, 'branches', activeBranchId, 'members', memberId);
+            await updateDoc(memberRef, { hasNewDietPlan: false });
+        } catch (error) {
+            console.warn("Could not clear new diet plan flag:", error);
+        }
+    };
+    
     const fetchDietPlans = async () => {
       setLoading(true);
-      const userDocId = localStorage.getItem('userDocId');
-      const activeBranchId = localStorage.getItem('activeBranch');
-      const memberId = localStorage.getItem('memberId');
-
-      if (!userDocId || !activeBranchId || !memberId) {
-        toast({ title: "Error", description: "Session invalid. Please log in again.", variant: "destructive" });
-        setLoading(false);
-        return;
-      }
-      
       try {
         const dietPlansCollection = collection(db, 'gyms', userDocId, 'branches', activeBranchId, 'members', memberId, 'dietPlans');
         const q = query(dietPlansCollection, orderBy('sentAt', 'desc'));
@@ -60,6 +69,10 @@ export default function DietPlanPage() {
           } as DietPlan;
         });
         setDietPlans(plansList);
+
+        // After fetching, clear the flag
+        await clearNewDietPlanFlag();
+
       } catch (error) {
         console.error("Error fetching diet plans:", error);
         toast({ title: "Error", description: "Failed to fetch diet plans.", variant: "destructive" });
@@ -126,3 +139,5 @@ export default function DietPlanPage() {
     </div>
   );
 }
+
+  
