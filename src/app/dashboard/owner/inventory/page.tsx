@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { collection, addDoc, getDocs, Timestamp, deleteDoc, doc, updateDoc, serverTimestamp, getDoc } from 'firebase/firestore';
+import { collection, addDoc, getDocs, Timestamp, deleteDoc, doc, updateDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -16,39 +16,22 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Loader2, PlusCircle, ArrowLeft, MoreHorizontal, Edit, Trash, AlertTriangle, CalendarClock, Phone, Mail } from 'lucide-react';
+import { Loader2, PlusCircle, ArrowLeft, MoreHorizontal, Edit, Trash } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-import { Badge } from '@/components/ui/badge';
-import { isBefore, isWithinInterval, addDays, parseISO } from 'date-fns';
 
 const inventorySchema = z.object({
   name: z.string().min(1, 'Item name is required.'),
   category: z.string().min(1, 'Please select a category.'),
   quantity: z.coerce.number().min(0, 'Quantity cannot be negative.'),
   unit: z.string().min(1, 'Please select a unit.'),
-  reorderPoint: z.coerce.number().min(0, 'Reorder point cannot be negative.').optional(),
   purchasePrice: z.coerce.number().optional(),
   sellingPrice: z.coerce.number().optional(),
   supplier: z.string().optional(),
-  expiryDate: z.string().optional(),
 });
 
 interface InventoryItem extends z.infer<typeof inventorySchema> {
   id: string;
-}
-
-interface LimitDialogInfo {
-    members?: number;
-    trainers?: number;
-    payments?: number;
-    equipment?: number;
-    classes?: number;
-    expenses?: number;
-    inventory?: number;
-    maintenance?: number;
-    offers?: number;
-    usageLogs?: number;
 }
 
 const itemCategories = [
@@ -63,55 +46,16 @@ const itemCategories = [
 
 const itemUnits = ["pcs", "kg", "grams", "liters", "ml", "box", "bottle"];
 
-function LimitReachedDialog({ isOpen, onOpenChange, limits }: { isOpen: boolean; onOpenChange: (open: boolean) => void, limits: LimitDialogInfo }) {
-  return (
-    <AlertDialog open={isOpen} onOpenChange={onOpenChange}>
-      <AlertDialogContent>
-        <AlertDialogHeader>
-          <AlertDialogTitle>You've reached the limit of your trial account</AlertDialogTitle>
-          <AlertDialogDescription className="space-y-2 pt-2">
-            {limits.members !== undefined && <p>Members ({limits.members}/3)</p>}
-            {limits.trainers !== undefined && <p>Trainers ({limits.trainers}/2)</p>}
-            {limits.payments !== undefined && <p>Payments ({limits.payments}/5 per member)</p>}
-            {limits.equipment !== undefined && <p>Equipment ({limits.equipment}/1)</p>}
-            {limits.classes !== undefined && <p>Classes ({limits.classes}/1)</p>}
-            {limits.expenses !== undefined && <p>Expenses ({limits.expenses}/2)</p>}
-            {limits.inventory !== undefined && <p>Inventory ({limits.inventory}/1)</p>}
-            {limits.maintenance !== undefined && <p>Maintenance ({limits.maintenance}/1)</p>}
-            {limits.offers !== undefined && <p>Offers ({limits.offers}/1)</p>}
-            {limits.usageLogs !== undefined && <p>Usage Logs ({limits.usageLogs}/1)</p>}
-            <p className="font-semibold pt-2">Upgrade to a full Account to continue managing without restrictions.</p>
-          </AlertDialogDescription>
-        </AlertDialogHeader>
-        <div className="flex flex-col space-y-2">
-            <p className="font-bold text-center">Contact Strenxfit Support</p>
-            <a href="https://wa.me/917988487892" target="_blank" rel="noopener noreferrer" className="flex items-center justify-center gap-3 p-3 rounded-md hover:bg-accent transition-colors">
-                <Phone className="h-5 w-5 text-muted-foreground" />
-                <span>+91 79884 87892</span>
-            </a>
-        </div>
-        <AlertDialogFooter>
-          <AlertDialogAction onClick={() => onOpenChange(false)}>OK</AlertDialogAction>
-        </AlertDialogFooter>
-      </AlertDialogContent>
-    </AlertDialog>
-  );
-}
-
-
 export default function InventoryPage() {
   const [inventory, setInventory] = useState<InventoryItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [isFormDialogOpen, setIsFormDialogOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<InventoryItem | null>(null);
-  const [isTrial, setIsTrial] = useState(false);
-  const [limitDialogOpen, setLimitDialogOpen] = useState(false);
-  const [limitInfo, setLimitInfo] = useState<LimitDialogInfo>({});
   const { toast } = useToast();
 
   const form = useForm<z.infer<typeof inventorySchema>>({
     resolver: zodResolver(inventorySchema),
-    defaultValues: { name: '', category: '', quantity: 0, unit: '', reorderPoint: 0, purchasePrice: 0, sellingPrice: 0, supplier: '', expiryDate: '' },
+    defaultValues: { name: '', category: '', quantity: 0, unit: '', purchasePrice: 0, sellingPrice: 0, supplier: '' },
   });
   
   const fetchInventory = async () => {
@@ -124,13 +68,6 @@ export default function InventoryPage() {
       setLoading(false);
       return;
     }
-    
-    const gymRef = doc(db, 'gyms', userDocId);
-    const gymSnap = await getDoc(gymRef);
-    if (gymSnap.exists() && gymSnap.data().isTrial) {
-        setIsTrial(true);
-    }
-    
     try {
         const inventoryCollection = collection(db, 'gyms', userDocId, 'branches', activeBranchId, 'inventory');
         const inventorySnapshot = await getDocs(inventoryCollection);
@@ -140,7 +77,6 @@ export default function InventoryPage() {
             return {
                 id: docSnap.id,
                 ...data,
-                 expiryDate: data.expiryDate ? (data.expiryDate as Timestamp).toDate().toISOString().split('T')[0] : '',
             } as InventoryItem;
         });
 
@@ -164,7 +100,7 @@ export default function InventoryPage() {
         form.reset(editingItem);
         setIsFormDialogOpen(true);
     } else {
-        form.reset({ name: '', category: '', quantity: 0, unit: '', reorderPoint: 0, purchasePrice: 0, sellingPrice: 0, supplier: '', expiryDate: '' });
+        form.reset({ name: '', category: '', quantity: 0, unit: '', purchasePrice: 0, sellingPrice: 0, supplier: '' });
     }
   }, [editingItem, form]);
 
@@ -188,37 +124,15 @@ export default function InventoryPage() {
     const activeBranchId = localStorage.getItem('activeBranch');
     if (!userDocId || !activeBranchId) return;
 
-    if (isTrial) {
-        if(inventory.length >= 1) {
-            setLimitInfo({ inventory: inventory.length });
-            setLimitDialogOpen(true);
-            return;
-        }
-    }
-
     try {
       const inventoryCollection = collection(db, 'gyms', userDocId, 'branches', activeBranchId, 'inventory');
       
-      const newItemRef = await addDoc(inventoryCollection, {
+      await addDoc(inventoryCollection, {
         ...values,
-        expiryDate: values.expiryDate ? Timestamp.fromDate(new Date(values.expiryDate)) : null,
-        createdAt: serverTimestamp(),
+        createdAt: Timestamp.now(),
       });
 
-      // Automatically log the purchase as an expense
-      if (values.purchasePrice && values.purchasePrice > 0 && values.quantity > 0) {
-        const expensesCollection = collection(db, 'gyms', userDocId, 'branches', activeBranchId, 'expenses');
-        await addDoc(expensesCollection, {
-          name: `Inventory Purchase: ${values.name}`,
-          category: "Miscellaneous",
-          amount: values.purchasePrice * values.quantity,
-          date: serverTimestamp(),
-          description: `Added ${values.quantity} ${values.unit} of ${values.name} to inventory.`,
-          inventoryItemId: newItemRef.id,
-        });
-      }
-
-      toast({ title: 'Success!', description: 'New item has been added and expense logged.' });
+      toast({ title: 'Success!', description: 'New item has been added to inventory.' });
       handleFormDialogStateChange(false);
       await fetchInventory();
     } catch (error) {
@@ -236,10 +150,7 @@ export default function InventoryPage() {
       try {
         const itemRef = doc(db, 'gyms', userDocId, 'branches', activeBranchId, 'inventory', editingItem.id);
 
-        await updateDoc(itemRef, { 
-            ...values,
-            expiryDate: values.expiryDate ? Timestamp.fromDate(new Date(values.expiryDate)) : null,
-        });
+        await updateDoc(itemRef, { ...values });
         
         toast({ title: 'Success!', description: 'Item details have been updated.' });
         handleFormDialogStateChange(false);
@@ -265,17 +176,6 @@ export default function InventoryPage() {
         toast({ title: "Error", description: "Could not delete item.", variant: "destructive"});
     }
   };
-  
-  const getExpiryStatus = (expiryDate?: string) => {
-    if (!expiryDate) return { isExpiringSoon: false, isExpired: false };
-    const now = new Date();
-    const expiry = parseISO(expiryDate);
-    const thirtyDaysFromNow = addDays(now, 30);
-    const isExpired = isBefore(expiry, now);
-    const isExpiringSoon = !isExpired && isWithinInterval(expiry, { start: now, end: thirtyDaysFromNow });
-    return { isExpiringSoon, isExpired };
-  }
-
 
   if (loading) {
     return <div className="flex min-h-screen items-center justify-center bg-background"><Loader2 className="h-8 w-8 animate-spin" /></div>;
@@ -283,7 +183,6 @@ export default function InventoryPage() {
 
   return (
     <div className="container mx-auto py-10">
-      <LimitReachedDialog isOpen={limitDialogOpen} onOpenChange={setLimitDialogOpen} limits={limitInfo} />
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-3xl font-bold">Inventory Management</h1>
@@ -332,12 +231,10 @@ export default function InventoryPage() {
                         )} />
                     </div>
                      <div className="grid grid-cols-2 gap-4">
-                        <FormField control={form.control} name="purchasePrice" render={({ field }) => ( <FormItem><FormLabel>Purchase Price (₹)</FormLabel><FormControl><Input type="number" placeholder="1000" {...field} value={field.value ?? ''} /></FormControl><FormMessage /></FormItem> )} />
-                        <FormField control={form.control} name="sellingPrice" render={({ field }) => ( <FormItem><FormLabel>Selling Price (₹)</FormLabel><FormControl><Input type="number" placeholder="1200" {...field} value={field.value ?? ''} /></FormControl><FormMessage /></FormItem> )} />
+                        <FormField control={form.control} name="purchasePrice" render={({ field }) => ( <FormItem><FormLabel>Purchase Price (₹)</FormLabel><FormControl><Input type="number" placeholder="1000" {...field} /></FormControl><FormMessage /></FormItem> )} />
+                        <FormField control={form.control} name="sellingPrice" render={({ field }) => ( <FormItem><FormLabel>Selling Price (₹)</FormLabel><FormControl><Input type="number" placeholder="1200" {...field} /></FormControl><FormMessage /></FormItem> )} />
                     </div>
-                     <FormField control={form.control} name="reorderPoint" render={({ field }) => ( <FormItem><FormLabel>Low Stock Alert At</FormLabel><FormControl><Input type="number" placeholder="Set a reorder point" {...field} value={field.value ?? ''} /></FormControl><FormMessage /></FormItem> )} />
-                    <FormField control={form.control} name="supplier" render={({ field }) => ( <FormItem><FormLabel>Supplier / Vendor</FormLabel><FormControl><Input placeholder="e.g., HealthFirst Suppliers" {...field} value={field.value ?? ''} /></FormControl><FormMessage /></FormItem> )} />
-                    <FormField control={form.control} name="expiryDate" render={({ field }) => ( <FormItem><FormLabel>Expiry Date (Optional)</FormLabel><FormControl><Input type="date" {...field} value={field.value ?? ''} /></FormControl><FormMessage /></FormItem> )} />
+                    <FormField control={form.control} name="supplier" render={({ field }) => ( <FormItem><FormLabel>Supplier / Vendor</FormLabel><FormControl><Input placeholder="e.g., HealthFirst Suppliers" {...field} /></FormControl><FormMessage /></FormItem> )} />
                     
                     <DialogFooter>
                     <Button type="button" variant="outline" onClick={() => handleFormDialogStateChange(false)}>Cancel</Button>
@@ -364,30 +261,20 @@ export default function InventoryPage() {
                 <TableHead>Item Name</TableHead>
                 <TableHead>Category</TableHead>
                 <TableHead>Quantity</TableHead>
-                <TableHead>Expiry Date</TableHead>
+                <TableHead>Purchase Price</TableHead>
+                <TableHead>Selling Price</TableHead>
                 <TableHead><span className="sr-only">Actions</span></TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {inventory.length > 0 ? (
-                inventory.map((item) => {
-                  const isLowStock = item.reorderPoint && item.quantity <= item.reorderPoint;
-                  const { isExpiringSoon, isExpired } = getExpiryStatus(item.expiryDate);
-                  const rowClass = isExpired ? 'bg-destructive/10 hover:bg-destructive/20' : (isLowStock ? 'bg-yellow-400/10 hover:bg-yellow-400/20' : '');
-
-                  return (
-                  <TableRow key={item.id} className={rowClass}>
-                    <TableCell className="font-medium">
-                        <div className="flex items-center gap-2">
-                            {isLowStock && !isExpired && <AlertTriangle className="h-4 w-4 text-yellow-500" title="Low stock"/>}
-                            {isExpired && <AlertTriangle className="h-4 w-4 text-destructive" title="Expired"/>}
-                            {isExpiringSoon && !isExpired && <CalendarClock className="h-4 w-4 text-orange-500" title="Expiring Soon"/>}
-                            {item.name}
-                        </div>
-                    </TableCell>
+                inventory.map((item) => (
+                  <TableRow key={item.id}>
+                    <TableCell className="font-medium">{item.name}</TableCell>
                     <TableCell>{item.category}</TableCell>
                     <TableCell>{item.quantity} {item.unit}</TableCell>
-                    <TableCell>{item.expiryDate ? new Date(item.expiryDate).toLocaleDateString() : 'N/A'}</TableCell>
+                    <TableCell>₹{item.purchasePrice?.toLocaleString() || 'N/A'}</TableCell>
+                    <TableCell>₹{item.sellingPrice?.toLocaleString() || 'N/A'}</TableCell>
                     <TableCell className="text-right">
                        <AlertDialog>
                           <DropdownMenu>
@@ -418,11 +305,10 @@ export default function InventoryPage() {
                         </AlertDialog>
                     </TableCell>
                   </TableRow>
-                  );
-                })
+                ))
               ) : (
                 <TableRow>
-                  <TableCell colSpan={5} className="h-24 text-center">
+                  <TableCell colSpan={6} className="h-24 text-center">
                     No items in inventory yet.
                   </TableCell>
                 </TableRow>
@@ -434,3 +320,5 @@ export default function InventoryPage() {
     </div>
   );
 }
+
+    
