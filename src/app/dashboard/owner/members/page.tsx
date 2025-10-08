@@ -31,7 +31,6 @@ interface Member {
   startDate: Date;
   endDate: Date;
   status: 'Active' | 'Expired';
-  branch?: string;
 }
 
 interface Trainer {
@@ -41,7 +40,6 @@ interface Trainer {
   phone: string;
   specialization?: string;
   shiftTiming: string;
-  branch?: string;
 }
 
 export default function MembersListPage() {
@@ -68,9 +66,8 @@ export default function MembersListPage() {
 
     const fetchData = async () => {
       try {
-        const membersCollection = collection(db, 'gyms', userDocId, 'members');
-        const membersQuery = query(membersCollection, where("branch", "==", branch));
-        const membersSnapshot = await getDocs(membersQuery);
+        const membersCollection = collection(db, 'gyms', userDocId, 'branches', branch, 'members');
+        const membersSnapshot = await getDocs(membersCollection);
         const now = new Date();
 
         const membersList = membersSnapshot.docs.map(doc => {
@@ -85,14 +82,12 @@ export default function MembersListPage() {
             startDate: (data.startDate as Timestamp).toDate(),
             endDate: endDate,
             status: endDate >= now ? 'Active' : 'Expired',
-            branch: data.branch,
           } as Member;
         });
         setMembers(membersList);
         
-        const trainersCollection = collection(db, 'gyms', userDocId, 'trainers');
-        const trainersQuery = query(trainersCollection, where("branch", "==", branch));
-        const trainersSnapshot = await getDocs(trainersQuery);
+        const trainersCollection = collection(db, 'gyms', userDocId, 'branches', branch, 'trainers');
+        const trainersSnapshot = await getDocs(trainersCollection);
         const trainersList = trainersSnapshot.docs.map(doc => {
           const data = doc.data();
           return {
@@ -102,7 +97,6 @@ export default function MembersListPage() {
             phone: data.phone,
             specialization: data.specialization,
             shiftTiming: data.shiftTiming,
-            branch: data.branch,
           } as Trainer;
         });
         setTrainers(trainersList);
@@ -160,7 +154,7 @@ export default function MembersListPage() {
                 <Card>
                     <CardHeader>
                     <CardTitle>Members List ({activeBranch})</CardTitle>
-                    <CardDescription>A list of all members in your gym.</CardDescription>
+                    <CardDescription>A list of all members in this branch.</CardDescription>
                     </CardHeader>
                     <CardContent>
                     <Table>
@@ -224,7 +218,7 @@ export default function MembersListPage() {
                  <Card>
                     <CardHeader>
                     <CardTitle>Trainers List ({activeBranch})</CardTitle>
-                    <CardDescription>A list of all trainers in your gym.</CardDescription>
+                    <CardDescription>A list of all trainers in this branch.</CardDescription>
                     </CardHeader>
                     <CardContent>
                     <Table>
