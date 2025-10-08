@@ -5,7 +5,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { doc, getDoc, collection, getDocs, Timestamp } from 'firebase/firestore';
+import { doc, getDoc, collection, getDocs, Timestamp, query, where } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -98,7 +98,7 @@ export default function OwnerDashboardPage() {
             if (expiry >= now) {
                 activeMembers++;
                 if(expiry <= sevenDaysFromNow) {
-                    upcomingExpiries.push({ id: doc.id, name: data.name, endDate: expiry, plan: data.plan });
+                    upcomingExpiries.push({ id: doc.id, name: data.fullName, endDate: expiry, plan: data.plan });
                 }
             } else {
                 expiredMembers++;
@@ -116,6 +116,28 @@ export default function OwnerDashboardPage() {
             };
         }).filter((member): member is Member => member !== null);
         
+        let todaysCollection = 0;
+        let thisMonthsRevenue = 0;
+        let pendingDues = 0;
+        
+        for (const memberDoc of membersSnap.docs) {
+            const paymentsRef = collection(db, 'gyms', userDocId, 'members', memberDoc.id, 'payments');
+            const paymentsSnap = await getDocs(paymentsRef);
+            
+            paymentsSnap.forEach(paymentDoc => {
+                const payment = paymentDoc.data();
+                const paymentDate = (payment.paymentDate as Timestamp).toDate();
+
+                thisMonthsRevenue += payment.amountPaid;
+                pendingDues += payment.balanceDue;
+
+                if (paymentDate >= startOfToday) {
+                    todaysCollection += payment.amountPaid;
+                }
+            });
+        }
+
+
         const trainersData: Trainer[] = trainersSnap.docs.map(doc => {
             const data = doc.data();
             return {
@@ -132,9 +154,9 @@ export default function OwnerDashboardPage() {
           totalMembers: members.length,
           totalTrainers: trainersSnap.size,
           activePackages: Array.from(activePackages),
-          todaysCollection: 0, // Needs payment data
-          thisMonthsRevenue: 0, // Needs payment data
-          pendingDues: 0, // Needs payment data
+          todaysCollection: todaysCollection,
+          thisMonthsRevenue: thisMonthsRevenue,
+          pendingDues: pendingDues,
           activeMembers: activeMembers,
           expiredMembers: expiredMembers,
           trainers: trainersData,
