@@ -8,7 +8,7 @@ import { db } from '@/lib/firebase';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Loader2, ArrowLeft, User, Briefcase, Wallet, Calendar, Mail, Phone, Clock, Edit, Star } from 'lucide-react';
+import { Loader2, ArrowLeft, User, Briefcase, Wallet, Calendar, Mail, Phone, Clock, Edit, Star, KeyRound } from 'lucide-react';
 import Link from 'next/link';
 import { Separator } from '@/components/ui/separator';
 
@@ -25,13 +25,14 @@ interface TrainerDetails {
   specialization?: string;
   experience?: string;
   joiningDate: string;
-  shiftTiming: string;
   certifications?: string;
   salaryType: string;
   salaryRate: string;
   bankDetails?: string;
   averageRating?: number;
   ratingCount?: number;
+  password?: string;
+  passwordChanged: boolean;
 }
 
 const DetailItem = ({ label, value }: { label: string, value: string | undefined }) => (
@@ -84,13 +85,14 @@ export default function TrainerProfilePage() {
             specialization: data.specialization,
             experience: data.experience ? `${data.experience} years` : undefined,
             joiningDate: (data.joiningDate as Timestamp)?.toDate().toLocaleDateString(),
-            shiftTiming: data.shiftTiming,
             certifications: data.certifications,
             salaryType: data.salaryType,
             salaryRate: data.salaryRate,
             bankDetails: data.bankDetails,
             averageRating: data.ratings?.averageRating,
             ratingCount: data.ratings?.ratingCount,
+            password: data.password,
+            passwordChanged: data.passwordChanged || false,
         });
         
       } catch (error) {
@@ -141,6 +143,8 @@ export default function TrainerProfilePage() {
                     <DetailItem label="Phone" value={trainer.phone} />
                     <DetailItem label="Email" value={trainer.email} />
                     <DetailItem label="Address" value={trainer.address} />
+                    <DetailItem label="Login ID (Phone No.)" value={trainer.phone} />
+                    <DetailItem label="Password" value={trainer.passwordChanged ? "Password Changed" : trainer.password} />
                     <Separator/>
                     <DetailItem label="Emergency Contact Name" value={trainer.emergencyContactName} />
                     <DetailItem label="Emergency Contact Number" value={trainer.emergencyContactNumber} />
