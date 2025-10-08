@@ -1,15 +1,42 @@
 
 "use client";
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Dumbbell, Clock } from 'lucide-react';
+import { Dumbbell, Loader2, Clock } from 'lucide-react';
 import LoginForm from '@/components/login-form';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { KeyRound } from 'lucide-react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+
+function AuthChecker({ children }: { children: React.ReactNode }) {
+  const router = useRouter();
+  const [isChecking, setIsChecking] = useState(true);
+
+  useEffect(() => {
+    const userRole = localStorage.getItem('userRole');
+    if (userRole) {
+      router.replace(`/dashboard/${userRole}`);
+    } else {
+      setIsChecking(false);
+    }
+  }, [router]);
+
+  if (isChecking) {
+    return (
+      <div className="flex min-h-screen flex-col items-center justify-center bg-background">
+        <Loader2 className="h-12 w-12 animate-spin text-primary" />
+        <p className="mt-4 text-muted-foreground">Checking authentication...</p>
+      </div>
+    );
+  }
+
+  return <>{children}</>;
+}
+
 
 export default function Home() {
   const [isExpiredDialogOpen, setIsExpiredDialogOpen] = useState(false);
@@ -21,6 +48,7 @@ export default function Home() {
   }
 
   return (
+    <AuthChecker>
       <div className="relative flex min-h-screen flex-col items-center justify-center bg-background p-4 font-body">
         <Dialog open={isExpiredDialogOpen} onOpenChange={setIsExpiredDialogOpen}>
           <DialogContent>
@@ -71,5 +99,6 @@ export default function Home() {
           © {new Date().getFullYear()} Strenx. All rights reserved.
         </footer>
       </div>
+    </AuthChecker>
   );
 }
