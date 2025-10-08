@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import { useState, useEffect } from 'react';
@@ -62,7 +63,7 @@ export default function MemberDashboardLayout({
     router.push('/');
   };
   
-  const isCommunityPage = pathname === '/dashboard/member/community';
+  const isCommunityPage = pathname.startsWith('/dashboard/member/community') || pathname.startsWith('/dashboard/member/profile');
 
   if (isCommunityPage) {
     return <>{children}</>;
