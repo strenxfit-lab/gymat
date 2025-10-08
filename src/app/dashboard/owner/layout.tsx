@@ -23,9 +23,10 @@ import {
 import { Dumbbell, Users, CreditCard, ClipboardList, BarChart3, Megaphone, Boxes, ChevronDown, Info, Mail, Phone, Building, UserCheck, LogOut, MessageSquare, CalendarCheck, CheckSquare, Clock } from 'lucide-react';
 import { doc, getDoc, collection, getDocs, Timestamp, query, where } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, SheetHeader, SheetTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { addMonths, addYears } from 'date-fns';
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 
 export default function OwnerDashboardLayout({
   children,
@@ -138,7 +139,11 @@ export default function OwnerDashboardLayout({
   };
   
   const handleMultiBranchClick = (e: React.MouseEvent) => {
-      router.push('/dashboard/owner/multi-branch');
+      if (hasMultiBranch) {
+        router.push('/dashboard/owner/multi-branch');
+      } else {
+        setIsSupportDialogOpen(true);
+      }
   };
 
   const handleLogout = () => {
