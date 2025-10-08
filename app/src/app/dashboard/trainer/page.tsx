@@ -552,12 +552,6 @@ export default function TrainerDashboardPage() {
                                         <TableCell>{member.age} yrs</TableCell>
                                         <TableCell>{member.fitnessGoal || "N/A"}</TableCell>
                                         <TableCell className="space-x-2">
-                                            <Link href={`/progress/${member.communityUsername}`} passHref>
-                                                <Button variant="outline" size="sm" disabled={!member.communityUsername}>
-                                                    <BarChart3 className="h-4 w-4 mr-2"/>
-                                                    Progress
-                                                </Button>
-                                            </Link>
                                             <Button variant="outline" size="sm" onClick={() => {setSelectedMemberForDiet(member); setIsDietDialogOpen(true);}}>
                                                 <Utensils className="h-4 w-4 mr-2"/>
                                                 Send Diet
