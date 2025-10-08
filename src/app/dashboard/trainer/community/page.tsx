@@ -2,13 +2,13 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { collection, addDoc, query, onSnapshot, serverTimestamp, Timestamp, where, getDocs, doc, setDoc, updateDoc, arrayUnion, arrayRemove } from "firebase/firestore";
+import { collection, addDoc, query, onSnapshot, serverTimestamp, Timestamp, where, getDocs, doc, setDoc, updateDoc, arrayUnion, arrayRemove, limit, startAt, endAt, orderBy } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Loader2, Send, Plus, Image as ImageIcon, Video, X, ThumbsUp, MessageSquare, MoreVertical, Flag, Repeat } from "lucide-react";
+import { Loader2, Send, Plus, Image as ImageIcon, Video, X, ThumbsUp, MessageSquare, MoreVertical, Flag, Repeat, Share2, Search, User, Rss, LayoutDashboard } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { formatDistanceToNow } from 'date-fns';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -22,6 +22,7 @@ import Image from 'next/image';
 import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { BottomNavbar } from "@/components/ui/bottom-navbar";
 
 interface Comment {
     id: string;
@@ -100,7 +101,6 @@ export default function CommunityPage() {
   const [repostingPost, setRepostingPost] = useState<Post | null>(null);
   const [isRepostDialogOpen, setIsRepostDialogOpen] = useState(false);
 
-
   const postForm = useForm<PostFormData>({
     resolver: zodResolver(postSchema),
     defaultValues: {
@@ -130,6 +130,7 @@ export default function CommunityPage() {
       const userId = localStorage.getItem('trainerId');
       if (!userId) {
         setHasCommunityProfile(false);
+        setIsLoading(false);
         return;
       }
       
@@ -139,7 +140,7 @@ export default function CommunityPage() {
         return;
       }
 
-      const q = query(collection(db, 'userCommunity'), where('userId', '==', userId));
+      const q = query(collection(db, 'userCommunity'), where('userId', '==', userId), limit(1));
       const querySnapshot = await getDocs(q);
 
       if (!querySnapshot.empty) {
@@ -198,7 +199,7 @@ export default function CommunityPage() {
 
     return () => unsubscribe();
   }, [activeTab, toast, hasCommunityProfile]);
-  
+
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>, type: 'image' | 'video') => {
     const files = e.target.files;
     if (!files) return;
@@ -411,6 +412,24 @@ export default function CommunityPage() {
     }
   }
 
+  const handleShare = async (post: Post) => {
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: `Check out this post from ${post.authorName} in the Strenx community!`,
+          text: post.text,
+          url: window.location.href, // ideally a direct link to the post
+        });
+        toast({ title: "Post shared successfully!"});
+      } catch (error) {
+        console.error('Error sharing:', error);
+        toast({ title: "Could not share post", variant: "destructive" });
+      }
+    } else {
+      toast({ title: "Share not supported", description: "Your browser does not support the Web Share API." });
+    }
+  };
+
 
   const renderFeed = () => {
     if (isLoading) {
@@ -513,6 +532,9 @@ export default function CommunityPage() {
                      <Button variant="ghost" size="sm" onClick={() => { setRepostingPost(post); setIsRepostDialogOpen(true); }}>
                         <Repeat className="mr-2 h-4 w-4"/> Repost
                     </Button>
+                    <Button variant="ghost" size="sm" onClick={() => handleShare(post)}>
+                        <Share2 className="mr-2 h-4 w-4" /> Share
+                    </Button>
                 </div>
                  {openComments[post.id] && (
                      <div className="w-full pl-4 border-l-2">
@@ -584,7 +606,7 @@ export default function CommunityPage() {
 
 
   return (
-    <div className="h-full w-full flex flex-col relative">
+    <div className="h-screen w-screen flex flex-col">
       <Dialog open={isRepostDialogOpen} onOpenChange={setIsRepostDialogOpen}>
         <DialogContent>
             <DialogHeader>
@@ -637,13 +659,15 @@ export default function CommunityPage() {
             </Form>
         </DialogContent>
       </Dialog>
-      <Dialog open={isPostDialogOpen} onOpenChange={setIsPostDialogOpen}>
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col">
+      
+      <div className="flex-1 flex flex-col">
+        <Dialog open={isPostDialogOpen} onOpenChange={setIsPostDialogOpen}>
+          <Tabs defaultValue="global" value={activeTab} onValueChange={setActiveTab} className="flex flex-col flex-1">
             <header className="p-4 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-10">
-                <div className="flex items-center justify-between">
-                    <h1 className="text-2xl font-bold">Community</h1>
-                    <div className="flex items-center gap-4">
-                      <TabsList className="bg-muted text-muted-foreground">
+              <div className="flex items-center justify-between">
+                  <h1 className="text-2xl font-bold">Community</h1>
+                  <div className="flex items-center gap-4">
+                      <TabsList className="bg-orange-500/20 text-orange-700 dark:text-orange-300">
                           <TabsTrigger value="your_gym">Your Gym</TabsTrigger>
                           <TabsTrigger value="global">Global</TabsTrigger>
                       </TabsList>
@@ -653,100 +677,104 @@ export default function CommunityPage() {
                             Create Post
                         </Button>
                       </DialogTrigger>
-                    </div>
-                </div>
+                  </div>
+              </div>
             </header>
             
-            <TabsContent value="global" className="flex-1 overflow-y-auto p-4 space-y-4">
+            <main className="flex-1 overflow-y-auto p-4 pb-20 space-y-4">
                 <div className="max-w-2xl mx-auto w-full">
                     {renderFeed()}
                 </div>
-            </TabsContent>
-            <TabsContent value="your_gym" className="flex-1 overflow-y-auto p-4 space-y-4">
-                <div className="max-w-2xl mx-auto w-full">
-                    {renderFeed()}
-                </div>
-            </TabsContent>
-        </Tabs>
-        
-        <DialogContent>
-             <DialogHeader>
-                <DialogTitle>Create a New Post</DialogTitle>
-                <DialogDescription>
-                    Share an update, photo, or video with the community.
-                </DialogDescription>
-            </DialogHeader>
-             <Form {...postForm}>
-                <form onSubmit={postForm.handleSubmit(handlePostSubmit)} className="space-y-4">
-                    <FormField
-                        control={postForm.control}
-                        name="text"
-                        render={({ field }) => (
-                            <FormItem>
-                            <FormControl>
-                                <Textarea
-                                    placeholder="What's on your mind?"
-                                    className="min-h-[120px]"
-                                    {...field}
-                                />
-                            </FormControl>
-                            <FormMessage />
-                            </FormItem>
-                        )}
-                    />
-                    
-                    <div className="flex flex-wrap gap-2">
-                        {mediaPreviews.map((media, index) => (
-                            <div key={index} className="relative">
-                                {media.type === 'image' ? (
-                                    <Image src={media.url} alt="preview" width={80} height={80} className="rounded-md object-cover h-20 w-20"/>
-                                ) : (
-                                    <video src={media.url} className="w-full h-auto rounded-md" />
-                                )}
-                                <Button variant="ghost" size="icon" className="absolute top-1 right-1 h-6 w-6 bg-black/50 hover:bg-black/75 text-white" onClick={() => clearMedia(index)}>
-                                    <X className="h-4 w-4"/>
-                                </Button>
-                            </div>
-                        ))}
-                    </div>
+            </main>
+          </Tabs>
+          <DialogContent>
+               <DialogHeader>
+                  <DialogTitle>Create a New Post</DialogTitle>
+                  <DialogDescription>
+                      Share an update, photo, or video with the community.
+                  </DialogDescription>
+              </DialogHeader>
+               <Form {...postForm}>
+                  <form onSubmit={postForm.handleSubmit(handlePostSubmit)} className="space-y-4">
+                      <FormField
+                          control={postForm.control}
+                          name="text"
+                          render={({ field }) => (
+                              <FormItem>
+                              <FormControl>
+                                  <Textarea
+                                      placeholder="What's on your mind?"
+                                      className="min-h-[120px]"
+                                      {...field}
+                                  />
+                              </FormControl>
+                              <FormMessage />
+                              </FormItem>
+                          )}
+                      />
+                      
+                      <div className="flex flex-wrap gap-2">
+                          {mediaPreviews.map((media, index) => (
+                              <div key={index} className="relative">
+                                  {media.type === 'image' ? (
+                                      <Image src={media.url} alt="preview" width={80} height={80} className="rounded-md object-cover h-20 w-20"/>
+                                  ) : (
+                                      <video src={media.url} className="w-full h-auto rounded-md" />
+                                  )}
+                                  <Button variant="ghost" size="icon" className="absolute top-1 right-1 h-6 w-6 bg-black/50 hover:bg-black/75 text-white" onClick={() => clearMedia(index)}>
+                                      <X className="h-4 w-4"/>
+                                  </Button>
+                              </div>
+                          ))}
+                      </div>
 
-                    <div className="flex gap-2">
-                         <Button type="button" variant="outline" onClick={() => imageInputRef.current?.click()} disabled={mediaPreviews.some(m => m.type === 'video') || mediaPreviews.filter(m => m.type === 'image').length >= 3}>
-                            <ImageIcon className="mr-2 h-4 w-4"/> Add Photo(s)
-                        </Button>
-                        <input type="file" ref={imageInputRef} multiple accept="image/*" className="hidden" onChange={(e) => handleFileChange(e, 'image')} />
-                        
-                         <Button type="button" variant="outline" onClick={() => videoInputRef.current?.click()} disabled={mediaPreviews.length > 0}>
-                            <Video className="mr-2 h-4 w-4"/> Add Video
-                        </Button>
-                        <input type="file" ref={videoInputRef} accept="video/*" className="hidden" onChange={(e) => handleFileChange(e, 'video')} />
-                    </div>
+                      <div className="flex gap-2">
+                           <Button type="button" variant="outline" onClick={() => imageInputRef.current?.click()} disabled={mediaPreviews.some(m => m.type === 'video') || mediaPreviews.filter(m => m.type === 'image').length >= 3}>
+                              <ImageIcon className="mr-2 h-4 w-4"/> Add Photo(s)
+                          </Button>
+                          <input type="file" ref={imageInputRef} multiple accept="image/*" className="hidden" onChange={(e) => handleFileChange(e, 'image')} />
+                          
+                           <Button type="button" variant="outline" onClick={() => videoInputRef.current?.click()} disabled={mediaPreviews.length > 0}>
+                              <Video className="mr-2 h-4 w-4"/> Add Video
+                          </Button>
+                          <input type="file" ref={videoInputRef} accept="video/*" className="hidden" onChange={(e) => handleFileChange(e, 'video')} />
+                      </div>
 
-                     <FormField
-                        control={postForm.control}
-                        name="visibility"
-                        render={({ field }) => (
-                            <FormItem className="space-y-3">
-                            <FormLabel>Visibility</FormLabel>
-                            <FormControl>
-                                <RadioGroup onValueChange={field.onChange} value={field.value} className="flex gap-4">
-                                    <FormItem className="flex items-center space-x-3 space-y-0"><FormControl><RadioGroupItem value="local" /></FormControl><FormLabel className="font-normal">Your Gym</FormLabel></FormItem>
-                                    <FormItem className="flex items-center space-x-3 space-y-0"><FormControl><RadioGroupItem value="global" /></FormControl><FormLabel className="font-normal">Global</FormLabel></FormItem>
-                                </RadioGroup>
-                            </FormControl>
-                                <FormMessage />
-                            </FormItem>
-                        )} />
-                    <DialogFooter>
-                        <Button type="button" variant="ghost" onClick={() => setIsPostDialogOpen(false)}>Cancel</Button>
-                        <Button type="submit" disabled={isSubmitting}>
-                            {isSubmitting ? <Loader2 className="animate-spin mr-2"/> : <Send className="mr-2 h-4 w-4"/>} Post
-                        </Button>
-                    </DialogFooter>
-                </form>
-            </Form>
-        </DialogContent>
-      </Dialog>
+                       <FormField
+                          control={postForm.control}
+                          name="visibility"
+                          render={({ field }) => (
+                              <FormItem className="space-y-3">
+                              <FormLabel>Visibility</FormLabel>
+                              <FormControl>
+                                  <RadioGroup onValueChange={field.onChange} value={field.value} className="flex gap-4">
+                                      <FormItem className="flex items-center space-x-3 space-y-0"><FormControl><RadioGroupItem value="local" /></FormControl><FormLabel className="font-normal">Your Gym</FormLabel></FormItem>
+                                      <FormItem className="flex items-center space-x-3 space-y-0"><FormControl><RadioGroupItem value="global" /></FormControl><FormLabel className="font-normal">Global</FormLabel></FormItem>
+                                  </RadioGroup>
+                              </FormControl>
+                                  <FormMessage />
+                              </FormItem>
+                          )} />
+                      <DialogFooter>
+                          <Button type="button" variant="ghost" onClick={() => setIsPostDialogOpen(false)}>Cancel</Button>
+                          <Button type="submit" disabled={isSubmitting}>
+                              {isSubmitting ? <Loader2 className="animate-spin mr-2"/> : <Send className="mr-2 h-4 w-4"/>} Post
+                          </Button>
+                      </DialogFooter>
+                  </form>
+              </Form>
+          </DialogContent>
+        </Dialog>
+      </div>
+      
+      <BottomNavbar
+        navItems={[
+          { label: "Dashboard", href: "/dashboard/trainer", icon: <LayoutDashboard /> },
+          { label: "Search", href: "/dashboard/search", icon: <Search /> },
+          { label: "Feed", href: "/dashboard/trainer/community", icon: <Rss /> },
+          { label: "Profile", href: "/dashboard/trainer/profile", icon: <User /> },
+        ]}
+      />
     </div>
   );
 }
