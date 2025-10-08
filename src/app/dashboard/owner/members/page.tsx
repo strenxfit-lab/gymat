@@ -194,8 +194,8 @@ export default function MembersListPage() {
                                     <DropdownMenuContent align="end">
                                     <DropdownMenuLabel>Actions</DropdownMenuLabel>
                                     <DropdownMenuItem onSelect={() => router.push(`/dashboard/owner/members/${member.id}`)}>View Profile</DropdownMenuItem>
-                                    <DropdownMenuItem>Edit Profile</DropdownMenuItem>
-                                    <DropdownMenuItem>Collect Payment</DropdownMenuItem>
+                                    <DropdownMenuItem onSelect={() => router.push(`/dashboard/owner/members/${member.id}/edit`)}>Edit Profile</DropdownMenuItem>
+                                    <DropdownMenuItem onSelect={() => router.push(`/dashboard/owner/add-payment?memberId=${member.id}`)}>Collect Payment</DropdownMenuItem>
                                     </DropdownMenuContent>
                                 </DropdownMenu>
                                 </TableCell>
