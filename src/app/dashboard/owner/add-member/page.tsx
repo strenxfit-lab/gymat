@@ -201,7 +201,8 @@ export default function AddMemberPage() {
         loginId: loginId,
         password: password,
         role: 'member',
-        passwordChanged: false
+        passwordChanged: false,
+        status: 'Active',
       };
 
       if (data.membershipType === 'trial') {
@@ -401,5 +402,3 @@ export default function AddMemberPage() {
     </div>
   );
 }
-
-    
