@@ -13,14 +13,13 @@ import {
   SidebarFooter,
   SidebarProvider,
 } from '@/components/ui/sidebar';
-import { Dumbbell, LogOut, LayoutDashboard, UserCog, IndianRupee, Flag, Users, Activity, Image as ImageIcon, BarChart3 } from 'lucide-react';
+import { Dumbbell, LogOut, LayoutDashboard, UserCog } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { ThemeToggle } from '@/components/theme-toggle';
 import * as React from 'react';
-import { DashboardBottomNavbar } from '@/components/ui/dashboard-bottom-navbar';
 
-const MenuItem = ({ href, children, icon, notificationCount }: { href: string, children: React.ReactNode, icon?: React.ReactNode, notificationCount?: number }) => {
+const MenuItem = ({ href, children, icon }: { href: string, children: React.ReactNode, icon?: React.ReactNode }) => {
   const pathname = usePathname();
   const isActive = pathname === href;
   return (
@@ -28,17 +27,12 @@ const MenuItem = ({ href, children, icon, notificationCount }: { href: string, c
       <Button
         variant="ghost"
         className={cn(
-          "w-full justify-start gap-2 transition-colors duration-300 ease-in-out relative",
+          "w-full justify-start gap-2 transition-colors duration-300 ease-in-out",
           isActive ? "bg-indigo-100 text-indigo-600 font-semibold rounded-xl" : "hover:bg-gray-100 dark:hover:bg-gray-800"
         )}
       >
         {icon}
         {children}
-        {notificationCount && notificationCount > 0 && (
-            <span className="absolute top-1 right-1 h-5 w-5 rounded-full bg-destructive text-destructive-foreground flex items-center justify-center text-xs">
-                {notificationCount}
-            </span>
-        )}
       </Button>
     </Link>
   )
@@ -50,15 +44,9 @@ export default function SuperAdminDashboardLayout({
   children: React.ReactNode;
 }) {
   const [adminName, setAdminName] = useState<string | null>(null);
-  const [isMounted, setIsMounted] = useState(false);
   const router = useRouter();
-  const pathname = usePathname();
-
-  const isCommunityPage = pathname.startsWith('/dashboard/superadmin/community') || pathname.startsWith('/dashboard/superadmin/profile') || pathname.startsWith('/dashboard/superadmin/activity') || pathname.startsWith('/dashboard/search');
-
 
   useEffect(() => {
-    setIsMounted(true);
     // In a real app, you'd fetch the admin's name based on their ID
     setAdminName("Super Admin");
   }, []);
@@ -67,17 +55,6 @@ export default function SuperAdminDashboardLayout({
     localStorage.clear();
     router.push('/');
   };
-
-  if (isCommunityPage) {
-    if (pathname.startsWith('/dashboard/superadmin/profile')) {
-       return <>{children}</>;
-    }
-     if (pathname.startsWith('/dashboard/search')) {
-       return <>{children}</>;
-    }
-    return <>{children}</>;
-  }
-
 
   return (
     <SidebarProvider>
@@ -97,11 +74,6 @@ export default function SuperAdminDashboardLayout({
         <SidebarContent className="flex-1 overflow-y-auto">
           <SidebarMenu>
             <MenuItem href="/dashboard/superadmin" icon={<LayoutDashboard />}>Dashboard</MenuItem>
-            <MenuItem href="/dashboard/superadmin/community" icon={<Users />}>Community</MenuItem>
-            <MenuItem href="/dashboard/superadmin/activity" icon={<Activity />}>Activity</MenuItem>
-            <MenuItem href="/dashboard/superadmin/banners" icon={<ImageIcon />}>Banners</MenuItem>
-            <MenuItem href="/dashboard/superadmin/settlements" icon={<IndianRupee />}>Settlements</MenuItem>
-            <MenuItem href="/dashboard/superadmin/reports" icon={<Flag />}>Reports</MenuItem>
           </SidebarMenu>
         </SidebarContent>
         <SidebarFooter className="p-4 space-y-4">
@@ -115,14 +87,13 @@ export default function SuperAdminDashboardLayout({
         <header className="sticky top-0 z-10 flex h-16 items-center justify-between border-b bg-background/80 backdrop-blur-sm px-4 md:px-8">
             <SidebarTrigger className="md:hidden" />
             <div className='flex-1'></div>
-            {isMounted && <ThemeToggle />}
+            <ThemeToggle />
         </header>
-        <main className="flex-1 p-4 md:p-8 pb-20 md:pb-8">
+        <main className="flex-1 p-4 md:p-8">
           {children}
         </main>
       </div>
       </div>
-      <DashboardBottomNavbar role="superadmin" />
     </SidebarProvider>
   );
 }
