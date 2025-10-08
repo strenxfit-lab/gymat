@@ -5,7 +5,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { CalendarCheck, Tags, IndianRupee, Percent, ShieldCheck, User, LogOut, Bell, Building, Cake } from "lucide-react";
+import { CalendarCheck, Tags, IndianRupee, Percent, ShieldCheck, User, LogOut, Bell, Building, Cake, Clock, Loader2 } from "lucide-react";
 import Link from 'next/link';
 import { collection, getDocs, query, where, Timestamp, doc, getDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
@@ -30,6 +30,13 @@ interface Equipment {
   status: 'Active' | 'Under Maintenance' | 'Out of Order';
 }
 
+interface BookedClass {
+    id: string;
+    className: string;
+    trainerName: string;
+    dateTime: Date;
+}
+
 
 const membershipPlans = [
     { id: "monthly", label: "Monthly" },
@@ -51,8 +58,8 @@ const getStatusVariant = (status: Equipment['status']) => {
 export default function MemberDashboard() {
     const [offers, setOffers] = useState<Offer[]>([]);
     const [equipment, setEquipment] = useState<Equipment[]>([]);
-    const [loadingOffers, setLoadingOffers] = useState(true);
-    const [loadingEquipment, setLoadingEquipment] = useState(true);
+    const [bookedClasses, setBookedClasses] = useState<BookedClass[]>([]);
+    const [loading, setLoading] = useState(true);
     const [hasNotification, setHasNotification] = useState(false);
     const [birthdayMessage, setBirthdayMessage] = useState<string | null>(null);
     const router = useRouter();
@@ -62,75 +69,96 @@ export default function MemberDashboard() {
         const activeBranchId = localStorage.getItem('activeBranch');
         const memberId = localStorage.getItem('memberId');
 
-        if (!userDocId || !activeBranchId) {
-            setLoadingOffers(false);
-            setLoadingEquipment(false);
+        if (!userDocId || !activeBranchId || !memberId) {
+            setLoading(false);
             return;
         }
 
         const fetchAllData = async () => {
-            // Fetch Offers
+            setLoading(true);
             try {
+                // Fetch Trainers for class mapping
+                const trainersCollection = collection(db, 'gyms', userDocId, 'branches', activeBranchId, 'trainers');
+                const trainersSnapshot = await getDocs(trainersCollection);
+                const trainersList = trainersSnapshot.docs.map(doc => ({ id: doc.id, name: doc.data().fullName }));
+                
+                // Fetch Booked Classes
+                const bookingsQuery = query(collectionGroup(db, 'bookings'), where('__name__', '>=', `/gyms/${userDocId}/branches/${activeBranchId}/classes/`), where('__name__', '<', `/gyms/${userDocId}/branches/${activeBranchId}/classes0`));
+                const bookingsSnap = await getDocs(bookingsQuery);
+                
+                const myBookingsPromises = bookingsSnap.docs
+                    .filter(docSnap => docSnap.id === memberId)
+                    .map(async (docSnap) => {
+                        const classRef = docSnap.ref.parent.parent;
+                        if (classRef) {
+                            const classSnap = await getDoc(classRef);
+                            if (classSnap.exists()) {
+                                const classData = classSnap.data();
+                                if ((classData.dateTime as Timestamp).toDate() > new Date()) {
+                                     const trainer = trainersList.find(t => t.id === classData.trainerId);
+                                     return {
+                                        id: classSnap.id,
+                                        className: classData.className,
+                                        trainerName: trainer?.name || 'Unknown',
+                                        dateTime: (classData.dateTime as Timestamp).toDate()
+                                     };
+                                }
+                            }
+                        }
+                        return null;
+                });
+                
+                const myBookedClasses = (await Promise.all(myBookingsPromises)).filter(Boolean) as BookedClass[];
+                myBookedClasses.sort((a, b) => a.dateTime.getTime() - b.dateTime.getTime());
+                setBookedClasses(myBookedClasses);
+
+
+                // Fetch Offers
                 const now = new Date();
                 const offersRef = collection(db, 'gyms', userDocId, 'branches', activeBranchId, 'offers');
-                const q = query(offersRef, where("endDate", ">=", Timestamp.fromDate(now)));
-                const offersSnap = await getDocs(q);
+                const qOffers = query(offersRef, where("endDate", ">=", Timestamp.fromDate(now)));
+                const offersSnap = await getDocs(qOffers);
                 const offersList = offersSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Offer));
                 setOffers(offersList);
-            } catch (error) {
-                console.error("Failed to fetch offers:", error);
-            } finally {
-                setLoadingOffers(false);
-            }
         
-            // Fetch Equipment
-             try {
+                // Fetch Equipment
                 const equipmentRef = collection(db, 'gyms', userDocId, 'branches', activeBranchId, 'equipment');
                 const equipmentSnap = await getDocs(equipmentRef);
                 const equipmentList = equipmentSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Equipment));
                 setEquipment(equipmentList);
-            } catch (error) {
-                console.error("Failed to fetch equipment:", error);
-            } finally {
-                setLoadingEquipment(false);
-            }
 
-            // Check for notifications and birthday
-            if (memberId) {
-                try {
-                    const memberRef = doc(db, 'gyms', userDocId, 'branches', activeBranchId, 'members', memberId);
-                    const memberSnap = await getDoc(memberRef);
-                    if (memberSnap.exists()) {
-                        const memberData = memberSnap.data();
-                        const endDate = (memberData.endDate as Timestamp)?.toDate();
-                        if (endDate) {
-                            const now = new Date();
-                            const sevenDaysFromNow = addDays(now, 7);
-                            if (isWithinInterval(endDate, { start: now, end: sevenDaysFromNow })) {
-                                setHasNotification(true);
-                            }
-                        }
-
-                        // Check for birthday
-                        const dob = (memberData.dob as Timestamp)?.toDate();
-                        if (dob) {
-                            const today = new Date();
-                            if (dob.getDate() === today.getDate() && dob.getMonth() === today.getMonth()) {
-                                const gymRef = doc(db, 'gyms', userDocId);
-                                const gymSnap = await getDoc(gymRef);
-                                const gymName = gymSnap.exists() ? gymSnap.data().name : "the gym";
-                                setBirthdayMessage(`Happy Birthday! ${memberData.fullName} 🎂💪 Wishing you another year of strength, health, and success—both inside and outside the gym! From ${gymName}`);
-                            }
+                // Check for notifications and birthday
+                const memberRef = doc(db, 'gyms', userDocId, 'branches', activeBranchId, 'members', memberId);
+                const memberSnap = await getDoc(memberRef);
+                if (memberSnap.exists()) {
+                    const memberData = memberSnap.data();
+                    const endDate = (memberData.endDate as Timestamp)?.toDate();
+                    if (endDate) {
+                        const sevenDaysFromNow = addDays(now, 7);
+                        if (isWithinInterval(endDate, { start: now, end: sevenDaysFromNow })) {
+                            setHasNotification(true);
                         }
                     }
-                } catch (error) {
-                    console.error("Error checking notifications:", error);
+
+                    const dob = (memberData.dob as Timestamp)?.toDate();
+                    if (dob) {
+                        if (dob.getDate() === now.getDate() && dob.getMonth() === now.getMonth()) {
+                            const gymRef = doc(db, 'gyms', userDocId);
+                            const gymSnap = await getDoc(gymRef);
+                            const gymName = gymSnap.exists() ? gymSnap.data().name : "the gym";
+                            setBirthdayMessage(`Happy Birthday! ${memberData.fullName} 🎂💪 Wishing you another year of strength, health, and success—both inside and outside the gym! From ${gymName}`);
+                        }
+                    }
                 }
+            } catch (error) {
+                console.error("Failed to fetch dashboard data:", error);
+            } finally {
+                setLoading(false);
             }
         };
 
         fetchAllData();
-    }, []);
+    }, [router]);
 
     const handleLogout = () => {
         localStorage.clear();
@@ -189,26 +217,47 @@ export default function MemberDashboard() {
             <div className="lg:col-span-2 space-y-6">
                 <Card>
                     <CardHeader>
-                    <CardTitle>My Schedule</CardTitle>
-                    <CardDescription>View your upcoming booked classes.</CardDescription>
+                        <CardTitle>My Schedule</CardTitle>
+                        <CardDescription>Your upcoming booked classes.</CardDescription>
                     </CardHeader>
-                    <CardContent className="flex flex-col items-center justify-center text-center">
-                        <p className="text-muted-foreground mb-4">You have no upcoming classes.</p>
-                        <Link href="/dashboard/member/book-class" passHref>
-                            <Button>
-                                <CalendarCheck className="w-4 h-4 mr-2" />
-                                Book a Class
-                            </Button>
-                        </Link>
+                    <CardContent>
+                        {loading ? <div className="flex items-center justify-center p-4"><Loader2 className="animate-spin" /></div> :
+                         bookedClasses.length > 0 ? (
+                            <ul className="space-y-4">
+                                {bookedClasses.map(cls => (
+                                <li key={cls.id} className="flex items-center justify-between rounded-lg border p-4">
+                                    <div>
+                                        <p className="font-semibold">{cls.className}</p>
+                                        <p className="text-sm text-muted-foreground">with {cls.trainerName}</p>
+                                    </div>
+                                    <div className="text-right">
+                                        <p className="font-medium">{cls.dateTime.toLocaleDateString()}</p>
+                                        <p className="text-sm text-muted-foreground">{cls.dateTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit'})}</p>
+                                    </div>
+                                </li>
+                                ))}
+                            </ul>
+                        ) : (
+                            <div className="text-center py-6">
+                                <p className="text-muted-foreground mb-4">You have no upcoming classes.</p>
+                                <Link href="/dashboard/member/book-class" passHref>
+                                    <Button>
+                                        <CalendarCheck className="w-4 h-4 mr-2" />
+                                        Book a Class
+                                    </Button>
+                                </Link>
+                            </div>
+                        )}
                     </CardContent>
                 </Card>
+
                  <Card>
                     <CardHeader>
                         <CardTitle className="flex items-center gap-2"><Tags/> Active Offers</CardTitle>
                         <CardDescription>Check out the latest promotions available for you.</CardDescription>
                     </CardHeader>
                     <CardContent>
-                        {loadingOffers ? <p>Loading offers...</p> : (
+                        {loading ? <div className="flex items-center justify-center p-4"><Loader2 className="animate-spin" /></div> : (
                             offers.length > 0 ? (
                                 <div className="grid md:grid-cols-2 gap-4">
                                 {offers.map(offer => (
@@ -242,7 +291,7 @@ export default function MemberDashboard() {
                         <CardDescription>Check the availability of gym equipment.</CardDescription>
                     </CardHeader>
                     <CardContent>
-                        {loadingEquipment ? <p>Loading equipment status...</p> : (
+                        {loading ? <div className="flex items-center justify-center p-4"><Loader2 className="animate-spin" /></div> : (
                             equipment.length > 0 ? (
                                 <div className="grid md:grid-cols-3 gap-4 max-h-60 overflow-y-auto">
                                 {equipment.map(item => (
