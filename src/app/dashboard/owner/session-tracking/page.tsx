@@ -33,11 +33,11 @@ const InsightsDisplay = ({ analysis }: { analysis: SessionAnalysis }) => (
         </CardHeader>
         <CardContent className="space-y-6">
             <div>
-                <h3 className="font-semibold flex items-center gap-2 mb-2"><User /> Top Performing Trainer</h3>
+                <h3 className="font-semibold flex items-center gap-2 mb-2"><User /> Top Performing Trainers</h3>
                 <p className="text-sm text-muted-foreground">{analysis.topTrainer.analysis}</p>
             </div>
              <div>
-                <h3 className="font-semibold flex items-center gap-2 mb-2"><BarChart /> Most Popular Class</h3>
+                <h3 className="font-semibold flex items-center gap-2 mb-2"><BarChart /> Most Popular Classes</h3>
                 <p className="text-sm text-muted-foreground">{analysis.popularClass.analysis}</p>
             </div>
              <div>
