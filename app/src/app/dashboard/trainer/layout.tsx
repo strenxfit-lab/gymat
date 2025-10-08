@@ -83,16 +83,21 @@ export default function TrainerDashboardLayout({
     router.push('/');
   };
   
-  const isCommunityPage = pathname.startsWith('/dashboard/trainer/community') || pathname.startsWith('/dashboard/trainer/profile') || pathname.startsWith('/dashboard/trainer/activity') || pathname.startsWith('/dashboard/search') || pathname.startsWith('/progress');
+  const isSpecialLayoutPage = pathname.startsWith('/dashboard/trainer/community') || 
+                              pathname.startsWith('/dashboard/trainer/profile') || 
+                              pathname.startsWith('/dashboard/trainer/activity') || 
+                              pathname.startsWith('/dashboard/search');
 
-  if (isCommunityPage) {
+  // The /progress route is global and should not be handled by this layout's special logic
+  if (pathname.startsWith('/progress')) {
+      return <>{children}</>;
+  }
+
+  if (isSpecialLayoutPage) {
     if (pathname.startsWith('/dashboard/trainer/profile')) {
        return <>{children}</>;
     }
      if (pathname.startsWith('/dashboard/search')) {
-       return <>{children}</>;
-    }
-    if (pathname.startsWith('/progress')) {
        return <>{children}</>;
     }
     return <>{children}</>;

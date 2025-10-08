@@ -84,19 +84,23 @@ export default function MemberDashboardLayout({
     router.push('/');
   };
   
-  const isCommunityPage = pathname.startsWith('/dashboard/member/community') || pathname.startsWith('/dashboard/member/profile') || pathname.startsWith('/dashboard/member/activity') || pathname.startsWith('/dashboard/search') || pathname.startsWith('/progress');
+  const isSpecialLayoutPage = pathname.startsWith('/dashboard/member/community') || 
+                              pathname.startsWith('/dashboard/member/profile') || 
+                              pathname.startsWith('/dashboard/member/activity') || 
+                              pathname.startsWith('/dashboard/search');
 
-  if (isCommunityPage) {
+  // The /progress route is global and should not be handled by this layout's special logic
+  if (pathname.startsWith('/progress')) {
+      return <>{children}</>;
+  }
+
+  if (isSpecialLayoutPage) {
     if (pathname.startsWith('/dashboard/member/profile')) {
        return <>{children}</>;
     }
     if (pathname.startsWith('/dashboard/search')) {
        return <>{children}</>;
     }
-    if (pathname.startsWith('/progress')) {
-       return <>{children}</>;
-    }
-    // All other community-related pages get the special layout
     return <>{children}</>;
   }
 
