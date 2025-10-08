@@ -34,6 +34,7 @@ const formSchema = z.object({
   membershipType: z.string().nonempty({ message: 'Please select a membership type.' }),
   startDate: z.date({ required_error: 'Start date is required.' }),
   endDate: z.date({ required_error: 'End date is required.' }),
+  totalFee: z.string().min(1, { message: "Total fee is required."}),
   assignedTrainer: z.string().optional(),
   plan: z.string().optional(),
 
@@ -53,7 +54,7 @@ interface Trainer {
 
 const steps: { id: number; title: string; icon: JSX.Element; fields: FieldName[] }[] = [
     { id: 1, title: 'Basic Information', icon: <User />, fields: ['fullName', 'gender', 'dob', 'phone', 'email'] },
-    { id: 2, title: 'Membership Details', icon: <Dumbbell />, fields: ['membershipType', 'startDate', 'endDate', 'assignedTrainer', 'plan'] },
+    { id: 2, title: 'Membership Details', icon: <Dumbbell />, fields: ['membershipType', 'startDate', 'endDate', 'totalFee', 'assignedTrainer', 'plan'] },
     { id: 3, title: 'Health & Fitness', icon: <HeartPulse />, fields: ['height', 'weight', 'medicalConditions', 'fitnessGoal'] },
 ];
 
@@ -72,6 +73,7 @@ export default function AddMemberPage() {
       phone: '',
       email: '',
       membershipType: '',
+      totalFee: '',
       assignedTrainer: '',
       plan: '',
       height: '',
@@ -140,6 +142,7 @@ export default function AddMemberPage() {
       const membersCollection = collection(db, 'gyms', userDocId, 'members');
       await addDoc(membersCollection, {
         ...data,
+        totalFee: parseFloat(data.totalFee),
         dob: Timestamp.fromDate(data.dob),
         startDate: Timestamp.fromDate(data.startDate),
         endDate: Timestamp.fromDate(data.endDate),
@@ -225,6 +228,9 @@ export default function AddMemberPage() {
                             </Select><FormMessage />
                             </FormItem>
                         )} />
+                        <FormField control={form.control} name="totalFee" render={({ field }) => ( <FormItem><FormLabel>Total Fee (₹)</FormLabel><FormControl><Input type="number" placeholder="1500" {...field} /></FormControl><FormMessage /></FormItem> )} />
+                        <FormField control={form.control} name="startDate" render={({ field }) => ( <FormItem className="flex flex-col"><FormLabel>Start Date</FormLabel><FormControl><Input type="date" value={field.value ? format(field.value, 'yyyy-MM-dd') : ''} onChange={e => field.onChange(new Date(e.target.value))} /></FormControl><FormMessage /></FormItem>)} />
+                        <FormField control={form.control} name="endDate" render={({ field }) => ( <FormItem className="flex flex-col"><FormLabel>End Date</FormLabel><FormControl><Input type="date" value={field.value ? format(field.value, 'yyyy-MM-dd') : ''} onChange={e => field.onChange(new Date(e.target.value))} /></FormControl><FormMessage /></FormItem>)} />
                         <FormField control={form.control} name="assignedTrainer" render={({ field }) => (
                             <FormItem><FormLabel>Assigned Trainer (Optional)</FormLabel>
                             <Select onValueChange={field.onChange} defaultValue={field.value}>
@@ -236,10 +242,8 @@ export default function AddMemberPage() {
                             </Select><FormMessage />
                             </FormItem>
                         )} />
-                        <FormField control={form.control} name="startDate" render={({ field }) => ( <FormItem className="flex flex-col"><FormLabel>Start Date</FormLabel><FormControl><Input type="date" value={field.value ? format(field.value, 'yyyy-MM-dd') : ''} onChange={e => field.onChange(new Date(e.target.value))} /></FormControl><FormMessage /></FormItem>)} />
-                        <FormField control={form.control} name="endDate" render={({ field }) => ( <FormItem className="flex flex-col"><FormLabel>End Date</FormLabel><FormControl><Input type="date" value={field.value ? format(field.value, 'yyyy-MM-dd') : ''} onChange={e => field.onChange(new Date(e.target.value))} /></FormControl><FormMessage /></FormItem>)} />
                         <FormField control={form.control} name="plan" render={({ field }) => (
-                            <FormItem className="md:col-span-2"><FormLabel>Plan/Package (Optional)</FormLabel>
+                            <FormItem><FormLabel>Plan/Package (Optional)</FormLabel>
                             <Select onValueChange={field.onChange} defaultValue={field.value}>
                                 <FormControl><SelectTrigger><SelectValue placeholder="Select plan" /></SelectTrigger></FormControl>
                                 <SelectContent><SelectItem value="gym">Gym</SelectItem><SelectItem value="personal-training">Personal Training</SelectItem><SelectItem value="weight-loss">Weight Loss</SelectItem><SelectItem value="bodybuilding">Bodybuilding</SelectItem></SelectContent>
@@ -291,4 +295,4 @@ export default function AddMemberPage() {
   );
 }
 
-    
+  
