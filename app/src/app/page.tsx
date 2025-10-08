@@ -19,10 +19,13 @@ export default function Home() {
   const [expiredGymId, setExpiredGymId] = useState<string | null>(null);
 
   useEffect(() => {
+    // This effect runs once on the client after the component mounts.
     const userDocId = localStorage.getItem('userDocId');
     const userRole = localStorage.getItem('userRole');
 
     if (userDocId && userRole) {
+      // If a user is found, redirect them to their dashboard.
+      // The router is guaranteed to be available at this stage.
       if (userRole === 'owner') {
         router.replace('/dashboard/owner');
       } else if (userRole === 'member') {
@@ -32,9 +35,11 @@ export default function Home() {
       } else if (userRole === 'superadmin') {
         router.replace('/dashboard/superadmin');
       } else {
+        // If the role is invalid, show the login form.
         setIsCheckingAuth(false);
       }
     } else {
+      // If no user is found, show the login form.
       setIsCheckingAuth(false);
     }
   }, [router]);
