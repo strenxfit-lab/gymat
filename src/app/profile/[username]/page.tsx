@@ -1,22 +1,18 @@
 
-
 "use client";
 
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { doc, getDoc, collection, query, where, getDocs, Timestamp, updateDoc, arrayUnion, arrayRemove, addDoc, serverTimestamp, deleteDoc, writeBatch, setDoc } from 'firebase/firestore';
+import { doc, getDoc, collection, query, where, getDocs, Timestamp, updateDoc, arrayUnion, arrayRemove, addDoc, serverTimestamp, deleteDoc, writeBatch } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from "@/components/ui/button";
-import { Loader2, User, ArrowLeft, Rss, Image as ImageIcon, Video, Settings, Lock, Edit, UserPlus, UserCheck, MessageCircle, Ban } from 'lucide-react';
+import { Loader2, User, ArrowLeft, Rss, Image as ImageIcon, Video, Settings, Lock, Edit, UserPlus, UserCheck, MessageCircle } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { LayoutDashboard, Search } from 'lucide-react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
-import { MoreVertical } from "lucide-react";
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 
 
 interface ProfileStats {
@@ -33,7 +29,6 @@ interface CommunityProfile {
     userId: string;
     followers?: string[];
     following?: string[];
-    blockedUsers?: string[];
 }
 
 interface Post {
@@ -68,14 +63,11 @@ export default function UserProfilePage() {
   const [followingList, setFollowingList] = useState<string[]>([]);
   const [isFollowersOpen, setIsFollowersOpen] = useState(false);
   const [isFollowingOpen, setIsFollowingOpen] = useState(false);
-  const [isStartingChat, setIsStartingChat] = useState(false);
-  const [isBlocked, setIsBlocked] = useState(false);
-  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
 
   const loggedInUsername = typeof window !== 'undefined' ? localStorage.getItem('communityUsername') : null;
 
   const fetchProfileData = async () => {
-    if (!username || !loggedInUsername) return;
+    if (!username) return;
 
     const loggedInUserRole = localStorage.getItem('userRole');
     const loggedInUserId = loggedInUserRole === 'owner' ? localStorage.getItem('userDocId') : (loggedInUserRole === 'member' ? localStorage.getItem('memberId') : localStorage.getItem('trainerId'));
@@ -84,35 +76,19 @@ export default function UserProfilePage() {
     else if(loggedInUserRole === 'member') setBackLink('/dashboard/member/community');
     else if(loggedInUserRole === 'trainer') setBackLink('/dashboard/trainer/community');
 
+
     try {
       const profileRef = doc(db, 'userCommunity', username);
       const profileSnap = await getDoc(profileRef);
 
-      const currentUserRef = doc(db, 'userCommunity', loggedInUsername);
-      const currentUserSnap = await getDoc(currentUserRef);
-      const currentUserData = currentUserSnap.data() as CommunityProfile;
-
       if (profileSnap.exists()) {
         const profileData = profileSnap.data() as CommunityProfile;
-
-        // Check if viewed profile is a superadmin
-        const superadminQuery = query(collection(db, 'superadmins'), where('__name__', '==', profileData.userId));
-        const superadminSnap = await getDocs(superadminQuery);
-        setIsSuperAdmin(!superadminSnap.empty);
-        
-        // Check if current user is blocked by or has blocked the viewed profile
-        if (profileData.blockedUsers?.includes(loggedInUsername) || currentUserData.blockedUsers?.includes(username)) {
-            setIsBlocked(true);
-            setLoading(false);
-            return;
-        }
-
         setProfile(profileData);
         
         const ownProfile = profileData.userId === loggedInUserId;
         setIsOwnProfile(ownProfile);
 
-        if (!ownProfile) {
+        if (!ownProfile && loggedInUsername) {
             if (profileData.followers?.includes(loggedInUsername)) {
                 setFollowStatus('following');
             } else {
@@ -204,12 +180,6 @@ export default function UserProfilePage() {
 
   const handleUnfollow = async () => {
       if (!profile || !loggedInUsername || isOwnProfile) return;
-
-      if (isSuperAdmin) {
-          toast({ title: "Action Not Allowed", description: "You cannot unfollow a superadmin account.", variant: "destructive" });
-          return;
-      }
-
       setIsUpdatingFollow(true);
 
       const targetUserRef = doc(db, 'userCommunity', username);
@@ -235,72 +205,11 @@ export default function UserProfilePage() {
           setIsUpdatingFollow(false);
       }
   }
-
-  const handleStartChat = async () => {
-    if (!profile || !loggedInUsername || isOwnProfile) return;
-    setIsStartingChat(true);
-
-    const participants = [loggedInUsername, username].sort();
-    const chatId = participants.join('_');
-    const chatRef = doc(db, 'chats', chatId);
-
-    try {
-        const chatSnap = await getDoc(chatRef);
-        if (!chatSnap.exists()) {
-            await setDoc(chatRef, {
-                participants: participants,
-                createdAt: serverTimestamp(),
-            });
-        }
-        router.push(`/dashboard/messages/${chatId}`);
-    } catch (error) {
-        console.error("Error starting chat:", error);
-        toast({ title: "Error", description: "Could not start a chat.", variant: "destructive" });
-    } finally {
-        setIsStartingChat(false);
-    }
-  };
-
-  const handleBlock = async () => {
-    if (!loggedInUsername || !username || isOwnProfile) return;
-
-    const currentUserRef = doc(db, 'userCommunity', loggedInUsername);
-    const targetUserRef = doc(db, 'userCommunity', username);
-    
-    try {
-        const batch = writeBatch(db);
-        // Add to current user's blocked list
-        batch.update(currentUserRef, { blockedUsers: arrayUnion(username) });
-        // Force unfollow
-        batch.update(currentUserRef, { following: arrayRemove(username) });
-        batch.update(targetUserRef, { followers: arrayRemove(loggedInUsername) });
-
-        await batch.commit();
-        toast({ title: 'User Blocked', description: `${username} has been blocked.` });
-        setIsBlocked(true); // Visually update the page immediately
-    } catch (error) {
-        console.error("Error blocking user: ", error);
-        toast({ title: "Error", description: "Could not block user.", variant: "destructive" });
-    }
-  }
   
   if (loading) {
     return <div className="flex min-h-screen items-center justify-center bg-background"><Loader2 className="h-8 w-8 animate-spin" /></div>;
   }
   
-  if (isBlocked) {
-    return (
-        <div className="flex min-h-screen items-center justify-center bg-background">
-            <div className="text-center">
-                <Ban className="mx-auto h-12 w-12 text-muted-foreground" />
-                <h2 className="mt-4 text-xl font-semibold">Profile Unavailable</h2>
-                <p className="mt-2 text-muted-foreground">You can't view this profile.</p>
-                <Button onClick={() => router.back()} className="mt-4">Go Back</Button>
-            </div>
-        </div>
-    );
-  }
-
   if (!profile) {
       return <div className="flex min-h-screen items-center justify-center bg-background">Profile not found.</div>
   }
@@ -315,9 +224,9 @@ export default function UserProfilePage() {
     if (followStatus === 'following') {
       return (
         <div className="flex items-center gap-2">
-            <Button variant="secondary" onClick={handleUnfollow} disabled={isUpdatingFollow || isSuperAdmin}>Following</Button>
-            <Button variant="outline" onClick={handleStartChat} disabled={isStartingChat}>
-                {isStartingChat ? <Loader2 className="animate-spin h-4 w-4 mr-2"/> : <MessageCircle className="mr-2 h-4 w-4"/>} Message
+            <Button variant="secondary" onClick={handleUnfollow} disabled={isUpdatingFollow}>Following</Button>
+            <Button variant="outline" onClick={() => toast({ title: "Coming Soon!", description: "Direct messaging will be available in a future update."})}>
+                <MessageCircle className="mr-2 h-4 w-4"/> Message
             </Button>
         </div>
       );
@@ -377,35 +286,7 @@ export default function UserProfilePage() {
                                 </Link>
                             </>
                         ) : (
-                          <>
-                            {renderFollowButton()}
-                             <AlertDialog>
-                                <DropdownMenu>
-                                    <DropdownMenuTrigger asChild>
-                                        <Button variant="ghost" size="icon" className="h-8 w-8">
-                                            <MoreVertical className="h-4 w-4"/>
-                                        </Button>
-                                    </DropdownMenuTrigger>
-                                    <DropdownMenuContent>
-                                        <AlertDialogTrigger asChild>
-                                            <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="text-destructive focus:text-destructive">
-                                                <Ban className="mr-2 h-4 w-4" /> Block
-                                            </DropdownMenuItem>
-                                        </AlertDialogTrigger>
-                                    </DropdownMenuContent>
-                                </DropdownMenu>
-                                <AlertDialogContent>
-                                    <AlertDialogHeader>
-                                        <AlertDialogTitle>Block {username}?</AlertDialogTitle>
-                                        <AlertDialogDescription>They will not be able to find your profile, posts or story on Strenx. Strenx will not let them know you have blocked them.</AlertDialogDescription>
-                                    </AlertDialogHeader>
-                                    <AlertDialogFooter>
-                                        <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                        <AlertDialogAction onClick={handleBlock} className="bg-destructive hover:bg-destructive/80">Block</AlertDialogAction>
-                                    </AlertDialogFooter>
-                                </AlertDialogContent>
-                            </AlertDialog>
-                          </>
+                            renderFollowButton()
                         )}
                         </div>
                   </div>
