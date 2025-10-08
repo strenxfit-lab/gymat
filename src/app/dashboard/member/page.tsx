@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button";
 import { CalendarCheck, Tags, IndianRupee, Percent, ShieldCheck, User, LogOut, Bell, Building, Cake, Clock, Loader2 } from "lucide-react";
 import Link from 'next/link';
-import { collection, getDocs, query, where, Timestamp, doc, getDoc } from 'firebase/firestore';
+import { collection, getDocs, query, where, Timestamp, doc, getDoc, collectionGroup } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { Badge } from '@/components/ui/badge';
 import { format, parseISO, isBefore, isWithinInterval, addDays } from 'date-fns';
@@ -318,7 +318,7 @@ export default function MemberDashboard() {
                             <Button className="w-full justify-start"><CalendarCheck className="mr-2"/> Book a Class</Button>
                         </Link>
                          <Link href="/dashboard/member/payment-history" passHref>
-                            <Button className="w-full justify-start" variant="outline">Payment History</Button>
+                            <Button className="w-full justify-start" variant="outline"><IndianRupee className="mr-2"/>Payment History</Button>
                          </Link>
                          <Link href="/dashboard/gym-profile" passHref>
                             <Button className="w-full justify-start" variant="outline"><Building className="mr-2"/> Your Gym Profile</Button>
