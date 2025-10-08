@@ -358,13 +358,17 @@ export default function OwnerDashboard() {
                         <p className="text-sm font-medium">New Trial Members Today</p>
                         <p className="text-2xl font-bold">{gymData.newTrialMembers}</p>
                     </div>
-                     <div>
+                     <div className="mb-4">
                         <p className="text-sm font-medium">Running Offers</p>
                         <ul className="list-disc list-inside mt-1 text-sm text-muted-foreground">
                             {gymData.runningOffers.map(offer => <li key={offer}>{offer}</li>)}
                             {gymData.runningOffers.length === 0 && <p className="text-muted-foreground text-sm">No running offers.</p>}
                         </ul>
                     </div>
+                    <Button variant="outline">
+                        <PlusCircle className="mr-2 h-4 w-4" />
+                        Create an offer
+                    </Button>
                 </CardContent>
             </Card>
         </div>
