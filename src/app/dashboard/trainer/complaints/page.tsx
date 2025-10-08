@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { collection, addDoc, getDocs, Timestamp, query, where, orderBy, serverTimestamp } from 'firebase/firestore';
+import { collection, addDoc, getDocs, Timestamp, query, where, orderBy } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useToast } from '@/hooks/use-toast';
 
@@ -29,7 +29,7 @@ interface Complaint {
     id: string;
     complaint: string;
     status: 'Pending' | 'In Review' | 'Resolved';
-    submittedAt: Date;
+    submittedAt: string;
 }
 
 const getStatusVariant = (status: Complaint['status']) => {
@@ -53,38 +53,34 @@ export default function TrainerComplaintsPage() {
     defaultValues: { complaint: '' },
   });
   
-  const fetchComplaints = async () => {
-    const userDocId = localStorage.getItem('userDocId');
-    const activeBranchId = localStorage.getItem('activeBranch');
-    const trainerId = localStorage.getItem('trainerId');
-
-    if (!userDocId || !activeBranchId || !trainerId) {
-        toast({ title: 'Error', description: 'Session invalid.', variant: 'destructive' });
-        return;
-    }
-
-    try {
-        const complaintsCollection = collection(db, 'gyms', userDocId, 'branches', activeBranchId, 'complaints');
-        const q = query(complaintsCollection, where('authorId', '==', trainerId));
-        const complaintsSnap = await getDocs(q);
-        const complaintsList = complaintsSnap.docs.map(doc => ({
-            id: doc.id,
-            ...doc.data(),
-            submittedAt: (doc.data().submittedAt as Timestamp).toDate()
-        } as Complaint));
-        
-        complaintsList.sort((a,b) => b.submittedAt.getTime() - a.submittedAt.getTime());
-
-        setPastComplaints(complaintsList);
-    } catch (error) {
-        console.error("Error fetching complaints:", error);
-        toast({ title: "Error", description: "Could not fetch past complaints.", variant: "destructive" });
-    } finally {
-        setIsFetching(false);
-    }
-  };
-
   useEffect(() => {
+    const fetchComplaints = async () => {
+        const userDocId = localStorage.getItem('userDocId');
+        const activeBranchId = localStorage.getItem('activeBranch');
+        const trainerId = localStorage.getItem('trainerId');
+
+        if (!userDocId || !activeBranchId || !trainerId) {
+            toast({ title: 'Error', description: 'Session invalid.', variant: 'destructive' });
+            return;
+        }
+
+        try {
+            const complaintsCollection = collection(db, 'gyms', userDocId, 'branches', activeBranchId, 'complaints');
+            const q = query(complaintsCollection, where('authorId', '==', trainerId), orderBy('submittedAt', 'desc'));
+            const complaintsSnap = await getDocs(q);
+            const complaintsList = complaintsSnap.docs.map(doc => ({
+                id: doc.id,
+                ...doc.data(),
+                submittedAt: (doc.data().submittedAt as Timestamp).toDate().toLocaleString()
+            } as Complaint));
+            setPastComplaints(complaintsList);
+        } catch (error) {
+            console.error("Error fetching complaints:", error);
+            toast({ title: "Error", description: "Could not fetch past complaints.", variant: "destructive" });
+        } finally {
+            setIsFetching(false);
+        }
+    };
     fetchComplaints();
   }, [toast]);
 
@@ -110,12 +106,42 @@ export default function TrainerComplaintsPage() {
             authorName: trainerName || "Unknown Trainer",
             authorRole: 'trainer',
             status: 'Pending',
-            submittedAt: serverTimestamp(),
+            submittedAt: Timestamp.now(),
         });
         toast({ title: 'Complaint Submitted!', description: 'Thank you for your feedback. We will look into it shortly.'});
         form.reset();
+        // This is a simplified approach. For a more robust app, you might want to avoid a full refetch.
         setIsFetching(true);
-        fetchComplaints();
+        useEffect(() => {
+            const fetchComplaints = async () => {
+                const userDocId = localStorage.getItem('userDocId');
+                const activeBranchId = localStorage.getItem('activeBranch');
+                const trainerId = localStorage.getItem('trainerId');
+        
+                if (!userDocId || !activeBranchId || !trainerId) {
+                    toast({ title: 'Error', description: 'Session invalid.', variant: 'destructive' });
+                    return;
+                }
+        
+                try {
+                    const complaintsCollection = collection(db, 'gyms', userDocId, 'branches', activeBranchId, 'complaints');
+                    const q = query(complaintsCollection, where('authorId', '==', trainerId), orderBy('submittedAt', 'desc'));
+                    const complaintsSnap = await getDocs(q);
+                    const complaintsList = complaintsSnap.docs.map(doc => ({
+                        id: doc.id,
+                        ...doc.data(),
+                        submittedAt: (doc.data().submittedAt as Timestamp).toDate().toLocaleString()
+                    } as Complaint));
+                    setPastComplaints(complaintsList);
+                } catch (error) {
+                    console.error("Error fetching complaints:", error);
+                    toast({ title: "Error", description: "Could not fetch past complaints.", variant: "destructive" });
+                } finally {
+                    setIsFetching(false);
+                }
+            };
+            fetchComplaints();
+        }, [toast]);
     } catch (error) {
         console.error("Error submitting complaint:", error);
         toast({ title: 'Submission Failed', description: 'An error occurred. Please try again.', variant: 'destructive' });
@@ -194,7 +220,7 @@ export default function TrainerComplaintsPage() {
                                 {pastComplaints.map(c => (
                                     <div key={c.id} className="p-4 border rounded-md">
                                         <div className="flex justify-between items-center mb-2">
-                                            <p className="text-sm text-muted-foreground">{c.submittedAt.toLocaleString()}</p>
+                                            <p className="text-sm text-muted-foreground">{c.submittedAt}</p>
                                             <Badge variant={getStatusVariant(c.status)}>{c.status}</Badge>
                                         </div>
                                         <p className="text-sm">{c.complaint}</p>
