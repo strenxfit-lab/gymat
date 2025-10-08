@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Loader2, ArrowLeft, Building, User, Phone, Mail, MapPin, Wallet, CalendarCheck } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
+import { cn } from '@/lib/utils';
 
 interface GymDetails {
   gymName: string;
@@ -148,11 +149,6 @@ export default function GymProfilePage() {
             </div>
         </CardContent>
         <CardFooter className="flex-col gap-4 pt-6">
-            {userRole === 'member' && (
-                <Link href="/dashboard/member/book-class" passHref>
-                    <Button size="lg"><CalendarCheck className="mr-2"/>Join Now</Button>
-                </Link>
-            )}
              <Link href={getBackLink()} passHref>
                 <Button variant="ghost" className="text-muted-foreground">
                     <ArrowLeft className="mr-2 h-4 w-4"/>
