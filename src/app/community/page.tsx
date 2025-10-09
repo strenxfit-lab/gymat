@@ -804,14 +804,13 @@ export default function CommunityPage() {
         </DialogContent>
       </Dialog>
       
-      <div className="flex-1 flex flex-col">
-        <Dialog open={isPostDialogOpen} onOpenChange={(open) => {
+      <Dialog open={isPostDialogOpen} onOpenChange={(open) => {
             if (!open) {
                 setEditingPost(null);
             }
             setIsPostDialogOpen(open);
         }}>
-          <Tabs defaultValue="global" value={activeTab} onValueChange={setActiveTab} className="flex flex-col flex-1">
+          <Tabs defaultValue="global" value={activeTab} onValueChange={setActiveTab} className="h-full flex flex-col">
             <header className="p-4 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-10">
               <div className="flex items-center justify-between">
                   <h1 className="text-2xl font-bold">Community</h1>
@@ -840,7 +839,7 @@ export default function CommunityPage() {
                     {renderFeed()}
                 </div>
             </main>
-          </Tabs>
+          
           <DialogContent>
                <DialogHeader>
                   <DialogTitle>{editingPost ? "Edit Post" : "Create a New Post"}</DialogTitle>
@@ -918,8 +917,8 @@ export default function CommunityPage() {
                   </form>
               </Form>
           </DialogContent>
+          </Tabs>
         </Dialog>
-      </div>
       
       <BottomNavbar
         navItems={[
@@ -932,7 +931,3 @@ export default function CommunityPage() {
     </div>
   );
 }
-
-    
-
-    
