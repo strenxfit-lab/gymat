@@ -3,7 +3,7 @@
 
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { doc, getDoc, collection, query, where, getDocs, Timestamp, updateDoc, arrayUnion, arrayRemove, addDoc, serverTimestamp, deleteDoc, writeBatch } from 'firebase/firestore';
+import { doc, getDoc, collection, query, where, getDocs, Timestamp, updateDoc, arrayUnion, arrayRemove, addDoc, serverTimestamp, deleteDoc, writeBatch, setDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from "@/components/ui/button";
@@ -63,6 +63,7 @@ export default function UserProfilePage() {
   const [followingList, setFollowingList] = useState<string[]>([]);
   const [isFollowersOpen, setIsFollowersOpen] = useState(false);
   const [isFollowingOpen, setIsFollowingOpen] = useState(false);
+  const [isStartingChat, setIsStartingChat] = useState(false);
 
   const loggedInUsername = typeof window !== 'undefined' ? localStorage.getItem('communityUsername') : null;
 
@@ -205,6 +206,31 @@ export default function UserProfilePage() {
           setIsUpdatingFollow(false);
       }
   }
+
+  const handleStartChat = async () => {
+    if (!profile || !loggedInUsername || isOwnProfile) return;
+    setIsStartingChat(true);
+
+    const participants = [loggedInUsername, username].sort();
+    const chatId = participants.join('_');
+    const chatRef = doc(db, 'chats', chatId);
+
+    try {
+        const chatSnap = await getDoc(chatRef);
+        if (!chatSnap.exists()) {
+            await setDoc(chatRef, {
+                participants: participants,
+                createdAt: serverTimestamp(),
+            });
+        }
+        router.push(`/dashboard/messages/${chatId}`);
+    } catch (error) {
+        console.error("Error starting chat:", error);
+        toast({ title: "Error", description: "Could not start a chat.", variant: "destructive" });
+    } finally {
+        setIsStartingChat(false);
+    }
+  };
   
   if (loading) {
     return <div className="flex min-h-screen items-center justify-center bg-background"><Loader2 className="h-8 w-8 animate-spin" /></div>;
@@ -225,8 +251,8 @@ export default function UserProfilePage() {
       return (
         <div className="flex items-center gap-2">
             <Button variant="secondary" onClick={handleUnfollow} disabled={isUpdatingFollow}>Following</Button>
-            <Button variant="outline" onClick={() => toast({ title: "Coming Soon!", description: "Direct messaging will be available in a future update."})}>
-                <MessageCircle className="mr-2 h-4 w-4"/> Message
+            <Button variant="outline" onClick={handleStartChat} disabled={isStartingChat}>
+                {isStartingChat ? <Loader2 className="animate-spin h-4 w-4 mr-2"/> : <MessageCircle className="mr-2 h-4 w-4"/>} Message
             </Button>
         </div>
       );
