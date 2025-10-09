@@ -11,6 +11,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter }
 import { Button } from "@/components/ui/button";
 import { Loader2, ArrowLeft, Shield, Check, IndianRupee } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
+import { ThemeToggle } from '@/components/theme-toggle';
 import { addMonths, addYears } from 'date-fns';
 
 declare global {
@@ -36,6 +37,7 @@ export default function RenewPage() {
   const [gymId, setGymId] = useState<string | null>(null);
   const { toast } = useToast();
   const searchParams = useSearchParams();
+  const router = useRouter();
 
   useEffect(() => {
     const idFromParams = searchParams.get('gymId');
@@ -83,7 +85,7 @@ export default function RenewPage() {
         key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
         amount: plan.price * 100,
         currency: "INR",
-        name: "Strenx Enterprises",
+        name: "Strenx",
         description: `Subscription: ${plan.name}`,
         handler: async (response: any) => {
             try {
@@ -159,9 +161,12 @@ export default function RenewPage() {
     <div className="bg-background min-h-screen">
     <header className="sticky top-0 z-10 flex h-16 items-center justify-between border-b bg-background/80 backdrop-blur-sm px-4 md:px-8">
         <h1 className="text-xl font-bold">Renew Subscription</h1>
-        <Link href="/dashboard/owner" passHref>
-            <Button variant="outline"><ArrowLeft className="mr-2 h-4 w-4" /> Back to Dashboard</Button>
-        </Link>
+        <div className="flex items-center gap-2">
+            <ThemeToggle />
+            <Link href="/dashboard/owner" passHref>
+                <Button variant="outline"><ArrowLeft className="mr-2 h-4 w-4" /> Back to Dashboard</Button>
+            </Link>
+        </div>
     </header>
     <div className="container mx-auto py-10">
       <div className="text-center mb-10">
