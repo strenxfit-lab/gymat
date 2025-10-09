@@ -5,16 +5,16 @@ import { useState, useEffect } from 'react';
 import { doc, getDoc, collection, query, orderBy, onSnapshot, addDoc, serverTimestamp, where, getDocs } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useToast } from '@/hooks/use-toast';
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Loader2, Sparkles, Download, Flame, BarChart3, Dumbbell } from 'lucide-react';
-import { differenceInDays, format, startOfDay, isSameDay, subDays } from 'date-fns';
+import { Loader2, Sparkles, Download, Flame, BarChart3, Dumbbell, Ruler, Star } from 'lucide-react';
+import { startOfDay, format, differenceInDays } from 'date-fns';
 import { workouts, type Muscle } from '@/lib/workouts';
-import { FrontBody } from '@/components/ui/front-body';
-import { BackBody } from '@/components/ui/back-body';
 import { analyzeWorkoutHistory, type WorkoutHistory } from '@/ai/flows/workout-analysis-flow';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import Link from 'next/link';
 
 
 interface CommunityProfile {
@@ -24,16 +24,23 @@ interface CommunityProfile {
 }
 
 interface WorkoutLog {
+    type: 'workout';
     workoutId: string;
     muscles: Muscle[];
     completedAt: any;
 }
 
-type MuscleColor = '#FF4B4B' | '#FFA500' | '#808080';
+interface MeasurementLog {
+    type: 'measurement';
+    weight?: number;
+    chest?: number;
+    waist?: number;
+    arms?: number;
+    thighs?: number;
+    completedAt: any;
+}
 
-type MuscleColors = {
-    [key in Muscle]?: MuscleColor;
-};
+type TimelineItem = (WorkoutLog | MeasurementLog) & { id: string };
 
 interface TopWorkout {
     name: string;
@@ -42,10 +49,9 @@ interface TopWorkout {
 
 export default function ProgressPage() {
     const [profile, setProfile] = useState<CommunityProfile | null>(null);
-    const [workoutLogs, setWorkoutLogs] = useState<WorkoutLog[]>([]);
+    const [timelineItems, setTimelineItems] = useState<TimelineItem[]>([]);
     const [totalWorkouts, setTotalWorkouts] = useState(0);
     const [username, setUsername] = useState<string | null>(null);
-    const [muscleColors, setMuscleColors] = useState<MuscleColors>({});
     const [loading, setLoading] = useState(true);
     const [isAnalyzing, setIsAnalyzing] = useState(false);
     const [analysisResult, setAnalysisResult] = useState<string | null>(null);
@@ -73,87 +79,32 @@ export default function ProgressPage() {
                 });
 
                 const workoutLogRef = collection(profileRef, 'workoutLog');
-                const q = query(workoutLogRef, orderBy('completedAt', 'desc'));
+                const measurementsLogRef = collection(profileRef, 'measurements');
 
-                const unsubscribeLogs = onSnapshot(q, (logSnap) => {
-                    const logs = logSnap.docs.map(d => {
-                        const data = d.data();
-                        if (data.completedAt) {
-                            return data as WorkoutLog;
-                        }
-                        return null;
-                    }).filter(Boolean) as WorkoutLog[];
-                    
-                    setWorkoutLogs(logs);
-                    setTotalWorkouts(logs.length);
-                    
-                    const today = startOfDay(new Date());
+                const workoutQuery = query(workoutLogRef, orderBy('completedAt', 'desc'));
+                const measurementsQuery = query(measurementsLogRef, orderBy('completedAt', 'desc'));
 
-                    // --- Streak Calculation ---
-                    let currentStreak = 0;
-                    if (logs.length > 0) {
-                        const uniqueDays = [...new Set(logs.map(log => startOfDay(log.completedAt.toDate()).getTime()))];
-                        uniqueDays.sort((a,b) => b-a);
+                const unsubscribeWorkouts = onSnapshot(workoutQuery, (workoutSnap) => {
+                    const workoutLogs = workoutSnap.docs.map(d => ({ id: d.id, type: 'workout', ...d.data() } as TimelineItem));
+                    
+                    onSnapshot(measurementsQuery, (measurementsSnap) => {
+                        const measurementLogs = measurementsSnap.docs.map(d => ({ id: d.id, type: 'measurement', ...d.data() } as TimelineItem));
                         
-                        const yesterday = startOfDay(subDays(new Date(), 1));
+                        const combined = [...workoutLogs, ...measurementLogs];
+                        combined.sort((a,b) => b.completedAt.toDate().getTime() - a.completedAt.toDate().getTime());
+                        
+                        setTimelineItems(combined);
+                        setTotalWorkouts(workoutLogs.length);
+                        setLoading(false);
 
-                        if(uniqueDays[0] === today.getTime() || uniqueDays[0] === yesterday.getTime()){
-                            currentStreak = 1;
-                            for (let i = 1; i < uniqueDays.length; i++) {
-                                const dayDiff = differenceInDays(new Date(uniqueDays[i-1]), new Date(uniqueDays[i]));
-                                if (dayDiff === 1) {
-                                    currentStreak++;
-                                } else {
-                                    break;
-                                }
-                            }
-                        }
-                    }
-                    setStreak(currentStreak);
-
-                    // --- Top 3 Workouts ---
-                    const workoutCounts = logs.reduce((acc, log) => {
-                        const workoutName = workouts.find(w => w.id === log.workoutId)?.name || 'Unknown';
-                        acc[workoutName] = (acc[workoutName] || 0) + 1;
-                        return acc;
-                    }, {} as Record<string, number>);
-
-                    const sortedWorkouts = Object.entries(workoutCounts)
-                        .map(([name, count]) => ({ name, count }))
-                        .sort((a, b) => b.count - a.count)
-                        .slice(0, 3);
-                    setTopWorkouts(sortedWorkouts);
-
-                    // --- Heatmap Logic ---
-                    const lastWorkoutDates: { [key in Muscle]?: Date } = {};
-                    logs.forEach(log => {
-                        log.muscles.forEach(muscle => {
-                            if (!lastWorkoutDates[muscle]) {
-                                lastWorkoutDates[muscle] = log.completedAt.toDate();
-                            }
-                        });
+                        // Calculations
+                        const logsForCalcs = workoutLogs.filter(log => log.completedAt);
+                        calculateStreak(logsForCalcs);
+                        calculateTopWorkouts(logsForCalcs);
                     });
-
-                    const colors: MuscleColors = {};
-                    Object.keys(lastWorkoutDates).forEach(m => {
-                        const muscle = m as Muscle;
-                        const lastDate = lastWorkoutDates[muscle];
-                        if (lastDate) {
-                            const daysAgo = differenceInDays(today, lastDate);
-                            if (daysAgo <= 1) {
-                                colors[muscle] = '#FF4B4B'; // Red
-                            } else if (daysAgo <= 3) {
-                                colors[muscle] = '#FFA500'; // Orange
-                            } else {
-                                colors[muscle] = '#808080'; // Grey
-                            }
-                        }
-                    });
-                    setMuscleColors(colors);
-                    setLoading(false);
                 });
 
-                return () => unsubscribeLogs();
+                return () => unsubscribeWorkouts();
             } else {
                 setLoading(false);
             }
@@ -162,6 +113,54 @@ export default function ProgressPage() {
         return () => unsubscribeProfile();
 
     }, [toast]);
+
+    const calculateStreak = (logs: TimelineItem[]) => {
+        if (logs.length === 0) {
+            setStreak(0);
+            return;
+        }
+        
+        const uniqueDays = [...new Set(logs.map(log => startOfDay(log.completedAt.toDate()).toISOString()))];
+        uniqueDays.sort((a, b) => new Date(b).getTime() - new Date(a).getTime());
+
+        let currentStreak = 0;
+        let today = startOfDay(new Date());
+
+        if (uniqueDays.includes(today.toISOString())) {
+            currentStreak = 1;
+        }
+
+        for (let i = 0; i < uniqueDays.length - 1; i++) {
+            const currentDay = new Date(uniqueDays[i]);
+            const nextDay = new Date(uniqueDays[i+1]);
+            
+            if (differenceInDays(currentDay, nextDay) === 1) {
+                currentStreak++;
+            } else {
+                break;
+            }
+        }
+        setStreak(currentStreak);
+    }
+    
+    const calculateTopWorkouts = (logs: TimelineItem[]) => {
+        const workoutCounts: { [key: string]: number } = {};
+        logs.forEach(log => {
+            if (log.type === 'workout') {
+                workoutCounts[log.workoutId] = (workoutCounts[log.workoutId] || 0) + 1;
+            }
+        });
+
+        const sortedWorkouts = Object.entries(workoutCounts)
+            .map(([id, count]) => ({
+                name: workouts.find(w => w.id === id)?.name || 'Unknown',
+                count
+            }))
+            .sort((a, b) => b.count - a.count)
+            .slice(0, 3);
+            
+        setTopWorkouts(sortedWorkouts);
+    };
 
     const handleMarkAsCompleted = async (workoutId: string) => {
         if (!username) return;
@@ -207,6 +206,7 @@ export default function ProgressPage() {
     };
     
     const handleAnalysis = async () => {
+        const workoutLogs = timelineItems.filter(item => item.type === 'workout') as WorkoutLog[];
         if (workoutLogs.length < 3) {
             toast({ title: "Not enough data", description: "Complete at least 3 workouts to get an analysis.", variant: "destructive" });
             return;
@@ -232,11 +232,45 @@ export default function ProgressPage() {
         }
     };
 
-
     const getLastCompletedDate = (workoutId: string) => {
-        const log = workoutLogs.find(log => log.workoutId === workoutId);
-        return log && log.completedAt ? format(log.completedAt.toDate(), 'PPP') : 'Not completed yet';
+        const log = timelineItems.find(log => log.type === 'workout' && log.workoutId === workoutId);
+        return log && log.completedAt ? new Date(log.completedAt.toDate()).toLocaleDateString() : 'Not completed yet';
     };
+
+    const renderTimelineItem = (item: TimelineItem) => {
+        if (item.type === 'workout') {
+            const workout = workouts.find(w => w.id === item.workoutId);
+            return (
+                <div className="flex flex-col">
+                    <p className="font-semibold">{workout?.name || 'Workout'}</p>
+                    <p className="text-sm text-gray-400 capitalize">
+                        {workout?.muscles.join(', ').replace(/_/g, ' ')}
+                    </p>
+                </div>
+            );
+        }
+        if (item.type === 'measurement') {
+            const details = Object.entries(item)
+                .filter(([key, value]) => key !== 'type' && key !== 'completedAt' && key !== 'id' && value)
+                .map(([key, value]) => `${key.charAt(0).toUpperCase() + key.slice(1)}: ${value}`)
+                .join(' | ');
+            return (
+                <div className="flex flex-col">
+                     <p className="font-semibold">Body Measurements</p>
+                     <p className="text-sm text-gray-400">{details}</p>
+                </div>
+            );
+        }
+        return null;
+    }
+
+    if (loading) {
+        return (
+            <div className="flex min-h-screen items-center justify-center bg-[#0F0F0F]">
+                <Loader2 className="h-8 w-8 animate-spin text-accent-red" />
+            </div>
+        );
+    }
 
     return (
         <div className="bg-[#0F0F0F] text-white min-h-screen font-body">
@@ -275,7 +309,6 @@ export default function ProgressPage() {
                     </Button>
                 </div>
 
-
                 {analysisResult && (
                     <Card className="bg-[#1A1A1A] border-[#2A2A2A] text-white mb-6">
                         <CardHeader>
@@ -287,71 +320,90 @@ export default function ProgressPage() {
                     </Card>
                 )}
 
-                 <Card className="bg-[#1A1A1A] border-[#2A2A2A] text-white mb-6">
-                    <CardHeader>
-                        <CardTitle className="flex items-center gap-2"><BarChart3/> Top 3 Workouts</CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-2">
-                        {topWorkouts.map((workout, index) => (
-                            <div key={index} className="flex justify-between items-center text-sm">
-                                <span>{index + 1}. {workout.name}</span>
-                                <span className="font-semibold">{workout.count} times</span>
-                            </div>
-                        ))}
-                         {topWorkouts.length === 0 && <p className="text-sm text-gray-400">Log some workouts to see your top ones!</p>}
-                    </CardContent>
-                </Card>
-
-
-                <Tabs defaultValue="heatmap" className="w-full">
-                    <TabsList className="grid w-full grid-cols-2 bg-[#1A1A1A] border border-[#2A2A2A] rounded-xl">
-                        <TabsTrigger value="heatmap" className="data-[state=active]:bg-accent-red data-[state=active]:text-white rounded-lg">Personal Heatmap</TabsTrigger>
-                        <TabsTrigger value="workouts" className="data-[state=active]:bg-accent-red data-[state=active]:text-white rounded-lg">Workouts</TabsTrigger>
+                <Tabs defaultValue="timeline">
+                    <TabsList className="grid w-full grid-cols-2 bg-[#1A1A1A] border-[#2A2A2A] mb-4">
+                        <TabsTrigger value="timeline">Timeline</TabsTrigger>
+                        <TabsTrigger value="workouts">Workouts</TabsTrigger>
                     </TabsList>
-                    <TabsContent value="heatmap" className="mt-6">
-                        <Card className="bg-transparent border-none">
-                            <CardContent className="p-0">
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                                    <div className="text-center">
-                                        <h3 className="font-semibold mb-4">Front</h3>
-                                        <FrontBody muscleColors={muscleColors} />
+                    <TabsContent value="timeline">
+                        <Card className="bg-[#1A1A1A] border-[#2A2A2A] text-white">
+                            <CardHeader>
+                                <CardTitle>Progress Timeline</CardTitle>
+                                <CardDescription>Your fitness journey at a glance.</CardDescription>
+                            </CardHeader>
+                            <CardContent>
+                                {timelineItems.length > 0 ? (
+                                    <div className="space-y-4">
+                                        <div className="flex items-center gap-4">
+                                            <div className="flex flex-col items-center">
+                                                <Star className="h-6 w-6 text-yellow-400 fill-yellow-400"/>
+                                                <div className="w-px h-8 bg-gray-600"></div>
+                                            </div>
+                                            <p className="font-bold text-lg">First Workout Logged! 🎉</p>
+                                        </div>
+                                        <Accordion type="single" collapsible>
+                                            {timelineItems.map(item => (
+                                                <AccordionItem value={item.id} key={item.id} className="border-gray-700">
+                                                    <AccordionTrigger className="hover:no-underline">
+                                                        <div className="flex items-center gap-4">
+                                                             <div className="flex flex-col items-center">
+                                                                <div className="w-px h-8 bg-gray-600"></div>
+                                                                <div className="h-4 w-4 rounded-full bg-accent-red"></div>
+                                                                <div className="w-px h-8 bg-gray-600"></div>
+                                                            </div>
+                                                            <div>
+                                                                <p className="font-semibold text-base">{format(item.completedAt.toDate(), 'MMMM d, yyyy')}</p>
+                                                                <div className="text-left text-sm text-gray-400">
+                                                                     {item.type === 'workout' && <Dumbbell className="inline-block mr-2 h-4 w-4"/>}
+                                                                     {item.type === 'measurement' && <Ruler className="inline-block mr-2 h-4 w-4"/>}
+                                                                     {item.type === 'workout' ? 'Workout' : 'Measurements'} Logged
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </AccordionTrigger>
+                                                    <AccordionContent className="pl-12">
+                                                        {renderTimelineItem(item)}
+                                                    </AccordionContent>
+                                                </AccordionItem>
+                                            ))}
+                                        </Accordion>
                                     </div>
-                                    <div className="text-center">
-                                        <h3 className="font-semibold mb-4">Back</h3>
-                                        <BackBody muscleColors={muscleColors} />
-                                    </div>
-                                </div>
-                                 <div className="flex justify-center gap-4 mt-6 text-xs">
-                                    <div className="flex items-center gap-2"><div className="w-3 h-3 rounded-full bg-[#FF4B4B]"></div>Trained 1 day ago</div>
-                                    <div className="flex items-center gap-2"><div className="w-3 h-3 rounded-full bg-[#FFA500]"></div>Trained 2-3 days ago</div>
-                                    <div className="flex items-center gap-2"><div className="w-3 h-3 rounded-full bg-[#808080]"></div>Trained 4+ days ago</div>
-                                </div>
+                                ) : (
+                                    <p className="text-center text-gray-400 py-8">Log a workout or measurement to start your timeline!</p>
+                                )}
                             </CardContent>
                         </Card>
                     </TabsContent>
-                    <TabsContent value="workouts" className="mt-6">
-                        <div className="space-y-4">
-                            {workouts.map(workout => (
-                                <Card key={workout.id} className="bg-[#1A1A1A] border-[#2A2A2A] text-white">
-                                    <CardContent className="p-4 flex justify-between items-center">
-                                        <div>
-                                            <h3 className="font-bold">{workout.name}</h3>
-                                            <p className="text-xs text-gray-400">Last completed: {getLastCompletedDate(workout.id)}</p>
-                                        </div>
-                                        <Button 
-                                            size="sm" 
-                                            variant="outline"
-                                            className="bg-transparent border-accent-red text-accent-red hover:bg-accent-red hover:text-white"
-                                            onClick={() => handleMarkAsCompleted(workout.id)}
-                                        >
-                                            Mark as Completed
-                                        </Button>
-                                    </CardContent>
-                                </Card>
-                            ))}
-                        </div>
+                    <TabsContent value="workouts">
+                        <Card className="bg-[#1A1A1A] border-[#2A2A2A] text-white">
+                            <CardHeader>
+                                <CardTitle className="flex items-center gap-2"><Dumbbell /> Workout Log</CardTitle>
+                                <CardDescription>Log your completed workouts here.</CardDescription>
+                            </CardHeader>
+                            <CardContent className="space-y-4">
+                                {workouts.map(workout => (
+                                    <Card key={workout.id} className="bg-[#2A2A2A] border-[#3A3A3A] text-white">
+                                        <CardContent className="p-4 flex justify-between items-center">
+                                            <div>
+                                                <h3 className="font-bold">{workout.name}</h3>
+                                                <p className="text-xs text-gray-400">Last completed: {getLastCompletedDate(workout.id)}</p>
+                                            </div>
+                                            <Button 
+                                                size="sm" 
+                                                variant="outline"
+                                                className="bg-transparent border-accent-red text-accent-red hover:bg-accent-red hover:text-white"
+                                                onClick={() => handleMarkAsCompleted(workout.id)}
+                                            >
+                                                Mark as Completed
+                                            </Button>
+                                        </CardContent>
+                                    </Card>
+                                ))}
+                            </CardContent>
+                        </Card>
                     </TabsContent>
                 </Tabs>
+                
 
                 <footer className="text-center mt-12 text-gray-500 font-semibold">
                     Stay Strong with StrenxFit💪
