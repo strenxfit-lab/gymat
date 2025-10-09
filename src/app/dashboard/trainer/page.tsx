@@ -3,7 +3,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { collection, query, where, getDocs, Timestamp, doc, getDoc, addDoc, orderBy, updateDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, query, where, getDocs, Timestamp, doc, getDoc, addDoc, orderBy, updateDoc, serverTimestamp, setDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -37,6 +37,7 @@ interface AssignedMember {
     fullName: string;
     age: number;
     fitnessGoal?: string;
+    communityUsername?: string;
 }
 
 interface TrainerInfo {
@@ -81,6 +82,7 @@ export default function TrainerDashboardPage() {
   const [birthdayMessage, setBirthdayMessage] = useState<string | null>(null);
   const [isDietDialogOpen, setIsDietDialogOpen] = useState(false);
   const [selectedMemberForDiet, setSelectedMemberForDiet] = useState<AssignedMember | null>(null);
+  const [isStartingChat, setIsStartingChat] = useState(false);
   const router = useRouter();
   const { toast } = useToast();
 
@@ -164,17 +166,26 @@ export default function TrainerDashboardPage() {
         const membersCollection = collection(db, 'gyms', userDocId, 'branches', activeBranchId, 'members');
         const qMembers = query(membersCollection, where('assignedTrainer', '==', trainerId));
         const membersSnap = await getDocs(qMembers);
-        const membersList = membersSnap.docs.map(doc => {
-            const memberData = doc.data();
+        
+        const membersListPromises = membersSnap.docs.map(async (docSnap) => {
+            const memberData = docSnap.data();
             const dob = (memberData.dob as Timestamp)?.toDate();
             const age = dob ? differenceInYears(new Date(), dob) : 0;
+            
+            // Find member's community username
+            const communityQuery = query(collection(db, 'userCommunity'), where('userId', '==', docSnap.id), limit(1));
+            const communitySnap = await getDocs(communityQuery);
+            const communityUsername = !communitySnap.empty ? communitySnap.docs[0].id : undefined;
+
             return {
-                id: doc.id,
+                id: docSnap.id,
                 fullName: memberData.fullName,
                 age: age,
-                fitnessGoal: memberData.fitnessGoal
+                fitnessGoal: memberData.fitnessGoal,
+                communityUsername: communityUsername
             }
         });
+        const membersList = await Promise.all(membersListPromises);
         setAssignedMembers(membersList);
 
         // Fetch Announcements
@@ -238,6 +249,37 @@ export default function TrainerDashboardPage() {
     } catch (e) {
         console.error("Error sending diet plan: ", e);
         toast({ title: "Error", description: "Could not send the diet plan.", variant: "destructive"});
+    }
+  };
+  
+  const handleStartChat = async (member: AssignedMember) => {
+    const trainerUsername = localStorage.getItem('communityUsername');
+    const memberUsername = member.communityUsername;
+
+    if (!trainerUsername || !memberUsername) {
+        toast({ title: "Cannot Chat", description: "Either you or the member does not have a community profile to initiate chat.", variant: "destructive" });
+        return;
+    }
+    setIsStartingChat(true);
+
+    const participants = [trainerUsername, memberUsername].sort();
+    const chatId = participants.join('_');
+    const chatRef = doc(db, 'chats', chatId);
+
+    try {
+        const chatSnap = await getDoc(chatRef);
+        if (!chatSnap.exists()) {
+            await setDoc(chatRef, {
+                participants: participants,
+                createdAt: serverTimestamp(),
+            });
+        }
+        router.push(`/dashboard/messages/${chatId}`);
+    } catch (error) {
+        console.error("Error starting chat:", error);
+        toast({ title: "Error", description: "Could not start a chat.", variant: "destructive" });
+    } finally {
+        setIsStartingChat(false);
     }
   };
 
@@ -369,13 +411,17 @@ export default function TrainerDashboardPage() {
                                         <TableCell className="font-medium">{member.fullName}</TableCell>
                                         <TableCell>{member.age} yrs</TableCell>
                                         <TableCell>{member.fitnessGoal || "N/A"}</TableCell>
-                                        <TableCell>
+                                        <TableCell className="space-x-2">
                                             <DialogTrigger asChild>
                                                 <Button variant="outline" size="sm" onClick={() => setSelectedMemberForDiet(member)}>
                                                     <Utensils className="h-4 w-4 mr-2"/>
                                                     Send Diet
                                                 </Button>
                                             </DialogTrigger>
+                                            <Button variant="outline" size="sm" onClick={() => handleStartChat(member)} disabled={isStartingChat}>
+                                               {isStartingChat ? <Loader2 className="animate-spin h-4 w-4 mr-2"/> : <MessageSquare className="h-4 w-4 mr-2"/>}
+                                                Chat
+                                            </Button>
                                         </TableCell>
                                     </TableRow>
                                 )) : (
