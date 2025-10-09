@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button";
 import { CalendarCheck, Tags, IndianRupee, Percent, ShieldCheck, User, LogOut, Bell, Building, Cake, Clock, Loader2, MessageSquare, Utensils, Users as UsersIcon, Megaphone, QrCode, CreditCard, AlertCircle } from "lucide-react";
 import Link from 'next/link';
-import { collection, getDocs, query, where, Timestamp, doc, getDoc, collectionGroup, orderBy } from 'firebase/firestore';
+import { collection, getDocs, query, where, Timestamp, doc, getDoc, collectionGroup, orderBy, setDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { Badge } from '@/components/ui/badge';
 import { format, parseISO, isBefore, isWithinInterval, addDays, isToday, differenceInDays } from 'date-fns';
@@ -50,6 +50,12 @@ interface MembershipStatus {
     daysLeft: number;
 }
 
+interface AssignedTrainer {
+    id: string;
+    name: string;
+    communityUsername?: string;
+}
+
 
 const membershipPlans = [
     { id: "monthly", label: "Monthly" },
@@ -78,8 +84,11 @@ export default function MemberDashboard() {
     const [hasNewDietPlan, setHasNewDietPlan] = useState(false);
     const [birthdayMessage, setBirthdayMessage] = useState<string | null>(null);
     const [memberName, setMemberName] = useState<string | null>(null);
+    const [assignedTrainer, setAssignedTrainer] = useState<AssignedTrainer | null>(null);
+    const [isStartingChat, setIsStartingChat] = useState(false);
     const [isCheckedIn, setIsCheckedIn] = useState(false);
     const router = useRouter();
+    const { toast } = useToast();
 
     useEffect(() => {
         const userDocId = localStorage.getItem('userDocId');
@@ -112,6 +121,23 @@ export default function MemberDashboard() {
                 
                 const memberData = memberSnap.data();
                 setHasNewDietPlan(memberData.hasNewDietPlan || false);
+                
+                if (memberData.assignedTrainer) {
+                    const trainerRef = doc(db, 'gyms', userDocId, 'branches', activeBranchId, 'trainers', memberData.assignedTrainer);
+                    const trainerSnap = await getDoc(trainerRef);
+                    if (trainerSnap.exists()) {
+                        const communityQuery = query(collection(db, 'userCommunity'), where('userId', '==', trainerSnap.id), limit(1));
+                        const communitySnap = await getDocs(communityQuery);
+                        const communityUsername = !communitySnap.empty ? communitySnap.docs[0].id : undefined;
+
+                        setAssignedTrainer({
+                            id: trainerSnap.id,
+                            name: trainerSnap.data().fullName,
+                            communityUsername: communityUsername
+                        });
+                    }
+                }
+
 
                 // Check gym's trial status first
                 const gymRef = doc(db, 'gyms', userDocId);
@@ -216,6 +242,37 @@ export default function MemberDashboard() {
     const handleLogout = () => {
         localStorage.clear();
         router.push('/');
+    };
+    
+    const handleStartChat = async () => {
+        const memberUsername = localStorage.getItem('communityUsername');
+        const trainerUsername = assignedTrainer?.communityUsername;
+
+        if (!trainerUsername || !memberUsername) {
+            toast({ title: "Cannot Chat", description: "Either you or your trainer does not have a community profile to initiate chat.", variant: "destructive" });
+            return;
+        }
+        setIsStartingChat(true);
+
+        const participants = [memberUsername, trainerUsername].sort();
+        const chatId = participants.join('_');
+        const chatRef = doc(db, 'chats', chatId);
+
+        try {
+            const chatSnap = await getDoc(chatRef);
+            if (!chatSnap.exists()) {
+                await setDoc(chatRef, {
+                    participants: participants,
+                    createdAt: serverTimestamp(),
+                });
+            }
+            router.push(`/dashboard/messages/${chatId}`);
+        } catch (error) {
+            console.error("Error starting chat:", error);
+            toast({ title: "Error", description: "Could not start a chat.", variant: "destructive" });
+        } finally {
+            setIsStartingChat(false);
+        }
     };
     
   const getStatusProps = (status: MembershipStatus['status'] | undefined) => {
@@ -358,6 +415,20 @@ export default function MemberDashboard() {
                         </Card>
                     )}
                 </div>
+                {assignedTrainer && (
+                     <Card>
+                        <CardHeader>
+                            <CardTitle>Your Assigned Trainer</CardTitle>
+                        </CardHeader>
+                        <CardContent className="flex justify-between items-center">
+                            <p className="text-lg font-semibold">{assignedTrainer.name}</p>
+                            <Button onClick={handleStartChat} disabled={isStartingChat}>
+                                {isStartingChat ? <Loader2 className="animate-spin h-4 w-4 mr-2"/> : <MessageSquare className="mr-2 h-4 w-4"/>}
+                                Chat with Trainer
+                            </Button>
+                        </CardContent>
+                    </Card>
+                )}
                 <Card>
                     <CardHeader>
                         <CardTitle>My Schedule</CardTitle>
