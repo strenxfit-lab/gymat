@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect } from 'react';
@@ -12,11 +13,12 @@ import {
   SidebarFooter,
   SidebarProvider,
 } from '@/components/ui/sidebar';
-import { Dumbbell, LogOut, LayoutDashboard, UserCog, IndianRupee, Flag, Users, Activity, Image as ImageIcon } from 'lucide-react';
+import { Dumbbell, LogOut, LayoutDashboard, UserCog, IndianRupee, Flag, Users, Activity, Image as ImageIcon, BarChart3 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { ThemeToggle } from '@/components/theme-toggle';
 import * as React from 'react';
+import { DashboardBottomNavbar } from '@/components/ui/dashboard-bottom-navbar';
 
 const MenuItem = ({ href, children, icon, notificationCount }: { href: string, children: React.ReactNode, icon?: React.ReactNode, notificationCount?: number }) => {
   const pathname = usePathname();
@@ -52,7 +54,7 @@ export default function SuperAdminDashboardLayout({
   const router = useRouter();
   const pathname = usePathname();
 
-  const isCommunityPage = pathname.startsWith('/dashboard/superadmin/community') || pathname.startsWith('/dashboard/superadmin/profile') || pathname.startsWith('/dashboard/superadmin/activity');
+  const isCommunityPage = pathname.startsWith('/dashboard/superadmin/community') || pathname.startsWith('/dashboard/superadmin/profile') || pathname.startsWith('/dashboard/superadmin/activity') || pathname.startsWith('/dashboard/search');
 
 
   useEffect(() => {
@@ -68,6 +70,9 @@ export default function SuperAdminDashboardLayout({
 
   if (isCommunityPage) {
     if (pathname.startsWith('/dashboard/superadmin/profile')) {
+       return <>{children}</>;
+    }
+     if (pathname.startsWith('/dashboard/search')) {
        return <>{children}</>;
     }
     return <>{children}</>;
@@ -112,11 +117,12 @@ export default function SuperAdminDashboardLayout({
             <div className='flex-1'></div>
             {isMounted && <ThemeToggle />}
         </header>
-        <main className="flex-1 p-4 md:p-8">
+        <main className="flex-1 p-4 md:p-8 pb-20 md:pb-8">
           {children}
         </main>
       </div>
       </div>
+      <DashboardBottomNavbar role="superadmin" />
     </SidebarProvider>
   );
 }
