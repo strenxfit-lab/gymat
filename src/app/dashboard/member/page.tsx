@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect } from 'react';
@@ -47,7 +48,7 @@ interface Announcement {
 }
 
 interface MembershipStatus {
-    status: 'Active' | 'Expired' | 'Expiring Soon' | 'Trial';
+    status: 'Active' | 'Expired' | 'Expiring Soon' | 'Trial' | 'No Membership';
     daysLeft: number;
 }
 
@@ -103,7 +104,7 @@ export default function MemberDashboard() {
             setIsCheckedIn(true);
         }
 
-        if (!userDocId || !activeBranchId || !memberId) {
+        if (!memberId) {
             setLoading(false);
             router.push('/');
             return;
@@ -112,11 +113,18 @@ export default function MemberDashboard() {
         const fetchAllData = async () => {
             setLoading(true);
             try {
-                 // Check for notifications and birthday
-                const memberRef = doc(db, 'gyms', userDocId, 'branches', activeBranchId, 'members', memberId);
-                const memberSnap = await getDoc(memberRef);
-                if (!memberSnap.exists()) {
-                    router.push('/');
+                let memberRef;
+                let memberSnap;
+                if(userDocId && activeBranchId) {
+                    memberRef = doc(db, 'gyms', userDocId, 'branches', activeBranchId, 'members', memberId);
+                    memberSnap = await getDoc(memberRef);
+                }
+                
+                if (!memberSnap || !memberSnap.exists()) {
+                    setMembershipStatus({ status: 'No Membership', daysLeft: 0 });
+                    setLoading(false);
+                    toast({ title: "Membership Inactive", description: "Your gym membership is no longer active. Some features are disabled.", variant: "destructive"});
+                    router.push('/dashboard/member/community');
                     return;
                 }
                 
@@ -238,7 +246,7 @@ export default function MemberDashboard() {
         };
 
         fetchAllData();
-    }, [router]);
+    }, [router, toast]);
 
     const handleLogout = () => {
         localStorage.clear();
@@ -286,6 +294,8 @@ export default function MemberDashboard() {
         return { variant: 'destructive', text: 'Expired' };
       case 'Trial':
         return { variant: 'default', text: 'Trial' };
+      case 'No Membership':
+          return { variant: 'destructive', text: 'Inactive' };
       default:
         return { variant: 'outline', text: 'Unknown' };
     }
