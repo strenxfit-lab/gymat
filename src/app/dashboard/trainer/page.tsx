@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect } from 'react';
@@ -22,6 +23,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { BannerDisplay } from '@/components/ui/banner-display';
+import { Users as UsersIcon } from 'lucide-react';
 
 interface AssignedClass {
   id: string;
@@ -168,7 +170,7 @@ export default function TrainerDashboardPage() {
         const allLoadedClasses = await Promise.all(allClassesPromises);
         
         const upcomingClasses = allLoadedClasses.filter(c => c.dateTime > new Date());
-        upcomingClasses.sort((a,b) => a.dateTime.getTime() - b.dateTime.getTime());
+        upcomingClasses.sort((a,b) => a.dateTime.getTime() - a.dateTime.getTime());
         setAssignedClasses(upcomingClasses);
 
         const pastConductedClasses = allLoadedClasses.filter(c => c.dateTime <= new Date());
@@ -455,6 +457,21 @@ export default function TrainerDashboardPage() {
       </div>
       
        <BannerDisplay location="dashboard" />
+
+        <Card className="mb-6">
+            <CardHeader>
+                <CardTitle>Community</CardTitle>
+                <CardDescription>Connect with other gym members and trainers.</CardDescription>
+            </CardHeader>
+            <CardContent>
+                <Link href="/dashboard/trainer/community" passHref>
+                <Button className="w-full">
+                    <UsersIcon className="mr-2 h-4 w-4" />
+                    Go to Community
+                </Button>
+                </Link>
+            </CardContent>
+        </Card>
        
        <Card className="mb-6">
             <CardHeader>
@@ -636,3 +653,5 @@ export default function TrainerDashboardPage() {
     </>
   );
 }
+
+    
