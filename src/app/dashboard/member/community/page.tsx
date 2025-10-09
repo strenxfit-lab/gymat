@@ -8,7 +8,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Loader2, Send, Plus, Image as ImageIcon, Video, X, ThumbsUp, MessageSquare, MoreVertical, Flag, Repeat, Share2, Search, User, Rss, LayoutDashboard, Edit, Trash, Activity } from "lucide-react";
+import { Loader2, Send, Plus, Image as ImageIcon, Video, X, ThumbsUp, MessageSquare, MoreVertical, Flag, Repeat, Share2, Search, User, Rss, LayoutDashboard, Edit, Trash, Activity, RefreshCcw } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { formatDistanceToNow } from 'date-fns';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -119,6 +119,7 @@ export default function CommunityPage() {
   const [hasNewMessage, setHasNewMessage] = useState(false);
   const [isGymMember, setIsGymMember] = useState(true);
   const [isMembershipDialog, setIsMembershipDialog] = useState(false);
+  const [refreshFeed, setRefreshFeed] = useState(0);
 
 
   const postForm = useForm<PostFormData>({
@@ -250,7 +251,7 @@ export default function CommunityPage() {
     });
 
     return () => unsubscribe();
-  }, [activeTab, toast, hasCommunityProfile, isGymMember]);
+  }, [activeTab, toast, hasCommunityProfile, isGymMember, refreshFeed]);
   
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>, type: 'image' | 'video') => {
@@ -946,6 +947,9 @@ export default function CommunityPage() {
               <div className="flex items-center justify-between">
                   <h1 className="text-2xl font-bold">Community</h1>
                   <div className="flex items-center gap-2">
+                      <Button variant="ghost" size="icon" onClick={() => setRefreshFeed(prev => prev + 1)}>
+                        <RefreshCcw className="h-5 w-5" />
+                      </Button>
                       <TabsList className="bg-orange-500/20 text-orange-700 dark:text-orange-300">
                           <TabsTrigger value="your_gym">Your Gym</TabsTrigger>
                           <TabsTrigger value="global">Global</TabsTrigger>
