@@ -3,7 +3,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { collection, addDoc, query, onSnapshot, serverTimestamp, Timestamp, where, getDocs, doc, setDoc, updateDoc, arrayUnion, arrayRemove, limit, startAt, endAt, orderBy, deleteDoc, getDoc } from "firebase/firestore";
+import { collection, addDoc, query, onSnapshot, serverTimestamp, Timestamp, where, getDocs, doc, setDoc, updateDoc, arrayUnion, arrayRemove, limit, startAt, endAt, orderBy, deleteDoc, getDoc, writeBatch } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
@@ -71,6 +71,8 @@ const postSchema = z.object({
       url: z.string(),
       type: z.enum(['image', 'video'])
   })).optional(),
+  commentWords: z.string().optional(),
+  commentsToGenerate: z.coerce.number().optional(),
 }).refine(data => !!data.text || (data.mediaUrls && data.mediaUrls.length > 0), {
     message: "Post must contain either text or media.",
     path: ["text"],
@@ -312,20 +314,41 @@ export default function SuperAdminCommunityPage() {
             });
             toast({ title: "Success!", description: "Your post has been updated." });
         } else {
-            // Fetch all users to auto-like the post
             const usersSnapshot = await getDocs(collection(db, 'userCommunity'));
-            const allUserIds = usersSnapshot.docs.map(d => d.data().userId);
+            const allUsers = usersSnapshot.docs.map(d => ({id: d.data().userId, username: d.id}));
+            const allUserIds = allUsers.map(u => u.id);
+            
+            let generatedComments: Comment[] = [];
+            if (values.commentWords && values.commentsToGenerate && values.commentsToGenerate > 0) {
+                const words = values.commentWords.split(',').map(w => w.trim()).filter(w => w);
+                if (words.length > 0) {
+                    // Shuffle users to pick from
+                    const shuffledUsers = allUsers.sort(() => 0.5 - Math.random());
+                    for (let i = 0; i < values.commentsToGenerate; i++) {
+                        const randomUser = shuffledUsers[i % shuffledUsers.length];
+                        const randomWord = words[Math.floor(Math.random() * words.length)];
+                        generatedComments.push({
+                            id: new Date().toISOString() + `_${i}`,
+                            authorId: randomUser.id,
+                            authorName: randomUser.username,
+                            text: randomWord,
+                            createdAt: new Date(),
+                        });
+                    }
+                }
+            }
+
 
             await addDoc(collection(db, "gymRats"), {
                 authorName,
                 authorId,
                 gymId,
                 text: values.text,
-                visibility: 'global', // Superadmin posts are always global
+                visibility: 'global',
                 mediaUrls: values.mediaUrls || [],
                 createdAt: serverTimestamp(),
-                likes: allUserIds, // Auto-like by all users
-                comments: [],
+                likes: allUserIds,
+                comments: generatedComments,
             });
             toast({ title: "Success!", description: "Your post has been published and liked by all users."});
         }
@@ -845,7 +868,7 @@ export default function SuperAdminCommunityPage() {
                 </div>
             </main>
           
-          <DialogContent>
+          <DialogContent className="sm:max-w-xl">
                <DialogHeader>
                   <DialogTitle>{editingPost ? "Edit Post" : "Create a New Post"}</DialogTitle>
                   <DialogDescription>
@@ -912,6 +935,40 @@ export default function SuperAdminCommunityPage() {
                                   <FormMessage />
                               </FormItem>
                           )} />
+
+                        {!editingPost && (
+                            <div className="space-y-4 border-t pt-4">
+                                <h3 className="text-sm font-medium">Auto-Generate Comments (Optional)</h3>
+                                <FormField
+                                    control={postForm.control}
+                                    name="commentWords"
+                                    render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel>Comment Words</FormLabel>
+                                            <FormControl>
+                                                <Input placeholder="e.g., Nice, Good, Awesome" {...field} />
+                                            </FormControl>
+                                            <FormDescription>Comma-separated words to use for comments.</FormDescription>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )}
+                                />
+                                <FormField
+                                    control={postForm.control}
+                                    name="commentsToGenerate"
+                                    render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel>Number of Comments</FormLabel>
+                                            <FormControl>
+                                                <Input type="number" placeholder="e.g., 10" {...field} />
+                                            </FormControl>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )}
+                                />
+                            </div>
+                        )}
+                        
                       <DialogFooter>
                           <Button type="button" variant="ghost" onClick={() => setIsPostDialogOpen(false)}>Cancel</Button>
                           <Button type="submit" disabled={isSubmitting}>
