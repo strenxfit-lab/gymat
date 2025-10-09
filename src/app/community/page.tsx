@@ -396,30 +396,46 @@ export default function CommunityPage() {
     }
   }
   
-  const handleLike = async (postId: string) => {
+  const handleLike = async (post: Post) => {
     const userId = localStorage.getItem('memberId');
-    if (!userId) return;
+    const username = localStorage.getItem('communityUsername');
+    if (!userId || !username) return;
 
-    const postRef = doc(db, 'gymRats', postId);
-    const post = posts.find(p => p.id === postId);
-    const isLiked = post?.likes?.includes(userId);
+    const postRef = doc(db, 'gymRats', post.id);
+    const isLiked = post.likes?.includes(userId);
 
     try {
         await updateDoc(postRef, {
             likes: isLiked ? arrayRemove(userId) : arrayUnion(userId)
         });
+
+        if (!isLiked && post.authorId !== userId) {
+            const authorCommunityQuery = query(collection(db, 'userCommunity'), where('userId', '==', post.authorId), limit(1));
+            const authorCommunitySnap = await getDocs(authorCommunityQuery);
+            if (!authorCommunitySnap.empty) {
+                const authorCommunityDoc = authorCommunitySnap.docs[0];
+                const notificationsRef = collection(authorCommunityDoc.ref, 'notifications');
+                await addDoc(notificationsRef, {
+                    type: 'like',
+                    fromUsername: username,
+                    postId: post.id,
+                    message: `${username} liked your post.`,
+                    createdAt: serverTimestamp(),
+                });
+            }
+        }
     } catch (error) {
         console.error("Error liking post:", error);
         toast({ title: 'Error', description: 'Could not update like status.', variant: 'destructive' });
     }
   };
 
-  const handleCommentSubmit = async (postId: string, data: CommentFormData) => {
+  const handleCommentSubmit = async (post: Post, data: CommentFormData) => {
     const authorId = localStorage.getItem('memberId');
     const authorName = localStorage.getItem('communityUsername') || localStorage.getItem('userName');
     if (!authorId || !authorName) return;
 
-    const postRef = doc(db, 'gymRats', postId);
+    const postRef = doc(db, 'gymRats', post.id);
     const newComment = {
         id: new Date().toISOString(), // Simple unique ID
         authorId,
@@ -433,6 +449,22 @@ export default function CommunityPage() {
             comments: arrayUnion(newComment)
         });
         commentForm.reset();
+
+        if (post.authorId !== authorId) {
+             const authorCommunityQuery = query(collection(db, 'userCommunity'), where('userId', '==', post.authorId), limit(1));
+            const authorCommunitySnap = await getDocs(authorCommunityQuery);
+            if (!authorCommunitySnap.empty) {
+                const authorCommunityDoc = authorCommunitySnap.docs[0];
+                const notificationsRef = collection(authorCommunityDoc.ref, 'notifications');
+                await addDoc(notificationsRef, {
+                    type: 'comment',
+                    fromUsername: authorName,
+                    postId: post.id,
+                    message: `${authorName} commented on your post: "${data.text.substring(0, 30)}..."`,
+                    createdAt: serverTimestamp(),
+                });
+            }
+        }
     } catch (error) {
         console.error("Error adding comment:", error);
         toast({ title: 'Error', description: 'Could not post comment.', variant: 'destructive' });
@@ -694,7 +726,7 @@ export default function CommunityPage() {
             </CardContent>
             <CardFooter className="flex flex-col items-start gap-4">
                  <div className="flex flex-wrap gap-4">
-                    <Button variant="ghost" size="sm" onClick={() => handleLike(post.id)}>
+                    <Button variant="ghost" size="sm" onClick={() => handleLike(post)}>
                         <ThumbsUp className={cn("mr-2 h-4 w-4", post.likes?.includes(userId!) && "fill-primary text-primary")}/> 
                         {post.likes?.length || 0} Likes
                     </Button>
@@ -712,7 +744,7 @@ export default function CommunityPage() {
                  {openComments[post.id] && (
                      <div className="w-full pl-4 border-l-2">
                         <Form {...commentForm}>
-                            <form onSubmit={commentForm.handleSubmit((data) => handleCommentSubmit(post.id, data))} className="flex gap-2 mb-4">
+                            <form onSubmit={commentForm.handleSubmit((data) => handleCommentSubmit(post, data))} className="flex gap-2 mb-4">
                                 <FormField control={commentForm.control} name="text" render={({field}) => (
                                     <FormItem className="flex-1">
                                         <FormControl><Input placeholder="Write a comment..." {...field} /></FormControl>
