@@ -116,7 +116,7 @@ function LimitReachedDialog({ isOpen, onOpenChange, limits }: { isOpen: boolean;
           </AlertDialogDescription>
         </AlertDialogHeader>
         <div className="flex flex-col space-y-2">
-            <p className="font-bold text-center">Contact Strenxfit Support</p>
+            <p className="font-bold text-center">Contact Strenx Support</p>
             <a href="https://wa.me/917988487892" target="_blank" rel="noopener noreferrer" className="flex items-center justify-center gap-3 p-3 rounded-md hover:bg-accent transition-colors">
                 <Phone className="h-5 w-5 text-muted-foreground" />
                 <span>+91 79884 87892</span>
