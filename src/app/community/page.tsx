@@ -408,9 +408,31 @@ export default function CommunityPage() {
     }
   };
   
-  const handleReportPost = async (postId: string) => {
-    toast({ title: "Post Reported", description: "Thank you for your feedback. We will review this post."});
-  }
+  const handleReportPost = async (postId: string, authorId: string) => {
+    const reporterId = localStorage.getItem('memberId');
+    const reporterUsername = localStorage.getItem('communityUsername');
+
+    if (!reporterId || !reporterUsername) {
+        toast({ title: "Error", description: "You must be logged in to report a post.", variant: "destructive" });
+        return;
+    }
+
+    try {
+        const reportsRef = collection(db, 'reports');
+        await addDoc(reportsRef, {
+            postId: postId,
+            reportedBy: reporterId,
+            reporterUsername: reporterUsername,
+            postAuthorId: authorId,
+            reportedAt: serverTimestamp(),
+            status: 'pending',
+        });
+        toast({ title: "Post Reported", description: "Thank you for your feedback. We will review this post." });
+    } catch (error) {
+        console.error("Error reporting post:", error);
+        toast({ title: "Error", description: "Could not submit report.", variant: "destructive" });
+    }
+  };
 
   const handleDeletePost = async (postId: string) => {
       try {
@@ -589,7 +611,7 @@ export default function CommunityPage() {
                                         <DropdownMenuSeparator />
                                     </>
                                 )}
-                                <DropdownMenuItem onSelect={() => handleReportPost(post.id)}>
+                                <DropdownMenuItem onSelect={() => handleReportPost(post.id, post.authorId)}>
                                     <Flag className="mr-2"/> Report Post
                                 </DropdownMenuItem>
                             </DropdownMenuContent>
