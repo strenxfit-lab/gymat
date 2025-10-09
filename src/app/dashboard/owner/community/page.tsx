@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect, useRef } from "react";
@@ -27,7 +26,7 @@ import { UserSearch } from "@/components/user-search";
 import { useRouter } from "next/navigation";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import Link from "next/link";
-import { BannerDisplay } from "@/components/ui/banner-display";
+import { BannerDisplay } from '@/components/ui/banner-display';
 import AdsenseDisplay from "@/components/ui/adsense-display";
 
 
@@ -871,7 +870,7 @@ export default function CommunityPage() {
             }
             setIsPostDialogOpen(open);
         }}>
-          <Tabs defaultValue="global" value={activeTab} onValueChange={setActiveTab} className="h-full flex flex-col">
+          <div className="h-full flex flex-col">
             <header className="p-4 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-10">
               <div className="flex items-center justify-between flex-wrap gap-4">
                   <h1 className="text-2xl font-bold">Community</h1>
@@ -983,7 +982,7 @@ export default function CommunityPage() {
                   </form>
               </Form>
           </DialogContent>
-          </Tabs>
+          </div>
         </Dialog>
       
       <BottomNavbar
