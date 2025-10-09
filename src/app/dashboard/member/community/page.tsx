@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect, useRef } from "react";
@@ -25,6 +24,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { BottomNavbar } from "@/components/ui/bottom-navbar";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import Link from "next/link";
+import { BannerDisplay } from '@/components/ui/banner-display';
 
 
 interface Comment {
@@ -357,6 +357,7 @@ export default function CommunityPage() {
         setIsSubmitting(false);
         return;
     }
+
     try {
         const usernameRef = doc(db, 'userCommunity', username);
         const usernameSnap = await getDoc(usernameRef);
@@ -366,11 +367,40 @@ export default function CommunityPage() {
             return;
         }
 
-        await setDoc(usernameRef, { userId: userId, createdAt: serverTimestamp() });
+        // Auto-follow superadmin
+        const superadminQuery = query(collection(db, 'superadmins'), limit(1));
+        const superadminSnap = await getDocs(superadminQuery);
+        let superadminUsername: string | null = null;
+        
+        if (!superadminSnap.empty) {
+            const superadminId = superadminSnap.docs[0].id;
+            const superadminCommunityQuery = query(collection(db, 'userCommunity'), where('userId', '==', superadminId), limit(1));
+            const superadminCommunitySnap = await getDocs(superadminCommunityQuery);
+            if (!superadminCommunitySnap.empty) {
+                superadminUsername = superadminCommunitySnap.docs[0].id;
+            }
+        }
+        
+        const batch = writeBatch(db);
+        const newUserCommunityData: { userId: string, createdAt: any, following?: any } = {
+            userId: userId,
+            createdAt: serverTimestamp(),
+        };
+
+        if (superadminUsername) {
+            newUserCommunityData.following = [superadminUsername];
+            const superadminRef = doc(db, 'userCommunity', superadminUsername);
+            batch.update(superadminRef, { followers: arrayUnion(username) });
+        }
+
+        batch.set(usernameRef, newUserCommunityData);
+        await batch.commit();
+
         localStorage.setItem('communityUsername', username);
         toast({ title: 'Welcome!', description: `Your username "${username}" has been set.`});
         setIsUsernameDialogOpen(false);
         setHasCommunityProfile(true);
+
     } catch (error) {
         console.error("Error setting username:", error);
         toast({ title: 'Error', description: 'Could not set username. Please try again.', variant: 'destructive'});
@@ -380,30 +410,46 @@ export default function CommunityPage() {
     }
   }
   
-  const handleLike = async (postId: string) => {
+  const handleLike = async (post: Post) => {
     const userId = localStorage.getItem('memberId');
-    if (!userId) return;
+    const username = localStorage.getItem('communityUsername');
+    if (!userId || !username) return;
 
-    const postRef = doc(db, 'gymRats', postId);
-    const post = posts.find(p => p.id === postId);
-    const isLiked = post?.likes?.includes(userId);
+    const postRef = doc(db, 'gymRats', post.id);
+    const isLiked = post.likes?.includes(userId);
 
     try {
         await updateDoc(postRef, {
             likes: isLiked ? arrayRemove(userId) : arrayUnion(userId)
         });
+
+        if (!isLiked && post.authorId !== userId) {
+            const authorCommunityQuery = query(collection(db, 'userCommunity'), where('userId', '==', post.authorId), limit(1));
+            const authorCommunitySnap = await getDocs(authorCommunityQuery);
+            if (!authorCommunitySnap.empty) {
+                const authorCommunityDoc = authorCommunitySnap.docs[0];
+                const notificationsRef = collection(authorCommunityDoc.ref, 'notifications');
+                await addDoc(notificationsRef, {
+                    type: 'like',
+                    fromUsername: username,
+                    postId: post.id,
+                    message: `${username} liked your post.`,
+                    createdAt: serverTimestamp(),
+                });
+            }
+        }
     } catch (error) {
         console.error("Error liking post:", error);
         toast({ title: 'Error', description: 'Could not update like status.', variant: 'destructive' });
     }
   };
 
-  const handleCommentSubmit = async (postId: string, data: CommentFormData) => {
+  const handleCommentSubmit = async (post: Post, data: CommentFormData) => {
     const authorId = localStorage.getItem('memberId');
     const authorName = localStorage.getItem('communityUsername') || localStorage.getItem('userName');
     if (!authorId || !authorName) return;
 
-    const postRef = doc(db, 'gymRats', postId);
+    const postRef = doc(db, 'gymRats', post.id);
     const newComment = {
         id: new Date().toISOString(), // Simple unique ID
         authorId,
@@ -417,15 +463,53 @@ export default function CommunityPage() {
             comments: arrayUnion(newComment)
         });
         commentForm.reset();
+
+        if (post.authorId !== authorId) {
+             const authorCommunityQuery = query(collection(db, 'userCommunity'), where('userId', '==', post.authorId), limit(1));
+            const authorCommunitySnap = await getDocs(authorCommunityQuery);
+            if (!authorCommunitySnap.empty) {
+                const authorCommunityDoc = authorCommunitySnap.docs[0];
+                const notificationsRef = collection(authorCommunityDoc.ref, 'notifications');
+                await addDoc(notificationsRef, {
+                    type: 'comment',
+                    fromUsername: authorName,
+                    postId: post.id,
+                    message: `${authorName} commented on your post: "${data.text.substring(0, 30)}..."`,
+                    createdAt: serverTimestamp(),
+                });
+            }
+        }
     } catch (error) {
         console.error("Error adding comment:", error);
         toast({ title: 'Error', description: 'Could not post comment.', variant: 'destructive' });
     }
   };
   
-  const handleReportPost = async (postId: string) => {
-    toast({ title: "Post Reported", description: "Thank you for your feedback. We will review this post."});
-  }
+  const handleReportPost = async (postId: string, authorId: string) => {
+    const reporterId = localStorage.getItem('memberId');
+    const reporterUsername = localStorage.getItem('communityUsername');
+
+    if (!reporterId || !reporterUsername) {
+        toast({ title: "Error", description: "You must be logged in to report a post.", variant: "destructive" });
+        return;
+    }
+
+    try {
+        const reportsRef = collection(db, 'reports');
+        await addDoc(reportsRef, {
+            postId: postId,
+            reportedBy: reporterId,
+            reporterUsername: reporterUsername,
+            postAuthorId: authorId,
+            reportedAt: serverTimestamp(),
+            status: 'pending',
+        });
+        toast({ title: "Post Reported", description: "Thank you for your feedback. We will review this post." });
+    } catch (error) {
+        console.error("Error reporting post:", error);
+        toast({ title: "Error", description: "Could not submit report.", variant: "destructive" });
+    }
+  };
 
   const handleDeletePost = async (postId: string) => {
       try {
@@ -604,7 +688,7 @@ export default function CommunityPage() {
                                         <DropdownMenuSeparator />
                                     </>
                                 )}
-                                <DropdownMenuItem onSelect={() => handleReportPost(post.id)}>
+                                <DropdownMenuItem onSelect={() => handleReportPost(post.id, post.authorId)}>
                                     <Flag className="mr-2"/> Report Post
                                 </DropdownMenuItem>
                             </DropdownMenuContent>
@@ -640,7 +724,7 @@ export default function CommunityPage() {
                     </div>
                 ) : (
                     post.mediaUrls && post.mediaUrls.length > 0 && (
-                        <div className={cn("grid grid-cols-1 sm:grid-cols-2 gap-2", post.mediaUrls.length === 1 ? "sm:grid-cols-1" : "")}>
+                        <div className={cn("grid gap-2", post.mediaUrls.length > 1 ? "grid-cols-2" : "grid-cols-1")}>
                             {post.mediaUrls.map((media, index) => (
                                 <div key={index} className="rounded-lg overflow-hidden border">
                                     {media.type === 'image' ? (
@@ -656,7 +740,7 @@ export default function CommunityPage() {
             </CardContent>
             <CardFooter className="flex flex-col items-start gap-4">
                  <div className="flex flex-wrap gap-4">
-                    <Button variant="ghost" size="sm" onClick={() => handleLike(post.id)}>
+                    <Button variant="ghost" size="sm" onClick={() => handleLike(post)}>
                         <ThumbsUp className={cn("mr-2 h-4 w-4", post.likes?.includes(userId!) && "fill-primary text-primary")}/> 
                         {post.likes?.length || 0} Likes
                     </Button>
@@ -674,7 +758,7 @@ export default function CommunityPage() {
                  {openComments[post.id] && (
                      <div className="w-full pl-4 border-l-2">
                         <Form {...commentForm}>
-                            <form onSubmit={commentForm.handleSubmit((data) => handleCommentSubmit(post.id, data))} className="flex gap-2 mb-4">
+                            <form onSubmit={commentForm.handleSubmit((data) => handleCommentSubmit(post, data))} className="flex gap-2 mb-4">
                                 <FormField control={commentForm.control} name="text" render={({field}) => (
                                     <FormItem className="flex-1">
                                         <FormControl><Input placeholder="Write a comment..." {...field} /></FormControl>
@@ -827,7 +911,7 @@ export default function CommunityPage() {
         }}>
           <Tabs defaultValue="global" value={activeTab} onValueChange={setActiveTab} className="h-full flex flex-col">
             <header className="p-4 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-10">
-              <div className="flex items-center justify-between flex-wrap gap-4">
+              <div className="flex items-center justify-between">
                   <h1 className="text-2xl font-bold">Community</h1>
                   <div className="flex items-center gap-2">
                       <TabsList className="bg-orange-500/20 text-orange-700 dark:text-orange-300">
@@ -851,6 +935,7 @@ export default function CommunityPage() {
             </header>
           
             <main className="flex-1 overflow-y-auto p-4 pb-20 space-y-4">
+                <BannerDisplay location="community" />
                 <div className="max-w-2xl mx-auto w-full">
                     {renderFeed()}
                 </div>
