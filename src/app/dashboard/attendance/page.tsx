@@ -8,7 +8,7 @@ import { db } from '@/lib/firebase';
 import { collection, addDoc, Timestamp, query, where, getDocs, doc, getDoc } from 'firebase/firestore';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Loader2, ArrowLeft, QrCode, Video, VideoOff, CheckCircle } from 'lucide-react';
+import { Loader2, ArrowLeft, QrCode, Video, VideoOff, CheckCircle, RefreshCw } from 'lucide-react';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import Webcam from 'react-webcam';
 import jsQR from 'jsqr';
@@ -19,25 +19,14 @@ export default function ScanAttendancePage() {
   const [hasCameraPermission, setHasCameraPermission] = useState(true);
   const [isExpired, setIsExpired] = useState(false);
   const [isScanned, setIsScanned] = useState(false);
+  const [facingMode, setFacingMode] = useState<'user' | 'environment'>('environment');
   const webcamRef = useRef<Webcam>(null);
   const router = useRouter();
   const { toast } = useToast();
 
   useEffect(() => {
-    const requestCamera = async () => {
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-        stream.getTracks().forEach(track => track.stop());
-        setHasCameraPermission(true);
-      } catch (err) {
-        console.error("Camera access denied:", err);
-        setHasCameraPermission(false);
-      }
-    };
-    requestCamera();
-  }, []);
-
-  useEffect(() => {
+    // This effect now only handles the QR code scanning interval.
+    // Camera permissions are handled by the Webcam component itself.
     if (!hasCameraPermission || isScanned) return;
 
     const intervalId = setInterval(() => {
@@ -69,6 +58,10 @@ export default function ScanAttendancePage() {
         };
       }
     }
+  };
+
+  const handleFlipCamera = () => {
+    setFacingMode(prev => (prev === 'user' ? 'environment' : 'user'));
   };
 
   const handleScan = async (data: string) => {
@@ -168,6 +161,17 @@ export default function ScanAttendancePage() {
     return '/';
   }
 
+  const videoConstraints = {
+    width: 1280,
+    height: 720,
+    facingMode: facingMode
+  };
+
+  const handleUserMediaError = () => {
+    console.error("Camera access denied or error starting video source.");
+    setHasCameraPermission(false);
+  }
+
   return (
     <div className="container mx-auto py-10 flex justify-center">
       <Card className="w-full max-w-md">
@@ -183,14 +187,23 @@ export default function ScanAttendancePage() {
                   Your membership has expired. Please renew your plan to check in.
                 </AlertDescription>
               </Alert>
-           ) : hasCameraPermission ? (
+           ) : (
               <div className="relative aspect-square w-full bg-muted rounded-lg overflow-hidden">
-                <Webcam
-                    audio={false}
-                    ref={webcamRef}
-                    screenshotFormat="image/jpeg"
-                    className="h-full w-full object-cover"
-                />
+                {hasCameraPermission ? (
+                    <Webcam
+                        audio={false}
+                        ref={webcamRef}
+                        screenshotFormat="image/jpeg"
+                        videoConstraints={videoConstraints}
+                        className="h-full w-full object-cover"
+                        onUserMediaError={handleUserMediaError}
+                    />
+                ) : (
+                    <div className="flex flex-col items-center justify-center h-full">
+                        <VideoOff className="h-12 w-12 text-muted-foreground" />
+                        <p className="mt-2 text-muted-foreground">Camera is off or unavailable.</p>
+                    </div>
+                )}
                 <div className="absolute inset-0 border-8 border-primary/50 rounded-lg" />
                  {loading && !isExpired && (
                     <div className="absolute inset-0 bg-black/50 flex flex-col items-center justify-center text-white">
@@ -200,9 +213,14 @@ export default function ScanAttendancePage() {
                         <Loader2 className="mt-4 h-8 w-8 animate-spin" />
                     </div>
                 )}
+                 <Button onClick={handleFlipCamera} variant="outline" size="icon" className="absolute bottom-4 right-4 bg-background/50 backdrop-blur-sm">
+                    <RefreshCw className="h-5 w-5"/>
+                    <span className="sr-only">Flip camera</span>
+                 </Button>
               </div>
-            ) : (
-                <Alert variant="destructive">
+            )}
+            {!hasCameraPermission && (
+                 <Alert variant="destructive">
                     <VideoOff className="h-4 w-4" />
                     <AlertTitle>Camera Access Denied</AlertTitle>
                     <AlertDescription>Please enable camera permissions in your browser to scan the QR code.</AlertDescription>
