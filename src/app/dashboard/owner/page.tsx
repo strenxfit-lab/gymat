@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect } from 'react';
@@ -733,7 +734,7 @@ export default function OwnerDashboardPage() {
                     <CardContent>
                         <p className="text-muted-foreground text-sm mb-4">Need help? Contact our support team.</p>
                         <DialogTrigger asChild>
-                            <Button>Contact Strenxfit Support</Button>
+                            <Button>Contact Strenx Support</Button>
                         </DialogTrigger>
                     </CardContent>
                 </Card>
