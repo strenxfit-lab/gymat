@@ -21,6 +21,7 @@ import { ThemeToggle } from '@/components/theme-toggle';
 import * as React from 'react';
 import { doc, onSnapshot, collection, query } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
+import { DashboardBottomNavbar } from '@/components/ui/dashboard-bottom-navbar';
 
 const MenuItem = ({ href, children, icon, isExternal = false, notificationCount }: { href: string, children: React.ReactNode, icon?: React.ReactNode, isExternal?: boolean, notificationCount?: number }) => {
   const pathname = usePathname();
@@ -82,12 +83,14 @@ export default function TrainerDashboardLayout({
     router.push('/');
   };
   
-  const isCommunityPage = pathname.startsWith('/dashboard/trainer/community') || pathname.startsWith('/dashboard/trainer/profile') || pathname.startsWith('/dashboard/trainer/activity');
+  const isCommunityPage = pathname.startsWith('/dashboard/trainer/community') || pathname.startsWith('/dashboard/trainer/profile') || pathname.startsWith('/dashboard/trainer/activity') || pathname.startsWith('/dashboard/search');
 
   if (isCommunityPage) {
-    // The profile page is a special case that does not use the community layout with bottom navbar
     if (pathname.startsWith('/dashboard/trainer/profile')) {
-        return <>{children}</>;
+       return <>{children}</>;
+    }
+     if (pathname.startsWith('/dashboard/search')) {
+       return <>{children}</>;
     }
     return <>{children}</>;
   }
@@ -133,11 +136,12 @@ export default function TrainerDashboardLayout({
             <div className='flex-1'></div>
             {isMounted && <ThemeToggle />}
         </header>
-        <main className="flex-1 p-4 md:p-8">
+        <main className="flex-1 p-4 md:p-8 pb-20 md:pb-8">
           {children}
         </main>
       </div>
       </div>
+      <DashboardBottomNavbar role="trainer" />
     </SidebarProvider>
   );
 }
