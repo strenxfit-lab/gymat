@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import { useState, useEffect } from 'react';
@@ -69,6 +70,7 @@ export default function UserProfilePage() {
   const [isFollowingOpen, setIsFollowingOpen] = useState(false);
   const [isStartingChat, setIsStartingChat] = useState(false);
   const [isBlocked, setIsBlocked] = useState(false);
+  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
 
   const loggedInUsername = typeof window !== 'undefined' ? localStorage.getItem('communityUsername') : null;
 
@@ -93,6 +95,11 @@ export default function UserProfilePage() {
       if (profileSnap.exists()) {
         const profileData = profileSnap.data() as CommunityProfile;
 
+        // Check if viewed profile is a superadmin
+        const superadminQuery = query(collection(db, 'superadmins'), where('__name__', '==', profileData.userId));
+        const superadminSnap = await getDocs(superadminQuery);
+        setIsSuperAdmin(!superadminSnap.empty);
+        
         // Check if current user is blocked by or has blocked the viewed profile
         if (profileData.blockedUsers?.includes(loggedInUsername) || currentUserData.blockedUsers?.includes(username)) {
             setIsBlocked(true);
@@ -197,6 +204,12 @@ export default function UserProfilePage() {
 
   const handleUnfollow = async () => {
       if (!profile || !loggedInUsername || isOwnProfile) return;
+
+      if (isSuperAdmin) {
+          toast({ title: "Action Not Allowed", description: "You cannot unfollow a superadmin account.", variant: "destructive" });
+          return;
+      }
+
       setIsUpdatingFollow(true);
 
       const targetUserRef = doc(db, 'userCommunity', username);
@@ -302,7 +315,7 @@ export default function UserProfilePage() {
     if (followStatus === 'following') {
       return (
         <div className="flex items-center gap-2">
-            <Button variant="secondary" onClick={handleUnfollow} disabled={isUpdatingFollow}>Following</Button>
+            <Button variant="secondary" onClick={handleUnfollow} disabled={isUpdatingFollow || isSuperAdmin}>Following</Button>
             <Button variant="outline" onClick={handleStartChat} disabled={isStartingChat}>
                 {isStartingChat ? <Loader2 className="animate-spin h-4 w-4 mr-2"/> : <MessageCircle className="mr-2 h-4 w-4"/>} Message
             </Button>
