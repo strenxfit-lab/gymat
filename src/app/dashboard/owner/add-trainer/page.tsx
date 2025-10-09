@@ -9,7 +9,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { format } from 'date-fns';
 import { Loader2, User, Briefcase, Wallet, Calendar as CalendarIcon, ChevronLeft, ChevronRight, Building, KeyRound, ClipboardCopy, LayoutDashboard, Phone, Mail } from 'lucide-react';
-import { collection, addDoc, Timestamp, doc, getDoc, getDocs, serverTimestamp } from 'firebase/firestore';
+import { collection, addDoc, Timestamp, doc, getDoc, getDocs, serverTimestamp, setDoc, query, where, deleteDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useToast } from '@/hooks/use-toast';
 
@@ -62,6 +62,7 @@ interface NewTrainerInfo {
   name: string;
   loginId?: string;
   password?: string;
+  existing: boolean;
 }
 
 interface LimitDialogInfo {
@@ -212,23 +213,48 @@ export default function AddTrainerPage() {
     setIsLoading(true);
 
     try {
-      const trainersCollection = collection(db, 'gyms', userDocId, 'branches', activeBranchId, 'trainers');
-      
-      const loginId = data.phone;
-      const password = Math.random().toString(36).slice(-8);
+        const removedUserRef = doc(db, 'removedUsers', data.phone);
+        const removedUserSnap = await getDoc(removedUserRef);
 
-      await addDoc(trainersCollection, {
-        ...data,
-        dob: Timestamp.fromDate(data.dob),
-        joiningDate: Timestamp.fromDate(data.joiningDate),
-        createdAt: serverTimestamp(),
-        loginId: loginId,
-        password: password,
-        role: 'trainer',
-        passwordChanged: false,
-      });
+        let trainerData: any;
+        let existingUser = false;
 
-      setNewTrainer({ name: data.fullName, loginId, password });
+        if (removedUserSnap.exists()) {
+            const existingData = removedUserSnap.data();
+            trainerData = {
+                ...existingData,
+                ...data,
+                dob: data.dob ? Timestamp.fromDate(data.dob) : existingData.dob || null,
+                joiningDate: data.joiningDate ? Timestamp.fromDate(data.joiningDate) : null,
+                role: 'trainer'
+            };
+
+            const newTrainerRef = doc(collection(db, 'gyms', userDocId, 'branches', activeBranchId, 'trainers'));
+            await setDoc(newTrainerRef, trainerData);
+            await deleteDoc(removedUserRef);
+            
+            existingUser = true;
+            setNewTrainer({ name: data.fullName, loginId: data.phone, existing: true });
+        } else {
+            const loginId = data.phone;
+            const password = Math.random().toString(36).slice(-8);
+
+            trainerData = {
+                ...data,
+                dob: Timestamp.fromDate(data.dob),
+                joiningDate: Timestamp.fromDate(data.joiningDate),
+                createdAt: serverTimestamp(),
+                loginId: loginId,
+                password: password,
+                role: 'trainer',
+                passwordChanged: false,
+            };
+            const trainersCollection = collection(db, 'gyms', userDocId, 'branches', activeBranchId, 'trainers');
+            await addDoc(trainersCollection, trainerData);
+
+            setNewTrainer({ name: data.fullName, loginId, password, existing: false });
+        }
+
       setIsDialogOpen(true);
 
     } catch (error) {
@@ -260,9 +286,12 @@ export default function AddTrainerPage() {
         <AlertDialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
             <AlertDialogContent>
             <AlertDialogHeader>
-                <AlertDialogTitle>Trainer Added Successfully!</AlertDialogTitle>
+                <AlertDialogTitle>{newTrainer?.existing ? 'Trainer Re-activated!' : 'Trainer Added Successfully!'}</AlertDialogTitle>
                 <AlertDialogDescription>
-                Login credentials for {newTrainer?.name} have been created.
+                    {newTrainer?.existing 
+                        ? `${newTrainer.name} already has an account. They can use their existing credentials to log in.`
+                        : `Login credentials for ${newTrainer?.name} have been created.`
+                    }
                 </AlertDialogDescription>
             </AlertDialogHeader>
             <div className="space-y-4 my-4">
@@ -276,8 +305,8 @@ export default function AddTrainerPage() {
                  <div className="space-y-2">
                     <Label htmlFor="password">Password</Label>
                      <div className="flex items-center gap-2">
-                        <Input id="password" value={newTrainer?.password || ''} readOnly />
-                        <Button variant="outline" size="icon" onClick={() => copyToClipboard(newTrainer?.password || '')}><ClipboardCopy className="h-4 w-4" /></Button>
+                        <Input id="password" value={newTrainer?.existing ? 'Account Already Created' : newTrainer?.password || ''} readOnly disabled={newTrainer?.existing}/>
+                        {!newTrainer?.existing && <Button variant="outline" size="icon" onClick={() => copyToClipboard(newTrainer?.password || '')}><ClipboardCopy className="h-4 w-4" /></Button>}
                     </div>
                 </div>
             </div>
@@ -394,5 +423,3 @@ export default function AddTrainerPage() {
     </div>
   );
 }
-
-    
