@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect } from 'react';
@@ -420,6 +421,21 @@ export default function OwnerDashboardPage() {
         </div>
         
         <BannerDisplay location="dashboard" />
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Community</CardTitle>
+            <CardDescription>Connect with other gym members and trainers.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Link href="/dashboard/owner/community" passHref>
+              <Button className="w-full">
+                <Users className="mr-2 h-4 w-4" />
+                Go to Community
+              </Button>
+            </Link>
+          </CardContent>
+        </Card>
         
         {/* Quick Actions */}
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
@@ -794,3 +810,5 @@ export default function OwnerDashboardPage() {
     </ScrollArea>
   );
 }
+
+    
