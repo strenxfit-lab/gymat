@@ -8,31 +8,18 @@ import { Alert, AlertDescription, AlertTitle } from './alert';
 export function InstallPWA() {
   const [installPrompt, setInstallPrompt] = useState<Event | null>(null);
   const [isIOS, setIsIOS] = useState(false);
-  const [isStandalone, setIsStandalone] = useState(false);
 
   useEffect(() => {
     const handleBeforeInstallPrompt = (event: Event) => {
       event.preventDefault();
       setInstallPrompt(event);
     };
-
+    
+    // Detect iOS
     const isIosDevice = /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream;
     setIsIOS(isIosDevice);
-    if (typeof window !== 'undefined') {
-      setIsStandalone((window.navigator as any).standalone === true);
-    }
-    
-    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
 
-    if ('serviceWorker' in navigator) {
-      window.addEventListener('load', () => {
-        navigator.serviceWorker.register('/sw.js').then(registration => {
-          console.log('ServiceWorker registration successful with scope: ', registration.scope);
-        }, err => {
-          console.log('ServiceWorker registration failed: ', err);
-        });
-      });
-    }
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
 
     return () => {
       window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
@@ -54,7 +41,7 @@ export function InstallPWA() {
     });
   };
 
-  if (isIOS && !isStandalone) {
+  if (isIOS && !window.navigator.standalone) {
     return (
       <div className="fixed bottom-4 left-1/2 -translate-x-1/2 w-11/12 max-w-md z-50">
         <Alert>
