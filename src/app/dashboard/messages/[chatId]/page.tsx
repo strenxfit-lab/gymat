@@ -25,7 +25,12 @@ interface Message {
     media?: {
         url: string;
         type: 'image' | 'video';
-    }
+    };
+    sharedPost?: {
+        postId: string;
+        authorName: string;
+        textSnippet: string;
+    };
 }
 
 interface Chat {
@@ -185,7 +190,15 @@ export default function ChatPage() {
                                      </Button>
                                </div>
                            )}
-                           {msg.text && <p className={cn("text-sm", msg.media && "mt-2")}>{msg.text}</p>}
+                           {msg.sharedPost && (
+                                <Link href={`/posts/${msg.sharedPost.postId}`} passHref>
+                                    <div className="block p-3 my-2 border rounded-lg hover:bg-background/20">
+                                        <p className="font-bold">Post by {msg.sharedPost.authorName}</p>
+                                        <p className="text-sm italic line-clamp-2">"{msg.sharedPost.textSnippet}..."</p>
+                                    </div>
+                                </Link>
+                           )}
+                           {msg.text && <p className={cn("text-sm", (msg.media || msg.sharedPost) && "mt-2")}>{msg.text}</p>}
                            {msg.timestamp && <p className="text-xs opacity-70 mt-1 text-right">{format(msg.timestamp.toDate(), 'p')}</p>}
                         </div>
                     </div>
@@ -228,3 +241,5 @@ export default function ChatPage() {
         </div>
     );
 }
+
+    
