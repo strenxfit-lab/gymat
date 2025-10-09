@@ -76,7 +76,7 @@ export default function Home() {
             <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-primary/10 mb-4">
               <Dumbbell className="h-8 w-8 text-primary" />
             </div>
-            <CardTitle className="text-3xl font-headline font-bold tracking-tight">Strenx GymLogin</CardTitle>
+            <CardTitle className="text-3xl font-headline font-bold tracking-tight">Strenx</CardTitle>
             <CardDescription className="pt-1">Sign in to your account</CardDescription>
           </CardHeader>
           <CardContent className="p-4 sm:p-6 bg-card">
@@ -100,7 +100,7 @@ export default function Home() {
       </main>
 
       <footer className="absolute bottom-4 text-center text-sm text-muted-foreground">
-        © {new Date().getFullYear()} GymLogin Pro. All rights reserved.
+        © {new Date().getFullYear()} Strenx. All rights reserved.
       </footer>
     </div>
   );
