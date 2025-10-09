@@ -4,7 +4,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { collection, getDocs, Timestamp, query, where, deleteDoc, doc } from 'firebase/firestore';
+import { collection, getDocs, Timestamp, query, where, deleteDoc, doc, setDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -36,6 +36,9 @@ interface Member {
   startDate: Date;
   endDate: Date;
   status: MemberStatus;
+  loginId: string;
+  passwordChanged: boolean;
+  password?: string;
 }
 
 interface Trainer {
@@ -104,6 +107,9 @@ export default function MembersListPage() {
           startDate: (data.startDate as Timestamp)?.toDate(),
           endDate: endDate,
           status: status,
+          loginId: data.loginId,
+          password: data.password,
+          passwordChanged: data.passwordChanged,
         } as Member;
       });
       setMembers(membersList);
@@ -135,15 +141,32 @@ export default function MembersListPage() {
     fetchData();
   }, [router, toast]);
   
-  const handleRemoveMember = async (memberId: string) => {
+  const handleRemoveMember = async (member: Member) => {
     const userDocId = localStorage.getItem('userDocId');
     const branch = localStorage.getItem('activeBranch');
     if (!userDocId || !branch) return;
 
     try {
-        const memberRef = doc(db, 'gyms', userDocId, 'branches', branch, 'members', memberId);
+        const memberRef = doc(db, 'gyms', userDocId, 'branches', branch, 'members', member.id);
+        
+        // Save to removedUsers collection
+        const removedUserRef = doc(db, 'removedUsers', member.phone);
+        await setDoc(removedUserRef, {
+            fullName: member.fullName,
+            phone: member.phone,
+            email: member.email,
+            loginId: member.loginId,
+            password: member.password,
+            passwordChanged: member.passwordChanged,
+            lastGymId: userDocId,
+            lastBranchId: branch,
+            removedAt: serverTimestamp(),
+        });
+
+        // Delete from current gym
         await deleteDoc(memberRef);
-        toast({ title: 'Member Removed', description: 'The member has been removed from your gym.' });
+
+        toast({ title: 'Member Removed', description: `${member.fullName} has been removed from your gym.` });
         fetchData(); // Refresh the list
     } catch (error) {
         console.error("Error removing member: ", error);
@@ -250,12 +273,12 @@ export default function MembersListPage() {
                                         <AlertDialogHeader>
                                             <AlertDialogTitle>Are you sure?</AlertDialogTitle>
                                             <AlertDialogDescription>
-                                                This action will permanently remove {member.fullName} from your gym. Their data will be deleted and they will lose access.
+                                                This action will remove {member.fullName} from your gym. Their account will remain on the platform for future use.
                                             </AlertDialogDescription>
                                         </AlertDialogHeader>
                                         <AlertDialogFooter>
                                             <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                            <AlertDialogAction onClick={() => handleRemoveMember(member.id)}>Confirm</AlertDialogAction>
+                                            <AlertDialogAction onClick={() => handleRemoveMember(member)}>Confirm</AlertDialogAction>
                                         </AlertDialogFooter>
                                     </AlertDialogContent>
                                 </AlertDialog>
