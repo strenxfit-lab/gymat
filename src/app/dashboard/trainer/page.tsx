@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect } from 'react';
@@ -22,6 +21,7 @@ import * as z from 'zod';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { ThemeToggle } from '@/components/theme-toggle';
+import { BannerDisplay } from '@/components/ui/banner-display';
 
 interface AssignedClass {
   id: string;
@@ -454,6 +454,8 @@ export default function TrainerDashboardPage() {
         </div>
       </div>
       
+       <BannerDisplay location="dashboard" />
+       
        <Card className="mb-6">
             <CardHeader>
                 <CardTitle>Scan QR Code</CardTitle>
