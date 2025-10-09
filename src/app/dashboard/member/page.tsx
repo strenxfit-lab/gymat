@@ -343,6 +343,21 @@ export default function MemberDashboard() {
 
         <BannerDisplay location="dashboard" />
         
+        <Card>
+          <CardHeader>
+            <CardTitle>Community</CardTitle>
+            <CardDescription>Connect with other gym members and trainers.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Link href="/dashboard/member/community" passHref>
+              <Button className="w-full">
+                <UsersIcon className="mr-2 h-4 w-4" />
+                Go to Community
+              </Button>
+            </Link>
+          </CardContent>
+        </Card>
+
         {hasNewDietPlan && (
             <Alert>
                 <Utensils className="h-4 w-4" />
@@ -540,5 +555,7 @@ export default function MemberDashboard() {
     </div>
   );
 }
+
+    
 
     
