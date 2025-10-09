@@ -10,7 +10,7 @@ import { cn } from '@/lib/utils';
 const inter = Inter({ subsets: ['latin'], variable: '--font-inter' });
 
 export const metadata: Metadata = {
-  title: 'Strenx GymLogin',
+  title: 'Strenx',
   description: 'Login to manage your gym activities.',
   viewport: 'width=device-width, initial-scale=1.0',
 };
