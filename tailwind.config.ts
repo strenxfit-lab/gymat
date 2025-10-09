@@ -94,6 +94,7 @@ export default {
         red: {
           '500': '#EF4444',
         },
+        'accent-red': '#FF4B4B',
       },
       keyframes: {
         'accordion-down': {
