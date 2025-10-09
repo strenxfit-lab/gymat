@@ -2,7 +2,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { collection, query, where, onSnapshot, orderBy, doc, updateDoc } from "firebase/firestore";
+import { collection, query, where, onSnapshot, orderBy } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, ArrowLeft } from "lucide-react";
@@ -32,18 +32,6 @@ export default function MessagesPage() {
         setLoading(false);
         return;
     }
-    
-    // Clear notification on page load
-    const clearNotification = async () => {
-        const userCommunityRef = doc(db, 'userCommunity', loggedInUsername);
-        try {
-            await updateDoc(userCommunityRef, { hasNewMessage: false });
-        } catch (error) {
-            console.warn("Could not clear new message notification:", error);
-        }
-    };
-    clearNotification();
-
 
     const chatsRef = collection(db, 'chats');
     const q = query(chatsRef, where('participants', 'array-contains', loggedInUsername));
@@ -59,12 +47,8 @@ export default function MessagesPage() {
             } as Chat
         });
         
-        // Sort on the client-side
-        chatsData.sort((a, b) => {
-            const timeA = a.lastMessageTimestamp?.toDate() || new Date(0);
-            const timeB = b.lastMessageTimestamp?.toDate() || new Date(0);
-            return timeB.getTime() - timeA.getTime();
-        });
+        // Sort by last message timestamp descending
+        chatsData.sort((a,b) => (b.lastMessageTimestamp?.toDate() || 0) - (a.lastMessageTimestamp?.toDate() || 0));
 
         setChats(chatsData);
         setLoading(false);
