@@ -1,9 +1,8 @@
 
-
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { collection, addDoc, query, onSnapshot, serverTimestamp, Timestamp, where, getDocs, doc, setDoc, updateDoc, arrayUnion, arrayRemove, limit, startAt, endAt, orderBy, deleteDoc, getDoc, writeBatch } from "firebase/firestore";
+import { collection, addDoc, query, onSnapshot, serverTimestamp, Timestamp, where, getDocs, doc, setDoc, updateDoc, arrayUnion, arrayRemove, limit, startAt, endAt, orderBy, deleteDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
@@ -56,12 +55,6 @@ interface Post {
     }
 }
 
-interface Chat {
-    id: string;
-    participants: string[];
-    otherParticipant?: string;
-}
-
 const postSchema = z.object({
   text: z.string().min(1, "Post content cannot be empty.").or(z.literal('')),
   visibility: z.enum(['local', 'global'], { required_error: "You must select a visibility option."}),
@@ -111,11 +104,6 @@ export default function CommunityPage() {
   const [repostingPost, setRepostingPost] = useState<Post | null>(null);
   const [isRepostDialogOpen, setIsRepostDialogOpen] = useState(false);
   const [editingPost, setEditingPost] = useState<Post | null>(null);
-  
-  const [sharingPost, setSharingPost] = useState<Post | null>(null);
-  const [isShareDialogOpen, setIsShareDialogOpen] = useState(false);
-  const [userChats, setUserChats] = useState<Chat[]>([]);
-  const [isFetchingChats, setIsFetchingChats] = useState(false);
 
   const postForm = useForm<PostFormData>({
     resolver: zodResolver(postSchema),
@@ -343,7 +331,6 @@ export default function CommunityPage() {
         setIsSubmitting(false);
         return;
     }
-
     try {
         const usernameRef = doc(db, 'userCommunity', username);
         const usernameSnap = await getDoc(usernameRef);
@@ -353,40 +340,11 @@ export default function CommunityPage() {
             return;
         }
 
-        // Auto-follow superadmin
-        const superadminQuery = query(collection(db, 'superadmins'), limit(1));
-        const superadminSnap = await getDocs(superadminQuery);
-        let superadminUsername: string | null = null;
-        
-        if (!superadminSnap.empty) {
-            const superadminId = superadminSnap.docs[0].id;
-            const superadminCommunityQuery = query(collection(db, 'userCommunity'), where('userId', '==', superadminId), limit(1));
-            const superadminCommunitySnap = await getDocs(superadminCommunityQuery);
-            if (!superadminCommunitySnap.empty) {
-                superadminUsername = superadminCommunitySnap.docs[0].id;
-            }
-        }
-        
-        const batch = writeBatch(db);
-        const newUserCommunityData: { userId: string, createdAt: any, following?: any } = {
-            userId: userId,
-            createdAt: serverTimestamp(),
-        };
-
-        if (superadminUsername) {
-            newUserCommunityData.following = [superadminUsername];
-            const superadminRef = doc(db, 'userCommunity', superadminUsername);
-            batch.update(superadminRef, { followers: arrayUnion(username) });
-        }
-
-        batch.set(usernameRef, newUserCommunityData);
-        await batch.commit();
-
+        await setDoc(usernameRef, { userId: userId, createdAt: serverTimestamp() });
         localStorage.setItem('communityUsername', username);
         toast({ title: 'Welcome!', description: `Your username "${username}" has been set.`});
         setIsUsernameDialogOpen(false);
         setHasCommunityProfile(true);
-
     } catch (error) {
         console.error("Error setting username:", error);
         toast({ title: 'Error', description: 'Could not set username. Please try again.', variant: 'destructive'});
@@ -396,46 +354,30 @@ export default function CommunityPage() {
     }
   }
   
-  const handleLike = async (post: Post) => {
+  const handleLike = async (postId: string) => {
     const userId = localStorage.getItem('memberId');
-    const username = localStorage.getItem('communityUsername');
-    if (!userId || !username) return;
+    if (!userId) return;
 
-    const postRef = doc(db, 'gymRats', post.id);
-    const isLiked = post.likes?.includes(userId);
+    const postRef = doc(db, 'gymRats', postId);
+    const post = posts.find(p => p.id === postId);
+    const isLiked = post?.likes?.includes(userId);
 
     try {
         await updateDoc(postRef, {
             likes: isLiked ? arrayRemove(userId) : arrayUnion(userId)
         });
-
-        if (!isLiked && post.authorId !== userId) {
-            const authorCommunityQuery = query(collection(db, 'userCommunity'), where('userId', '==', post.authorId), limit(1));
-            const authorCommunitySnap = await getDocs(authorCommunityQuery);
-            if (!authorCommunitySnap.empty) {
-                const authorCommunityDoc = authorCommunitySnap.docs[0];
-                const notificationsRef = collection(authorCommunityDoc.ref, 'notifications');
-                await addDoc(notificationsRef, {
-                    type: 'like',
-                    fromUsername: username,
-                    postId: post.id,
-                    message: `${username} liked your post.`,
-                    createdAt: serverTimestamp(),
-                });
-            }
-        }
     } catch (error) {
         console.error("Error liking post:", error);
         toast({ title: 'Error', description: 'Could not update like status.', variant: 'destructive' });
     }
   };
 
-  const handleCommentSubmit = async (post: Post, data: CommentFormData) => {
+  const handleCommentSubmit = async (postId: string, data: CommentFormData) => {
     const authorId = localStorage.getItem('memberId');
     const authorName = localStorage.getItem('communityUsername') || localStorage.getItem('userName');
     if (!authorId || !authorName) return;
 
-    const postRef = doc(db, 'gymRats', post.id);
+    const postRef = doc(db, 'gymRats', postId);
     const newComment = {
         id: new Date().toISOString(), // Simple unique ID
         authorId,
@@ -449,53 +391,15 @@ export default function CommunityPage() {
             comments: arrayUnion(newComment)
         });
         commentForm.reset();
-
-        if (post.authorId !== authorId) {
-             const authorCommunityQuery = query(collection(db, 'userCommunity'), where('userId', '==', post.authorId), limit(1));
-            const authorCommunitySnap = await getDocs(authorCommunityQuery);
-            if (!authorCommunitySnap.empty) {
-                const authorCommunityDoc = authorCommunitySnap.docs[0];
-                const notificationsRef = collection(authorCommunityDoc.ref, 'notifications');
-                await addDoc(notificationsRef, {
-                    type: 'comment',
-                    fromUsername: authorName,
-                    postId: post.id,
-                    message: `${authorName} commented on your post: "${data.text.substring(0, 30)}..."`,
-                    createdAt: serverTimestamp(),
-                });
-            }
-        }
     } catch (error) {
         console.error("Error adding comment:", error);
         toast({ title: 'Error', description: 'Could not post comment.', variant: 'destructive' });
     }
   };
   
-  const handleReportPost = async (postId: string, authorId: string) => {
-    const reporterId = localStorage.getItem('memberId');
-    const reporterUsername = localStorage.getItem('communityUsername');
-
-    if (!reporterId || !reporterUsername) {
-        toast({ title: "Error", description: "You must be logged in to report a post.", variant: "destructive" });
-        return;
-    }
-
-    try {
-        const reportsRef = collection(db, 'reports');
-        await addDoc(reportsRef, {
-            postId: postId,
-            reportedBy: reporterId,
-            reporterUsername: reporterUsername,
-            postAuthorId: authorId,
-            reportedAt: serverTimestamp(),
-            status: 'pending',
-        });
-        toast({ title: "Post Reported", description: "Thank you for your feedback. We will review this post." });
-    } catch (error) {
-        console.error("Error reporting post:", error);
-        toast({ title: "Error", description: "Could not submit report.", variant: "destructive" });
-    }
-  };
+  const handleReportPost = async (postId: string) => {
+    toast({ title: "Post Reported", description: "Thank you for your feedback. We will review this post."});
+  }
 
   const handleDeletePost = async (postId: string) => {
       try {
@@ -550,62 +454,21 @@ export default function CommunityPage() {
   }
 
   const handleShare = async (post: Post) => {
-    setSharingPost(post);
-    setIsFetchingChats(true);
-    setIsShareDialogOpen(true);
-
-    const loggedInUsername = localStorage.getItem('communityUsername');
-    if (!loggedInUsername) {
-        setIsFetchingChats(false);
-        return;
-    }
-
-    try {
-        const chatsRef = collection(db, 'chats');
-        const q = query(chatsRef, where('participants', 'array-contains', loggedInUsername));
-        const querySnapshot = await getDocs(q);
-        const chatsData = querySnapshot.docs.map(doc => {
-            const data = doc.data();
-            const otherParticipant = data.participants.find((p: string) => p !== loggedInUsername);
-            return {
-                id: doc.id,
-                ...data,
-                otherParticipant: otherParticipant || 'Unknown',
-            } as Chat;
-        });
-        setUserChats(chatsData);
-    } catch (error) {
-        console.error("Error fetching chats:", error);
-        toast({ title: "Error", description: "Could not fetch your chats.", variant: "destructive" });
-    } finally {
-        setIsFetchingChats(false);
-    }
-  };
-
-  const handleShareToChat = async (chatId: string) => {
-      if (!sharingPost) return;
-
-      const message = {
-          text: `Check out this post from ${sharingPost.authorName}!`,
-          sharedPost: {
-              postId: sharingPost.id,
-              authorName: sharingPost.authorName,
-              textSnippet: sharingPost.text.substring(0, 100),
-          },
-          senderId: localStorage.getItem('memberId'),
-          senderName: localStorage.getItem('communityUsername'),
-          timestamp: serverTimestamp(),
-      };
-
+    if (navigator.share) {
       try {
-          const messagesRef = collection(db, 'chats', chatId, 'messages');
-          await addDoc(messagesRef, message);
-          toast({ title: "Post Shared!", description: "The post has been sent to your chat." });
-          setIsShareDialogOpen(false);
+        await navigator.share({
+          title: `Check out this post from ${post.authorName} in the Strenx community!`,
+          text: post.text,
+          url: window.location.href, // ideally a direct link to the post
+        });
+        toast({ title: "Post shared successfully!"});
       } catch (error) {
-          console.error("Error sharing post to chat:", error);
-          toast({ title: "Error", description: "Could not share post.", variant: "destructive" });
+        console.error('Error sharing:', error);
+        toast({ title: "Could not share post", variant: "destructive" });
       }
+    } else {
+      toast({ title: "Share not supported", description: "Your browser does not support the Web Share API." });
+    }
   };
 
 
@@ -674,7 +537,7 @@ export default function CommunityPage() {
                                         <DropdownMenuSeparator />
                                     </>
                                 )}
-                                <DropdownMenuItem onSelect={() => handleReportPost(post.id, post.authorId)}>
+                                <DropdownMenuItem onSelect={() => handleReportPost(post.id)}>
                                     <Flag className="mr-2"/> Report Post
                                 </DropdownMenuItem>
                             </DropdownMenuContent>
@@ -725,8 +588,8 @@ export default function CommunityPage() {
                 )}
             </CardContent>
             <CardFooter className="flex flex-col items-start gap-4">
-                 <div className="flex flex-wrap gap-4">
-                    <Button variant="ghost" size="sm" onClick={() => handleLike(post)}>
+                 <div className="flex gap-4">
+                    <Button variant="ghost" size="sm" onClick={() => handleLike(post.id)}>
                         <ThumbsUp className={cn("mr-2 h-4 w-4", post.likes?.includes(userId!) && "fill-primary text-primary")}/> 
                         {post.likes?.length || 0} Likes
                     </Button>
@@ -744,7 +607,7 @@ export default function CommunityPage() {
                  {openComments[post.id] && (
                      <div className="w-full pl-4 border-l-2">
                         <Form {...commentForm}>
-                            <form onSubmit={commentForm.handleSubmit((data) => handleCommentSubmit(post, data))} className="flex gap-2 mb-4">
+                            <form onSubmit={commentForm.handleSubmit((data) => handleCommentSubmit(post.id, data))} className="flex gap-2 mb-4">
                                 <FormField control={commentForm.control} name="text" render={({field}) => (
                                     <FormItem className="flex-1">
                                         <FormControl><Input placeholder="Write a comment..." {...field} /></FormControl>
@@ -812,30 +675,6 @@ export default function CommunityPage() {
 
   return (
     <div className="h-screen w-screen flex flex-col">
-       <Dialog open={isShareDialogOpen} onOpenChange={setIsShareDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Share Post</DialogTitle>
-            <DialogDescription>Select a chat to share this post with.</DialogDescription>
-          </DialogHeader>
-          <div className="max-h-80 overflow-y-auto space-y-2 py-4">
-            {isFetchingChats ? (
-              <div className="flex justify-center"><Loader2 className="animate-spin" /></div>
-            ) : userChats.length > 0 ? (
-              userChats.map(chat => (
-                <div key={chat.id} onClick={() => handleShareToChat(chat.id)} className="flex items-center gap-3 p-2 rounded-md hover:bg-accent cursor-pointer">
-                  <Avatar>
-                    <AvatarFallback>{chat.otherParticipant?.charAt(0).toUpperCase()}</AvatarFallback>
-                  </Avatar>
-                  <p className="font-semibold">{chat.otherParticipant}</p>
-                </div>
-              ))
-            ) : (
-              <p className="text-center text-muted-foreground">You have no active chats.</p>
-            )}
-          </div>
-        </DialogContent>
-      </Dialog>
       <Dialog open={isRepostDialogOpen} onOpenChange={setIsRepostDialogOpen}>
         <DialogContent>
             <DialogHeader>
@@ -889,13 +728,14 @@ export default function CommunityPage() {
         </DialogContent>
       </Dialog>
       
-      <Dialog open={isPostDialogOpen} onOpenChange={(open) => {
+      <div className="flex-1 flex flex-col">
+        <Dialog open={isPostDialogOpen} onOpenChange={(open) => {
             if (!open) {
                 setEditingPost(null);
             }
             setIsPostDialogOpen(open);
         }}>
-          <Tabs defaultValue="global" value={activeTab} onValueChange={setActiveTab} className="h-full flex flex-col">
+          <Tabs defaultValue="global" value={activeTab} onValueChange={setActiveTab} className="flex flex-col flex-1">
             <header className="p-4 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-10">
               <div className="flex items-center justify-between">
                   <h1 className="text-2xl font-bold">Community</h1>
@@ -904,11 +744,9 @@ export default function CommunityPage() {
                           <TabsTrigger value="your_gym">Your Gym</TabsTrigger>
                           <TabsTrigger value="global">Global</TabsTrigger>
                       </TabsList>
-                      <Link href="/dashboard/messages" passHref>
-                           <Button variant="ghost" size="icon">
-                               <MessageSquare className="h-6 w-6"/>
-                           </Button>
-                       </Link>
+                      <Button variant="ghost" size="icon" onClick={() => toast({ title: "Coming Soon!", description: "Direct messaging will be available in a future update."})}>
+                           <MessageSquare className="h-6 w-6"/>
+                       </Button>
                       <DialogTrigger asChild>
                       <Button>
                           <Plus className="h-4 w-4 mr-2" />
@@ -924,7 +762,7 @@ export default function CommunityPage() {
                     {renderFeed()}
                 </div>
             </main>
-          
+          </Tabs>
           <DialogContent>
                <DialogHeader>
                   <DialogTitle>{editingPost ? "Edit Post" : "Create a New Post"}</DialogTitle>
@@ -1002,8 +840,8 @@ export default function CommunityPage() {
                   </form>
               </Form>
           </DialogContent>
-          </Tabs>
         </Dialog>
+      </div>
       
       <BottomNavbar
         navItems={[
@@ -1016,3 +854,5 @@ export default function CommunityPage() {
     </div>
   );
 }
+
+    
